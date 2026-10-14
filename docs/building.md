@@ -1,6 +1,6 @@
 # Building
 
-> **Current state (session S03):** the build system works, but the game does not compile yet.
+> **Current state (session S03, SDL3 added in S08):** the build system works, but the game does not compile yet.
 > The code was written for Watcom C++ 10.6 and TASM; making it compile is sessions
 > [S06](sessions/S06-compiler-compat.md) (C++) and [S07](sessions/S07-asm-to-cpp.md) (assembly).
 > Until then, the useful thing to run is the **compile-progress report**, which tries every
@@ -17,8 +17,8 @@
 | Game assets | Not needed to build. Never commit them ([ADR-0006](decisions/0006-no-game-assets.md)). | |
 
 The target is **32-bit x86** ([ADR-0003](decisions/0003-toolchain.md), accepted).
-SDL3 is **not** a dependency yet: it is added in [S08](sessions/S08-platform-layer.md) as decided in
-[ADR-0004](decisions/0004-platform-library.md).
+**SDL3** ([ADR-0004](decisions/0004-platform-library.md)) is downloaded and built automatically when you configure;
+see [SDL3](#sdl3) below. Configuring needs internet access the first time (or a local SDL source tree).
 
 ## Linux
 
@@ -26,10 +26,17 @@ SDL3 is **not** a dependency yet: it is added in [S08](sessions/S08-platform-lay
 
    ```sh
    sudo apt install cmake ninja-build python3 gcc-multilib g++-multilib
+   # 32-bit development files SDL3 needs for a real window and sound (headers only;
+   # SDL loads the libraries at run time):
+   sudo dpkg --add-architecture i386 && sudo apt update
+   sudo apt install libx11-dev:i386 libxext-dev:i386 libxrandr-dev:i386 libxcursor-dev:i386 \
+                    libxi-dev:i386 libxfixes-dev:i386 libasound2-dev:i386
    ```
 
    `gcc-multilib`/`g++-multilib` provide the 32-bit C/C++ runtime headers and libraries for `-m32`.
    Without them, configuring stops with a message telling you to install them.
+   Without the `:i386` X11 packages SDL's configure stops too; add `-DRA_SDL3_HEADLESS=ON` to build
+   without a real window instead (see [SDL3](#sdl3)).
 
 2. From the repository root, run the progress report (configures `./build` on first use):
 
@@ -97,6 +104,43 @@ It exits with status **0 whenever the report was produced**, even if nothing com
 It exits with **2** if the build system is broken (configure failed, no `compile_commands.json`,
 compiler could not be started). CI relies on that.
 
+## SDL3
+
+SDL3 is the only third-party dependency ([ADR-0004](decisions/0004-platform-library.md)). `cmake/RASDL3.cmake`
+fetches the pinned release tarball (**SDL 3.4.16**, checked by SHA-256) with CMake `FetchContent` at configure time and
+builds it as a **static** library with the same compiler and architecture as the game
+([ADR-0020](decisions/0020-sdl3-via-fetchcontent.md)). The first configure of a build directory downloads about 15 MB, and the
+first build compiles SDL (1-2 minutes). Targets that use it:
+
+| Target | What |
+|--------|------|
+| `SDL3::SDL3` | static SDL3 (platform layer; audio in S09) |
+| `raplatform` | the platform layer, `platform/` ([platform-layer.md](codebase/platform-layer.md)). Real target: must always build |
+| `platform_demo` | test program: test pattern, palette cycling, input echo |
+
+```sh
+cmake --build build --target raplatform platform_demo
+./build/platform_demo                                  # Esc quits, F11/Alt+Enter fullscreen
+SDL_VIDEO_DRIVER=offscreen ./build/platform_demo --frames 120   # no display needed
+```
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `RA_SDL3_FROM_SYSTEM` | `OFF` | Use an installed SDL3 (`find_package(SDL3)`) instead of building the pinned one. It must be 32-bit for `RA_TARGET_ARCH=x86`. |
+| `RA_SDL3_HEADLESS` | `OFF` | Linux: build SDL with only its `offscreen`/`dummy` video drivers (no X11/Wayland headers needed). Everything builds and the tests run; no window can open. |
+| `FETCHCONTENT_SOURCE_DIR_SDL3` | — | Standard CMake: path to an unpacked SDL source tree, to configure offline. |
+| `RA_SDL3_URL` / `RA_SDL3_SHA256` | the pinned release | Change both together to update SDL. |
+
+**Linux, 32-bit.** SDL chooses its video and audio back ends from the development headers it finds. For the `-m32` build these
+are the `:i386` packages listed under [Linux](#linux). With them you get the X11 back end and ALSA audio, which also reaches
+PulseAudio/PipeWire through their ALSA plugins. `libpulse-dev:i386` cannot be installed next to the 64-bit packages on Ubuntu 24.04,
+so there is no native PulseAudio back end. Wayland is not built for 32-bit; the X11 back end works under XWayland.
+SDL's optional X11 extensions XTest, XShape, XScrnSaver, Xdbe and XSync are switched off to keep that package list short.
+
+**CI** installs the same `:i386` packages and runs the tests and `platform_demo` (ctest `platform_demo_offscreen`) on SDL's
+**`offscreen` video driver** (`SDL_VIDEO_DRIVER=offscreen`), because CI machines have no display. The Windows job builds SDL
+with MSVC x86 and uses the same `offscreen` driver for the test.
+
 ## Build options
 
 All architecture, standard and flag choices live in one file:
@@ -114,6 +158,7 @@ All architecture, standard and flag choices live in one file:
 
 | CMake target | Original | Sources |
 |--------------|----------|---------|
+| `raplatform`, `platform_demo` | new in S08 (`platform/platform.cmake`) | `platform/` — always built for real, see [SDL3](#sdl3) |
 | `redalert` (output `ra95`) | `CODE/MAKEFILE` → `ra95.exe` | `OBJECTS` (+ the `!ifdef WIN32` additions), `LIBFILES` (jshell.lib) and `TECHFILES` (tech.lib) |
 | `win32lib` | `WIN32LIB/MAKEFILE` → `win32lib.lib` | `OBJECTS` of each of the 18 component libraries in `LIBS` |
 | `vqa32wp` | `WINVQ/VQA32/MAKEFILE` | `OBJECTS` |
@@ -191,10 +236,11 @@ In CI, **failing unit tests fail the job**, unlike compile errors in the progres
 
 | Job | Runner | Toolchain |
 |-----|--------|-----------|
-| `linux-gcc-x86` | `ubuntu-24.04` | GCC + `gcc-multilib`, `-m32`, Ninja |
+| `linux-gcc-x86` | `ubuntu-24.04` | GCC + `gcc-multilib`, `-m32`, Ninja; i386 X11/ALSA headers for SDL3 |
 | `windows-msvc-x86` | `windows-2022` | MSVC x86 (via `ilammy/msvc-dev-cmd`), Ninja |
 
-Each job configures, runs the progress tool,
+Each job configures (which fetches SDL3), **builds the platform layer** (`raplatform`, `platform_demo`; a
+failure fails the job), runs the progress tool,
 writes the totals and top errors to the job summary, and uploads `compile-progress.md`,
 `.json` and the per-file logs as an artifact (`compile-progress-<job>`). A job fails only if
 the build system is broken, never because game sources fail to compile.

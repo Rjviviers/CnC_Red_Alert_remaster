@@ -50,10 +50,15 @@
 #include "gbuffer.h"
 #include "misc.h"
 #endif
+#include "platform.h"		// S08: the visible page is presented by the platform layer
+#include <string.h>
 #pragma inline
 
 int		TotalLocks;
 BOOL 	AllowHardwareBlitFills = TRUE;
+
+// S08: the buffer created with GBC_VISIBLE (the old DirectDraw primary surface).
+static GraphicBufferClass *VisibleFrameBuffer = NULL;
 
 
 //int	CacheAllowed;
@@ -240,51 +245,36 @@ BOOL GraphicViewPortClass::Change(int x, int y, int w, int h)
  *=========================================================================*/
 void GraphicBufferClass::DD_Init(GBC_Enum flags)
 {
-	//
-	// Create the direct draw surface description
-	//
-	memset (&VideoSurfaceDescription , 0 , sizeof ( VideoSurfaceDescription ));
+	/*
+	** S08: DirectDraw is gone (ADR-0004). A buffer that asked for video memory
+	** (GBC_VIDEOMEM) or to be the visible page (GBC_VISIBLE) is now ordinary system
+	** memory, exactly like a GBC_NONE buffer, so all drawing is software and every
+	** Lock() succeeds. The GBC_VISIBLE buffer is handed to the platform layer, which
+	** presents it (through the palette, scaled) from Platform_Pump_Events.
+	** IsDirectDraw stays FALSE, so the DirectDraw-only paths in GBUFFER.H
+	** (hardware blits and fills, the video-memory icon cache) are never taken.
+	** Class layout is unchanged (S07-A's asm reads it through GBUFFER.INC).
+	*/
+	if (!Size) Size = Width * Height;
+	Buffer		= new BYTE[Size];
+	memset(Buffer, 0, Size);
+	Allocated	= TRUE;				// BufferClass frees it
+	Offset		= (long)Buffer;
+	IsDirectDraw	= FALSE;
+	LockCount	= 0;
+	VideoSurfacePtr = NULL;
+	memset(&VideoSurfaceDescription, 0, sizeof(VideoSurfaceDescription));
 
-	VideoSurfaceDescription.dwSize			= sizeof( VideoSurfaceDescription );
-	VideoSurfaceDescription.dwFlags 			= DDSD_CAPS;
-	VideoSurfaceDescription.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-
-
-	if (!(flags & GBC_VISIBLE)) {
-		VideoSurfaceDescription.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-		VideoSurfaceDescription.dwFlags 		  |=	DDSD_HEIGHT | DDSD_WIDTH;
-		VideoSurfaceDescription.dwHeight			= Height;
-		VideoSurfaceDescription.dwWidth			= Width;
+	if (flags & GBC_VISIBLE) {
+		VisibleFrameBuffer = this;
+		Platform_Set_Frame_Buffer((unsigned char *)Buffer, Width, Height, Width);
 	}
-
-	//
-	// Need to set the DDSCAPS_MODEX  flag if we want a 320 wide mode
-	//
-	if ( Width == 320 ) {
-		VideoSurfaceDescription.ddsCaps.dwCaps |= DDSCAPS_MODEX;
-	}
-
-	//
-	// Call CreateSurface
-	//
-	DirectDrawObject->CreateSurface( &VideoSurfaceDescription , &VideoSurfacePtr , NULL);
-	AllSurfaces.Add_DD_Surface (VideoSurfacePtr);
-
-	if ( GBC_VISIBLE & flags ){
-		PaletteSurface=VideoSurfacePtr;
-	}
-
-	Allocated		= FALSE;			//	even if system alloced, dont flag it cuz
-											//   we dont want it freed.
-	IsDirectDraw	= TRUE;			//	flag it as a video surface
-	Offset			= NOT_LOCKED;	//	flag it as unavailable for reading or writing
-	LockCount		= 0;				//  surface is not locked
 }
 
 
-void GraphicBufferClass::Attach_DD_Surface (GraphicBufferClass * attach_buffer)
+void GraphicBufferClass::Attach_DD_Surface (GraphicBufferClass * )
 {
-	VideoSurfacePtr->AddAttachedSurface (attach_buffer->Get_DD_Surface());
+	/* S08: no DirectDraw flipping chain; nothing to attach. */
 }
 
 
@@ -355,25 +345,16 @@ void GraphicBufferClass::Init(int w, int h, void *buffer, long size, GBC_Enum fl
 
 void GraphicBufferClass::Un_Init (void)
 {
-	if ( IsDirectDraw ){
-
-		if ( VideoSurfacePtr ){
-
-			while ( LockCount ){
-
-				if (VideoSurfacePtr->Unlock ( NULL ) == DDERR_SURFACELOST){
-					if (Gbuffer_Focus_Loss_Function){
-						Gbuffer_Focus_Loss_Function();
-					}
-					AllSurfaces.Restore_Surfaces();
-				}
-			}
-
-			AllSurfaces.Remove_DD_Surface (VideoSurfacePtr);
-			VideoSurfacePtr->Release();
-			VideoSurfacePtr = NULL;
-		}
+	/*
+	** S08: no DirectDraw surface to release. If this buffer is the one the
+	** platform layer shows, stop showing it before its memory goes away
+	** (BufferClass frees the memory itself).
+	*/
+	if (VisibleFrameBuffer == this) {
+		Platform_Set_Frame_Buffer(NULL, 0, 0, 0);
+		VisibleFrameBuffer = NULL;
 	}
+	VideoSurfacePtr = NULL;
 }
 
 
@@ -391,7 +372,7 @@ GraphicBufferClass::GraphicBufferClass(void)
 {
 	GraphicBuff			= this; 							// Get a pointer to our self
 	VideoSurfacePtr	= NULL;
-	memset(&VideoSurfaceDescription, 0, sizeof(DDSURFACEDESC));
+	memset(&VideoSurfaceDescription, 0, sizeof(VideoSurfaceDescription));
 }
 
 
@@ -522,89 +503,20 @@ GraphicViewPortClass *Set_Logic_Page(GraphicViewPortClass &ptr)
  *   10/09/1995     : Created.                                             *
  *   10/09/1995     : Code stolen from Steve Tall                          *
  *=========================================================================*/
-extern	void Colour_Debug (int call_number);
-extern BOOL GameInFocus;
-
-extern void Block_Mouse(GraphicBufferClass *buffer);
-extern void Unblock_Mouse(GraphicBufferClass *buffer);
-
 BOOL GraphicBufferClass::Lock(void)
 {
-	HRESULT	result;
-	int		restore_attempts=0;
-
-	//
-	// If its not a direct draw surface then the lock is always sucessful.
-	//
-	if (!IsDirectDraw) return(TRUE);
-
 	/*
-	** If the video surface pointer is null then return
+	** S08: every buffer is plain system memory now (see DD_Init), so a lock is
+	** always successful and there is nothing to lock. The original DirectDraw
+	** path (lock the surface, restore it if lost, block the mouse thread) is gone;
+	** see docs/codebase/platform-layer.md.
 	*/
-	if (!VideoSurfacePtr) return (FALSE);
-
-	/*
-	** If we dont have focus then return failure
-	*/
-	if (!GameInFocus) return (FALSE);
-
-
-	Block_Mouse(this);
-
-
-	//
-	// If surface is already locked then inc the lock count and return true
-	//
-	if (LockCount){
-		LockCount++;
-		Unblock_Mouse(this);
-		return(TRUE);
-	}
-
-	//
-	// If it isn't locked at all then we will have to request that Direct
-	// Draw actually lock the surface.
-	//
-
-	if (VideoSurfacePtr){
-		while (!LockCount && restore_attempts<2) {
-			result = VideoSurfacePtr->Lock ( NULL
-										, &(VideoSurfaceDescription)
-										, DDLOCK_WAIT
-										, NULL);
-
-			switch (result){
-				case DD_OK :
-					Offset	= (unsigned long)VideoSurfaceDescription.lpSurface;
-					Pitch		= VideoSurfaceDescription.lPitch;
-					Pitch	  -= Width;
-					LockCount++;		// increment count so we can track if
-					TotalLocks++;		// Total number of times we have locked (for debugging)
-					//Colour_Debug (1);
-					Unblock_Mouse(this);
-					return (TRUE);		// we locked it multiple times.
-
-				case DDERR_SURFACELOST :
-					if (Gbuffer_Focus_Loss_Function){
-						Gbuffer_Focus_Loss_Function();
-					}
-					AllSurfaces.Restore_Surfaces();
-					restore_attempts++;
-					break;
-
-				default :
-					Unblock_Mouse(this);
-					return (FALSE);
-			}
-		}
-	}
-	//Colour_Debug(1);
-	Unblock_Mouse(this);
-	return (FALSE);		//Return false because we couldnt lock or restore the surface
+	return(TRUE);
 }
 
+
 /***************************************************************************
- * GBC::UNLOCK -- Unlocks a direct draw surface                            *
+ * GBC::UNLOCK -- Unlocks a buffer                                         *
  *                                                                         *
  * INPUT:		none                                                        *
  *                                                                         *
@@ -613,37 +525,10 @@ BOOL GraphicBufferClass::Lock(void)
  * HISTORY:                                                                *
  *   10/09/1995     : Created.                                             *
  *   10/09/1995     : Code stolen from Steve Tall                          *
+ *   2026-10-14 S08: system memory only, nothing to unlock.                *
  *=========================================================================*/
-
-
 BOOL GraphicBufferClass::Unlock(void)
 {
-	//
-	// If there is no lock count or this is not a direct draw surface
-	// then just return true as there is no harm done.
-	//
-	if (!(LockCount && IsDirectDraw)) {
-		return(TRUE);
-	}
-
-	//
-	// If lock count is directly equal to one then we actually need to
-	// unlock so just give it a shot.
-	//
-	if (LockCount == 1 && VideoSurfacePtr) {
-		Block_Mouse(this);
-		if ( VideoSurfacePtr->Unlock ( NULL ) != DD_OK ){
-			Unblock_Mouse(this);
-			return(FALSE);
-		} else {
-			Offset=NOT_LOCKED;
-			LockCount--;
-			Unblock_Mouse(this);
-			return(TRUE);
-		}
-	}
-	//Colour_Debug (0);
-	LockCount--;
 	return(TRUE);
 }
 
@@ -680,30 +565,37 @@ HRESULT GraphicViewPortClass::DD_Linear_Blit_To_Linear (
 								, BOOL mask )
 
 {
-	RECT	source_rectangle;
-	RECT	dest_rectangle;
-	int		key_source=0;
+	/*
+	** S08: there is no hardware blitter any more. Buffers are never IsDirectDraw,
+	** so GBUFFER.H no longer calls this; it is kept as a software copy so any
+	** remaining caller still gets the right pixels. Coordinates are buffer-relative
+	** (the callers add XPos/YPos), and `mask` skips colour 0 like the DirectDraw
+	** source colour key did.
+	*/
+	GraphicBufferClass *src_buff = GraphicBuff;
+	GraphicBufferClass *dst_buff = dest.GraphicBuff;
+	if (!src_buff || !dst_buff || width <= 0 || height <= 0) return (HRESULT)-1;
 
-	if ( mask ){
-		key_source=DDBLT_KEYSRC;
+	int src_stride = src_buff->Get_Width() + src_buff->Get_XAdd() + src_buff->Get_Pitch();
+	int dst_stride = dst_buff->Get_Width() + dst_buff->Get_XAdd() + dst_buff->Get_Pitch();
+	unsigned char *src = (unsigned char *)src_buff->Get_Offset() + source_y * src_stride + source_x;
+	unsigned char *dst = (unsigned char *)dst_buff->Get_Offset() + dest_y * dst_stride + dest_x;
+
+	/* Same buffer, destination further down: copy bottom-up so rows are not overwritten. */
+	bool backwards = (src_buff == dst_buff && dst > src);
+	for (int i = 0; i < height; i++) {
+		int row = backwards ? (height - 1 - i) : i;
+		unsigned char *s = src + row * src_stride;
+		unsigned char *d = dst + row * dst_stride;
+		if (mask) {
+			for (int x = 0; x < width; x++) {
+				if (s[x]) d[x] = s[x];
+			}
+		} else {
+			memmove(d, s, width);
+		}
 	}
-
-
-	source_rectangle.left 	= source_x;
-	source_rectangle.top  	= source_y;
-	source_rectangle.right	= source_x+width;
-	source_rectangle.bottom	= source_y+height;
-
-	dest_rectangle.left 	= dest_x;
-	dest_rectangle.top  	= dest_y;
-	dest_rectangle.right	= dest_x+width;
-	dest_rectangle.bottom	= dest_y+height;
-
-   return (	dest.GraphicBuff->Get_DD_Surface()->Blt ( &dest_rectangle,
-												GraphicBuff->Get_DD_Surface(),
-												&source_rectangle,
-												key_source | DDBLT_WAIT | DDBLT_ASYNC,
-												NULL ) );
+	return (HRESULT)0;		// DD_OK
 }
 
 

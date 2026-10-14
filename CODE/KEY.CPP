@@ -55,6 +55,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "key.h"
+#include "platform.h"		// S08: SDL-backed event pump, key state and ASCII translation
 
 #include	"monoc.h"
 
@@ -217,18 +218,11 @@ bool WWKeyboardClass::Put_Key_Message(unsigned short vk_key, bool release)
 	** would be incompatible with the dos version.
 	*/
 	if (!Is_Mouse_Key(vk_key)) {
-		if (((GetKeyState(VK_SHIFT) & 0x8000) != 0) ||
-			((GetKeyState(VK_CAPITAL) & 0x0008) != 0) ||
-			((GetKeyState(VK_NUMLOCK) & 0x0008) != 0)) {
-
-			vk_key |= WWKEY_SHIFT_BIT;
-		}
-		if ((GetKeyState(VK_CONTROL) & 0x8000) != 0) {
-			vk_key |= WWKEY_CTRL_BIT;
-		}
-		if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
-			vk_key |= WWKEY_ALT_BIT;
-		}
+		/*
+		** S08: modifier state from the platform layer. The caps/num lock tests of the
+		** original (GetKeyState(...) & 0x0008) never fired, so they are not carried over.
+		*/
+		vk_key |= (unsigned short)Platform_Modifier_Bits();
 	}
 
 	if (release) {
@@ -301,50 +295,10 @@ char WWKeyboardClass::To_ASCII(unsigned short key)
 	}
 
 	/*
-	**	Set the KeyState buffer to reflect the shift bits stored in the key value.
+	**	S08: Win32 ToAscii() is replaced by the platform layer's US-layout translation,
+	**	which uses the shift/ctrl/alt bits stored in the key value, like the original.
 	*/
-	if (key & WWKEY_SHIFT_BIT) {
-		KeyState[VK_SHIFT] = 0x80;
-	}
-	if (key & WWKEY_CTRL_BIT) {
-		KeyState[VK_CONTROL] = 0x80;
-	}
-	if (key & WWKEY_ALT_BIT) {
-		KeyState[VK_MENU] = 0x80;
-	}
-
-	/*
-	**	Ask windows to translate the key into an ASCII equivalent.
-	*/
-	char buffer[10];
-	int result = 1;
-	int scancode = 0;
-
-	scancode = MapVirtualKey(key & 0xFF, 0);
-	result = ToAscii((UINT)(key & 0xFF), (UINT)scancode, (PBYTE)KeyState, (LPWORD)buffer, (UINT)0);
-
-	/*
-	**	Restore the KeyState buffer back to pristine condition.
-	*/
-	if (key & WWKEY_SHIFT_BIT) {
-		KeyState[VK_SHIFT] = 0;
-	}
-	if (key & WWKEY_CTRL_BIT) {
-		KeyState[VK_CONTROL] = 0;
-	}
-	if (key & WWKEY_ALT_BIT) {
-		KeyState[VK_MENU] = 0;
-	}
-
-	/*
-	**	If Windows could not perform the translation as expected, then
-	**	return with a null ASCII value.
-	*/
-	if (result != 1) {
-		return('\0');
-	}
-
-	return(buffer[0]);
+	return(Platform_Key_To_ASCII(key));
 }
 
 
@@ -364,7 +318,7 @@ char WWKeyboardClass::To_ASCII(unsigned short key)
  *=============================================================================================*/
 WWKeyboardClass::Down(unsigned short key)
 {
-	return(GetAsyncKeyState(key & 0xFF));
+	return(Platform_Key_Down(key & 0xFF));		// S08: was GetAsyncKeyState
 }
 
 
@@ -520,14 +474,27 @@ bool WWKeyboardClass::Is_Buffer_Empty(void) const
  *=============================================================================================*/
 void WWKeyboardClass::Fill_Buffer_From_System(void)
 {
-	if (!Is_Buffer_Full()) {
-		MSG	msg;
-		while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) {
-		  	if (!GetMessage( &msg, NULL, 0, 0 )) {
-				return;
+	/*
+	** S08: this was the game's Windows message pump (PeekMessage/GetMessage/DispatchMessage,
+	** with Windows_Procedure feeding Message_Handler). Now the platform layer pumps the OS
+	** events, runs its poll hooks (mouse cursor; network from S12) and translates input into
+	** WW key codes; we move them into this buffer the way Message_Handler did. Events that
+	** do not fit stay queued in the platform layer until there is room.
+	*/
+	Platform_Pump_Events();
+
+	PlatformInputEvent event;
+	while (!Is_Buffer_Full() && Platform_Get_Input(&event)) {
+		if (event.Type == PLATFORM_INPUT_MOUSE) {
+			Put_Mouse_Message((unsigned short)(event.Key & 0xFF), event.X, event.Y, (event.Key & WWKEY_RLS_BIT) != 0);
+		} else if ((event.Key & 0xFF) == VK_SCROLL) {
+			if (!(event.Key & WWKEY_RLS_BIT)) {
+				Stop_Execution();				// as Message_Handler did for WM_KEYDOWN VK_SCROLL
+			} else {
+				Put((unsigned short)event.Key);
 			}
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+		} else {
+			Put((unsigned short)event.Key);
 		}
 	}
 }

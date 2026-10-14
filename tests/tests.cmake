@@ -35,4 +35,21 @@ ra_add_test(NAME smoke_test SOURCES tests/smoke_test.cpp)
 # --- S07-C ---
 # --- S07-D ---
 # --- S08 ---
+# Platform layer tests. Not ra_add_test(): raplatform is built without the game's
+# settings (no 1-byte packing, no WIN32 defines; see platform/platform.cmake), and the
+# tests include SDL's keycode headers, so they are built the same way.
+foreach(ra_platform_test platform_keymap_test platform_viewport_test platform_timer_test)
+  add_executable(${ra_platform_test} ${CMAKE_CURRENT_SOURCE_DIR}/tests/${ra_platform_test}.cpp)
+  target_include_directories(${ra_platform_test} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests
+                                                         ${CMAKE_CURRENT_SOURCE_DIR}/platform/src)
+  target_link_libraries(${ra_platform_test} PRIVATE raplatform SDL3::SDL3)
+  set_target_properties(${ra_platform_test} PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME ${ra_platform_test} COMMAND ${ra_platform_test})
+  add_dependencies(ra_tests ${ra_platform_test})
+endforeach()
+# platform_demo end to end (window, palette, pump, present) on SDL's offscreen video driver,
+# so it runs on CI machines without a display.
+add_test(NAME platform_demo_offscreen COMMAND platform_demo --frames 120)
+set_tests_properties(platform_demo_offscreen PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+add_dependencies(ra_tests platform_demo)
 # --- S09 ---
