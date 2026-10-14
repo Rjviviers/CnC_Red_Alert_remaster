@@ -1,6 +1,6 @@
 # ADR-0010: Port only the assembly the game needs; prefer the existing C++ versions
 
-- **Status:** Proposed (suggested by S02; awaiting project owner)
+- **Status:** Accepted (approved by project owner 2026-10-14)
 - **Date:** 2026-10-14
 - **Session:** S02
 

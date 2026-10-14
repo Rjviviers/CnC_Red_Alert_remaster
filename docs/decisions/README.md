@@ -11,8 +11,8 @@ Numbers are never reused. To change an accepted decision, write a new ADR that s
 | [0004](0004-platform-library.md) | SDL3 as the platform layer; drop DirectX | Accepted |
 | [0005](0005-multiplayer-first-scope.md) | Multiplayer-first scope: drop DOS, IPX, modem, WOL, movies | Accepted |
 | [0006](0006-no-game-assets.md) | Never ship game assets | Accepted |
-| [0007](0007-lan-udp-transport.md) | LAN: keep the connection layer, rewrite the UDP transport | Proposed |
-| [0008](0008-case-insensitive-include-shim.md) | Case-insensitive include shim for Linux builds | Proposed |
+| [0007](0007-lan-udp-transport.md) | LAN: keep the connection layer, rewrite the UDP transport | Accepted |
+| [0008](0008-case-insensitive-include-shim.md) | Case-insensitive include shim for Linux builds | Accepted |
 | [0009](0009-own-network-protocol.md) | Our own network protocol, no compatibility with original clients | Accepted |
-| [0010](0010-asm-porting-policy.md) | Port only the assembly the game needs; prefer existing C++ | Proposed |
+| [0010](0010-asm-porting-policy.md) | Port only the assembly the game needs; prefer existing C++ | Accepted |
 | [0011](0011-expansions-in-multiplayer.md) | Counterstrike and Aftermath content in multiplayer | Accepted |

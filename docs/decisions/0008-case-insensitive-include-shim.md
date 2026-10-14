@@ -1,6 +1,6 @@
 # ADR-0008: Generated case-insensitive include shim instead of renaming files
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-14)
 - **Date:** 2026-10-14
 - **Session:** S03
 

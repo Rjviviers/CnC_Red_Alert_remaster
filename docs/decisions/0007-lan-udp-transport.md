@@ -1,6 +1,6 @@
 # ADR-0007: LAN play over UDP by keeping the original connection layer and replacing only the transport
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-14)
 - **Date:** 2026-10-14
 - **Session:** S04
 

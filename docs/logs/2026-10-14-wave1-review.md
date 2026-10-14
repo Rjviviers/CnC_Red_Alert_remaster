@@ -28,11 +28,9 @@
 | Missing sources (`PALETTE.CPP`, `PASSEDIT.CPP`, headers): no other copy exists, so S06 rewrites them | S06 brief |
 | No compatibility with original clients; our own protocol | [ADR-0009](../decisions/0009-own-network-protocol.md) |
 | Counterstrike/Aftermath in multiplayer "if possible" | [ADR-0011](../decisions/0011-expansions-in-multiplayer.md) |
+| Accept ADR-0007 (LAN transport), ADR-0008 (include shim), ADR-0010 (asm porting policy) | ADR files, decisions index |
 
 ## Still open for the owner
-- ADR-0007 (LAN: keep the connection layer, rewrite the UDP transport): Proposed
-- ADR-0008 (case-insensitive include shim): Proposed
-- ADR-0010 (port only the needed assembly, prefer existing C++): Proposed
 - Default LAN port 19960/udp
 - Windows ↔ Linux cross-play as a requirement for M3
 - Rename the "IPX" identifiers later, or never
