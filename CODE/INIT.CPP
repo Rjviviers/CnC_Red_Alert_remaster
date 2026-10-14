@@ -61,22 +61,13 @@
 
 #include	"function.h"
 #include	"loaddlg.h"
-#ifdef WIN32
-#ifdef WINSOCK_IPX
 #include	"WSProto.h"
 #include	"WSPUDP.h"
 #include	"WSPIPX.h"
 #include	"internet.h"
-#else	//WINSOCK_IPX
-#include	"tcpip.h"
-#endif	//WINSOCK_IPX
 
-#endif
 #include	<conio.h>
 #include	<dos.h>
-#ifndef WIN32
-#include	<sys\timeb.h>
-#endif
 #include  "ccdde.h"
 
 #include <time.h>
@@ -120,9 +111,6 @@ extern int UnitBuildPenalty;
 extern "C" {
 extern long RandNumb;
 }
-#ifndef WIN32
-static int UsePageFaultHandler = 1;				// 1 = install PFH
-#endif	//WIN32
 
 //extern int SimRandIndex;
 void Init_Random(void);
@@ -164,13 +152,8 @@ extern bool Is_Mission_Counterstrike (char *file_name);
 static void Load_Prolog_Page(void)
 {
 	Hide_Mouse();
-#ifdef WIN32
 	Load_Title_Screen("PROLOG.PCX", &HidPage, CCPalette);
 	HidPage.Blit(SeenPage);
-#else
-	Load_Picture("PROLOG.CPS", HidPage, HidPage, CCPalette, BM_DEFAULT);
-	HidPage.Blit(SeenPage);
-#endif
 	CCPalette.Set();
 	Show_Mouse();
 }
@@ -300,11 +283,9 @@ bool Init_Game(int , char * [])
 	Anim_Init();
 
 #ifndef FIXIT_VERSION_3			//	WChat eliminated.
-#ifdef WIN32
 	if (SpawnedFromWChat){
 		Special.IsFromWChat = true;
 	}
-#endif
 #endif
 
 	#ifdef MPEGMOVIE // Denzil 6/15/98
@@ -398,9 +379,7 @@ bool Init_Game(int , char * [])
 	return(true);
 }
 
-#ifdef WINSOCK_IPX			//	Steve Tall missed this one - ajw
 extern bool Get_Broadcast_Addresses (void);
-#endif
 
 /***********************************************************************************************
  * Select_Game -- The game's main menu                                                         *
@@ -438,9 +417,7 @@ bool Select_Game(bool fade)
 		SEL_TIMEOUT = -1,				// main menu timeout--go into attract mode
 		SEL_NEW_SCENARIO,				// Expansion scenario to play.
 		SEL_START_NEW_GAME,			// start a new game
-#if defined(WIN32) && !defined(INTERNET_OFF) // Denzil 5/1/98 - Internet play
 		SEL_INTERNET,
-#endif	//WIN32
 //#if defined(MPEGMOVIE) // Denzil 6/25/98
 //		SEL_MOVIESETTINGS,
 //#endif
@@ -485,12 +462,10 @@ bool Select_Game(bool fade)
 #endif
 
 #ifndef WOLAPI_INTEGRATION
-#ifdef WIN32
 	/*
 	** Enable the DDE Server so we can get internet start game packets from WChat
 	*/
 	DDEServer.Enable();
-#endif	//WIN32
 #endif	//	!WOLAPI_INTEGRATION
 
 	/*
@@ -588,7 +563,6 @@ bool Select_Game(bool fade)
 		}
 
 #ifndef FIXIT_VERSION_3
-#if defined(WIN32) && !defined(INTERNET_OFF) // Denzil 5/1/98 - Internet play
 		/*
 		** Handle case where we were spawned from Wchat
 		*/
@@ -600,7 +574,6 @@ bool Select_Game(bool fade)
 			display = false;
 			Set_Logic_Page(SeenBuff);
 		}
-#endif	//WIN32
 #endif
 
 		while (process) {
@@ -638,7 +611,6 @@ bool Select_Game(bool fade)
 			if (Special.IsFromInstall) selection = SEL_START_NEW_GAME;
 
 #ifndef WOLAPI_INTEGRATION
-#if defined(WIN32) && !defined(INTERNET_OFF) // Denzil 5/1/98 - Internet play
 			/*
 			** Handle case where we were spawned from Wchat and our start game
 			**  packet has already arrived
@@ -663,7 +635,6 @@ bool Select_Game(bool fade)
 					}
 				}
 			}
-#endif	//WIN32
 #endif
 
 #ifdef WOLAPI_INTEGRATION
@@ -874,7 +845,6 @@ bool Select_Game(bool fade)
 					break;
 
 #ifndef FIXIT_VERSION_3			//	Removed button from main menu.
-				#if defined(WIN32) && !defined(INTERNET_OFF) // Denzil 5/1/98 - Internet play
 				/*
 				** Internet game is requested
 				*/
@@ -899,7 +869,6 @@ bool Select_Game(bool fade)
 						selection = SEL_MULTIPLAYER_GAME;
 					}
 					break;
-				#endif	//WIN32
 #endif
 
 //				#if defined(MPEGMOVIE) // Denzil 6/25/98
@@ -1004,7 +973,6 @@ bool Select_Game(bool fade)
 							break;
 
 #ifndef WOLAPI_INTEGRATION
-#if defined(WIN32) && !defined(INTERNET_OFF) // Denzil 5/1/98 - Internet play
 						/*
 						** Handle being spawned from WChat. Internet play based on IPX code.
 						*/
@@ -1016,7 +984,6 @@ bool Select_Game(bool fade)
 								SetForegroundWindow ( MainWindow );
 								ShowWindow ( MainWindow, ShowCommand );
 
-#ifdef WINSOCK_IPX
 
 								if (PacketTransport ) delete PacketTransport;
 								PacketTransport = new UDPInterfaceClass;
@@ -1049,57 +1016,6 @@ bool Select_Game(bool fade)
 								Init_Network();
 
 
-#else	//WINSOCK_IPX
-
-								WWDebugString ("RA95 - About to initialise Winsock.\n");
-								if (Winsock.Init()) {
-									WWDebugString ("RA95 - About to read multiplayer settings.\n");
-									Session.Read_MultiPlayer_Settings ();
-									Server = PlanetWestwoodIsHost;
-
-									WWDebugString ("RA95 - About to set addresses.\n");
-									Winsock.Set_Host_Address(PlanetWestwoodIPAddress);
-
-									WWDebugString ("RA95 - About to call Start_Server or Start_Client.\n");
-									if (Server) {
-										Winsock.Start_Server();
-									} else {
-										Winsock.Start_Client();
-									}
-
-
-									/*
-									** Flush out any pending packets from a previous game.
-									*/
-									WWDebugString ("RA95 - About to flush packet queue.\n");
-									WWDebugString ("RA95 - Allocating scrap memory.\n");
-									char *temp_buffer = new char[1024];
-
-									WWDebugString ("RA95 - Creating timer class instance.\n");
-									CountDownTimerClass ptimer;
-
-									WWDebugString ("RA95 - Entering read loop.\n");
-									while (Winsock.Read(temp_buffer, 1024)) {
-
-										WWDebugString ("RA95 - Discarding a packet.\n");
-										ptimer.Set (30, true);
-										while (ptimer.Time()) {};
-										WWDebugString ("RA95 - Ready to check for more packets.\n");
-
-									}
-									WWDebugString ("RA95 - About to delete scrap memory.\n");
-									delete temp_buffer;
-
-
-
-								} else {
-									WWDebugString ("RA95 - Winsock failed to initialise.\n");
-									Session.Type = GAME_NORMAL;
-									selection = SEL_EXIT;
-									Special.IsFromWChat = false;
-									break;
-								}
-#endif	//WINSOCK_IPX
 								WWDebugString ("RA95 - About to call Init_Network.\n");
 								Init_Network();
 
@@ -1109,10 +1025,8 @@ bool Select_Game(bool fade)
 								} else {
 									Read_Game_Options( "C&CSPAWN.INI" );
 								}
-#ifdef WINSOCK_IPX
 								WWDebugString ("RA95 - About to set addresses.\n");
 								PacketTransport->Set_Broadcast_Address (PlanetWestwoodIPAddress);
-#endif	//WINSOCK_IPX
 								if (PlanetWestwoodIsHost) {
 
 									WWDebugString ("RA95 - About to call Server_Remote_Connect.\n");
@@ -1123,12 +1037,8 @@ bool Select_Game(bool fade)
 										/*
 										** We failed to connect to the other player
 										*/
-#ifdef WINSOCK_IPX
 										delete PacketTransport;
 										PacketTransport = NULL;
-#else	//WINSOCK_IPX
-										Winsock.Close();
-#endif	//WINSOCK_IPX
 										Session.Type = GAME_NORMAL;
 										selection = SEL_NONE;
 										DDEServer.Delete_MPlayer_Game_Info();	// Make sure we dont go round in an infinite loop
@@ -1143,12 +1053,8 @@ bool Select_Game(bool fade)
 										/*
 										** We failed to connect to the other player
 										*/
-#ifdef WINSOCK_IPX
 										delete PacketTransport;
 										PacketTransport = NULL;
-#else	//WINSOCK_IPX
-										Winsock.Close();
-#endif	//WINSOCK_IPX
 										Session.Type = GAME_NORMAL;
 										selection = SEL_NONE;
 										DDEServer.Delete_MPlayer_Game_Info();  // Make sure we dont go round in an infinite loop
@@ -1165,7 +1071,6 @@ bool Select_Game(bool fade)
 							}
 							break;
 
-#endif	//WIN32
 #endif	//	!WOLAPI_INTEGRATION
 
 					}
@@ -1249,7 +1154,6 @@ bool Select_Game(bool fade)
 							/*
 							** Init network system & remote-connect
 							*/
-#ifdef WINSOCK_IPX
 							if (PacketTransport ) delete PacketTransport;
 //							if (WWMessageBox().Process("Select a protocol to use for network play.", "UDP", "IPX")) {
 								PacketTransport = new IPXInterfaceClass;
@@ -1267,7 +1171,6 @@ bool Select_Game(bool fade)
 //								}
 //							}
 
-#endif	//WINSOCK_IPX
 							WWDebugString ("RA95 - About to call Init_Network.\n");
 							if (Session.Type == GAME_IPX && Init_Network() && Remote_Connect()) {
 #ifdef FIXIT_VERSION_3
@@ -1281,10 +1184,8 @@ bool Select_Game(bool fade)
 								Session.Type = GAME_NORMAL;
 								display = true;
 								selection = SEL_NONE;
-#ifdef WINSOCK_IPX
 								delete PacketTransport;
 								PacketTransport = NULL;
-#endif	//WINSOCK_IPX
 							}
 							break;
 
@@ -1472,13 +1373,8 @@ bool Select_Game(bool fade)
 
 		if (selection != SEL_START_NEW_GAME) {
 			BlackPalette.Set(FADE_PALETTE_MEDIUM, Call_Back);
-#ifdef WIN32
 			HiddenPage.Clear();
 			VisiblePage.Clear();
-#else
-			HidPage.Clear();
-			SeenPage.Clear();
-#endif	//WIN32
 		}
 		Show_Mouse();
 //Mono_Printf("About to call Start Scenario with %s\n", Scen.ScenarioName);
@@ -1503,11 +1399,7 @@ bool Select_Game(bool fade)
 		0,//BG		1,							// enable edit overflow
 		20,          							// min,
 		MAX_MESSAGE_LENGTH - 14,			//    max for trimming overflow
-#ifdef WIN32
 		Lepton_To_Pixel(Map.TacLeptonWidth));	// Width in pixels of buffer
-#else
-		(320-SIDEBAR_WID));	// Width in pixels of buffer
-#endif
 
 	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH &&
 		!Session.Play) {
@@ -1543,23 +1435,16 @@ bool Select_Game(bool fade)
 	Hide_Mouse();
 	BlackPalette.Set(FADE_PALETTE_MEDIUM, Call_Back);
 //	Fade_Palette_To(BlackPalette, FADE_PALETTE_MEDIUM, Call_Back);
-#ifdef WIN32
 	HiddenPage.Clear();
 	VisiblePage.Clear();
-#else
-	HidPage.Clear();
-	SeenPage.Clear();
-#endif	//WIN32
 	Show_Mouse();
 	Set_Logic_Page(SeenBuff);
-#ifdef WIN32
 	/*
 	** Sidebar is always active in hi-res.
 	*/
 	if (!Debug_Map) {
 		Map.SidebarClass::Activate(1);
 	}
-#endif	//WIN32
 	Map.Flag_To_Redraw();
 	Call_Back();
 	Map.Render();
@@ -1620,11 +1505,7 @@ static void Play_Intro(bool sequenced)
 		Hide_Mouse();
 		VisiblePage.Clear();
 		Show_Mouse();
-#ifdef WIN32
 		Play_Movie(VQ_REDINTRO, THEME_NONE, false);
-#else
-		Play_Movie(VQ_TITLE, THEME_NONE, false);
-#endif
 	}
 }
 
@@ -1644,15 +1525,12 @@ static void Play_Intro(bool sequenced)
  * HISTORY:                                                                                    *
  *   12/20/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-#ifdef WIN32
 #ifdef MOVIE640
 GraphicBufferClass VQ640(640, 400, (void *)NULL);
-#endif
 #endif
 void Anim_Init(void)
 {
 
-#ifdef WIN32
 
 	/* Configure player with INI file */
 	VQA_DefaultConfig(&AnimControl);
@@ -1686,37 +1564,6 @@ void Anim_Init(void)
 		AnimControl.OptionFlags |= VQAOPTF_MONO;
 	}
 
-#else	//WIN32
-	/* Configure player with INI file */
-	VQA_DefaultConfig(&AnimControl);
-//	void const * font = Load_Font(FONT8);
-//	AnimControl.EVAFont = (char *)font;
-//	AnimControl.CapFont = (char *)font;
-	AnimControl.DrawerCallback = VQ_Call_Back;
-	AnimControl.ImageWidth = 320;
-	AnimControl.ImageHeight = 200;
-	AnimControl.Vmode = MCGA_MODE;
-	AnimControl.VBIBit = VertBlank;
-	AnimControl.DrawFlags |= VQACFGF_TOPLEFT;
-	AnimControl.OptionFlags |= VQAOPTF_HMIINIT|VQAOPTF_CAPTIONS|VQAOPTF_EVA;
-//	AnimControl.AudioBuf = (unsigned char *)HidPage.Get_Buffer();
-//	AnimControl.AudioBufSize = 32768U;
-	AnimControl.DigiCard = NewConfig.DigitCard;
-	AnimControl.HMIBufSize = 8192;
-	AnimControl.DigiHandle = Get_Digi_Handle();
-	AnimControl.Volume = 0x00FF;
-	AnimControl.AudioRate = 22050;
-//	if (NewConfig.Speed) AnimControl.AudioRate = 11025;
-
-	if (!Debug_Quiet && Get_Digi_Handle() != -1) {
-		AnimControl.OptionFlags |= VQAOPTF_AUDIO;
-	}
-
-	if (MonoClass::Is_Enabled()) {
-		AnimControl.OptionFlags |= VQAOPTF_MONO;
-	}
-
-#endif	//WIN32
 }
 
 
@@ -1953,7 +1800,6 @@ bool Parse_Command_Line(int argc, char * argv[])
 		}
 
 
-#ifdef WIN32
 		/*
 		** Set screen to 640x480 instead of 640x400
 		*/
@@ -1971,7 +1817,6 @@ bool Parse_Command_Line(int argc, char * argv[])
 		}
 #endif
 
-#endif
 
 #ifdef CHEAT_KEYS
 		/*
@@ -1982,15 +1827,6 @@ bool Parse_Command_Line(int argc, char * argv[])
 			continue;
 		}
 
-#ifndef WIN32
-		/*
-		**	Don't install Page Fault Handler (MUST use this for debugger)
-		*/
-		if (stricmp(string, "-NOPFS") == 0) {
-			UsePageFaultHandler = 0;
-			continue;
-		}
-#endif
 
 #endif
 
@@ -2078,13 +1914,6 @@ bool Parse_Command_Line(int argc, char * argv[])
 		/*
 		** look for passed-in video mode to default to
 		*/
-#ifndef	WIN32
-		if (strnicmp(string, "-V", strlen("-V")) == 0) {
-			Set_Video_Mode(MCGA_MODE);	// do this to get around first_time variable...
-			Set_Original_Video_Mode(atoi(string+2));
-			continue;
-		}
-#endif
 
 #ifdef CHEAT_KEYS
 		if (strstr(string,"-NOMOVIES")){
@@ -2397,7 +2226,6 @@ long Calculate_CRC(void * buffer, long len)
  *=========================================================================*/
 void Init_Random(void)
 {
-	#ifdef WIN32
 
 		/*
 		**	Gather some "random" bits from the system timer. Actually, only the
@@ -2423,16 +2251,6 @@ void Init_Random(void)
 		CryptRandom.Seed_Bit(t.wDayOfWeek);
 		CryptRandom.Seed_Bit(t.wMonth);
 		CryptRandom.Seed_Bit(t.wYear);
-	#else
-
-		/*
-		**	Gather some "random" bits from the DOS mode timer.
-		*/
-		struct timeb t;
-		ftime(&t);
-		CryptRandom.Seed_Byte(t.millitm);
-		CryptRandom.Seed_Byte(t.time);
-	#endif
 
 #ifdef FIXIT_MULTI_SAVE
 	//
@@ -2510,17 +2328,10 @@ void Init_Random(void)
  *=============================================================================================*/
 void Load_Title_Page(bool visible)
 {
-#ifdef WIN32
 	Load_Title_Screen("TITLE.PCX", &HidPage, CCPalette);
 	if (visible) {
 		HidPage.Blit(SeenPage);
 	}
-#else
-	Load_Picture("TITLE.CPS", HidPage, HidPage, CCPalette, BM_DEFAULT);
-	if (visible) {
-		HidPage.Blit(SeenPage);
-	}
-#endif
 }
 
 
@@ -2549,14 +2360,10 @@ static void Init_Color_Remaps(void)
 	** after that are the remap colors.
 	*/
 
-#ifdef WIN32
 
 	SysMemPage.Clear();
 	Load_Picture("PALETTE.CPS", SysMemPage, SysMemPage, NULL, BM_DEFAULT);
 	SysMemPage.Blit(HidPage);
-#else
-	Load_Picture("PALETTE.CPS", HidPage, HidPage, NULL, BM_DEFAULT);
-#endif
 	for (PlayerColorType pcolor = PCOLOR_FIRST; pcolor < PCOLOR_COUNT; pcolor++) {
 
 		unsigned char * ptr = ColorRemaps[pcolor].RemapTable;
@@ -2958,15 +2765,9 @@ static void Init_Bootstrap_Mixfiles(void)
 
 #ifdef FIXIT_CSII	//	Ok. ajw
 	bool ok1;
- #ifdef WIN32
 	new MFCD("HIRES1.MIX", &FastKey);
 	ok1 = MFCD::Cache("HIRES1.MIX");
 	assert(ok1);
- #else
-	new MFCD("LORES1.MIX", &FastKey);
-	ok1 = MFCD::Cache("LORES1.MIX");
-	assert(ok1);
- #endif
 #endif
 
 #ifdef FIXIT_ANTS	//	Ok. ajw
@@ -2988,17 +2789,11 @@ static void Init_Bootstrap_Mixfiles(void)
 	bool ok = MFCD::Cache("LOCAL.MIX");
 	assert(ok);
 
-#ifdef WIN32
 	new MFCD("HIRES.MIX", &FastKey);
 	ok = MFCD::Cache("HIRES.MIX");
 	assert(ok);
 
 	new MFCD("NCHIRES.MIX", &FastKey);		//Non-cached hires stuff incl VQ palettes
-#else
-	new MFCD("LORES.MIX", &FastKey);
-	ok = MFCD::Cache("LORES.MIX");
-	assert(ok);
-#endif	//WIN32
 
 	RequiredCD = temp;
 }
@@ -3125,12 +2920,10 @@ static void Bootstrap(void)
 	** Process the message loop until we are in focus. We need to be in focus to read pixels from
 	** the screen.
 	*/
-	#ifdef WIN32
 	do {
 		Keyboard->Check();
 	} while (!GameInFocus);
 	AllSurfaces.SurfacesRestored = false;
-	#endif
 
 	/*
 	**	Perform any special debug-only processing. This includes preparing the
@@ -3150,30 +2943,11 @@ static void Bootstrap(void)
 	*/
 	Init_Fonts();
 
-#ifndef WIN32
-	/*
-	**	Install the hard error handler.
-	*/
-	_harderr(harderr_handler);		// BG: Install hard error handler
-
-	/*
-	** Install a Page Fault handler
-	*/
-	if (UsePageFaultHandler) {
-		Install_Page_Fault_Handle();
-	}
-#endif
 
 	/*
 	**	Setup the keyboard processor in preparation for the game.
 	*/
-	#ifdef WIN32
 		Keyboard->Clear();
-	#else
-		Keyboard_Attributes_Off(BREAKON | SCROLLLOCKON | TRACKEXT | PAUSEON | CTRLSON | CTRLCON | FILTERONLY | TASKSWITCHABLE);
-		Keyboard_Attributes_On(PASSBREAKS);
-		Keyboard->Clear();
-	#endif
 
 	/*
 	**	This is the shape staging buffer. It must always be available, so it is
@@ -3246,9 +3020,7 @@ static void Init_Mouse(void)
 	** Since there is no mouse shape currently available we need
 	** to set one of our own.
 	*/
-#ifdef WIN32
 	ShowCursor(false);
-#endif
 	if (MouseInstalled) {
 		void const * temp_mouse_shapes = MFCD::Retrieve("MOUSE.SHP");
 		if (temp_mouse_shapes) {
@@ -3294,12 +3066,7 @@ static void Init_Authorization(void)
 	if (Special.IsFromInstall) return;
 
 	Load_Title_Page();
-#ifdef WIN32
 	Wait_Vert_Blank();
-#else	//WIN32
-	Init_Delay();
-	Wait_Vert_Blank(VertBlank);
-#endif	//WIN32
 
 	CCPalette.Set();
 //		Set_Palette(Palette);

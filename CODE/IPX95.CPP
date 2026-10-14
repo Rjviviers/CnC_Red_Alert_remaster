@@ -46,7 +46,6 @@
 
 #include "function.h"
 
-#ifdef WIN32
 
 #include "ipx95.h"
 
@@ -198,4 +197,3 @@ int IPX_Get_Local_Target(unsigned char * dest_network, unsigned char * dest_node
 }
 
 
-#endif	//WIN32

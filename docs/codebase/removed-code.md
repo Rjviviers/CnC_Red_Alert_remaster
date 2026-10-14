@@ -41,3 +41,30 @@ they still name some deleted files and are kept as a record of the original buil
 `WIN32LIB/TIMER/TIMERINI.CPP` and `WWLIB32.H` include `profile.h`; remove the whole `PROFILE` component in one
 go, S08) and `WINVQ/VQM32/MCGABUF.ASM` (row 58: still referenced by compiled `WINVQ/VQA32/DRAWER.CPP`; goes when
 the movie player is stubbed). `CODE/WINASM.ASM` is edited in the modem section below, not deleted.
+
+## 2. DOS branches inside the remaining sources (preprocessor collapse)
+
+**Last commit with this code: `e87f703`.** 132 files, 5,437 lines removed, nothing added.
+
+Done with `unifdef` 2.12 (not by hand), on every `.CPP`/`.H`/`.C` file under `CODE/`, `WIN32LIB/`, `WINVQ/`
+and `TOOLS/`, resolving the symbols the way the shipped Win32 build (`wmake -DWIN32`) did:
+
+```sh
+unifdef -m -DWIN32=1 -D_WIN32 -DWINSOCK_IPX -UDOS4G -UGF_WATCOM_S -UPHARLAP -UPHARLAP_TNT -UINTERNET_OFF FILE
+```
+
+| Symbol | Resolved as | Why |
+|--------|-------------|-----|
+| `WIN32`, `_WIN32` | defined | Makefile `/DWIN32=1 /D_WIN32`; every `#ifndef WIN32` / `#else // WIN32` branch was DOS-only |
+| `WINSOCK_IPX` | defined | Makefile; removes the THIPX32/real-mode IPX branches of the connection layer |
+| `DOS4G`, `GF_WATCOM_S` | undefined | DOS/4GW and Greenleaf DOS settings |
+| `PHARLAP`, `PHARLAP_TNT` | undefined | DOS extender; the WINVQ makefiles set `PHARLAP_TNT=0` (asm only) |
+| `INTERNET_OFF` | undefined | Commented out in `CODE/DEFINES.H:134`; needed so `#if defined(WIN32) && !defined(INTERNET_OFF)` collapses |
+
+What went: DOS keyboard/mouse/timer/video code, the DOS `KeyboardClass` variant (`JSHELL.H`), DOS file and
+CD handling (`RAWFILE.CPP`, `CDFILE.CPP`), real-mode IPX in the connection layer (`IPXMGR.CPP`, `IPXCONN.CPP`,
+`IPX.CPP`), DOS Greenleaf modem code in `NULLMGR.CPP`/`NULLDLG.CPP`, `RESFACTOR 1` (`DEFINES.H`), and header
+guards such as `#ifndef WIN32 / #define WIN32 1` in `WIN32LIB` headers. `#if 0` / `#if (0)` blocks were left alone
+(unifdef was run without `-k`). Two files could not be parsed and were left unchanged: `CODE/RAWOLAPI.H`
+(an apostrophe inside `#error`; deleted later with WOL) and `WIN32LIB/INCLUDE/VIDEO.H` (unterminated comment;
+it has none of these symbols).

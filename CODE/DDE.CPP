@@ -44,7 +44,6 @@
  *   Instance_Class::dde_callback -- processes DDE transactions            *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#ifdef WIN32
 #include	<windows.h>
 #include	"dde.h"
 
@@ -449,4 +448,3 @@ HDDEDATA CALLBACK Instance_Class::dde_callback(
     }
 }
 
-#endif	//WIN32

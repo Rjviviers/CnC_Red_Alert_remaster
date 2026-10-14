@@ -44,7 +44,6 @@
  *                                                                         *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#ifdef WIN32
 
 #ifndef WOLAPI_INTEGRATION
 extern bool Server;
@@ -197,4 +196,3 @@ extern int Read_Game_Options(char *);
 
 
 
-#endif	//WIN32

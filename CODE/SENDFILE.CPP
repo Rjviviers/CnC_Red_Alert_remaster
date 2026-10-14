@@ -47,17 +47,7 @@
 
 //#include "WolDebug.h"
 
-#ifdef WINSOCK_IPX
 #include "WSProto.h"
-#else
-
-#ifdef WIN32
-#include	"tcpip.h"
-#else
-#include	"fakesock.h"
-#endif	//WIN32
-
-#endif	//WINSOCK_IPX
 
 bool Receive_Remote_File ( char *file_name, unsigned int file_length, int gametype);
 bool Send_Remote_File ( char *file_name, int gametype );
@@ -149,12 +139,7 @@ bool Get_Scenario_File_From_Host(char *return_name, int gametype)
 				&sender_address, &product_id)){
 
 //WWDebugString ("RA95 - Got packet from host\n");
-#ifdef WINSOCK_IPX
 				if (net_receive_packet.Command == NET_FILE_INFO && sender_address == Session.HostAddress) {
-#else	//WINSOCK_IPX
-				if (net_receive_packet.Command == NET_FILE_INFO &&
-						(Winsock.Get_Connected() || sender_address == Session.HostAddress)){
-#endif	//WINSOCK_IPX
 					strcpy (return_name, net_receive_packet.ScenarioInfo.ShortFileName);
 					file_length = net_receive_packet.ScenarioInfo.FileLength;
 //WWDebugString ("RA95 - Got file info packet from host\n");
@@ -339,7 +324,6 @@ bool Receive_Remote_File ( char *file_name, unsigned int file_length, int gamety
 	*/
 
 	do	{
-#ifdef WIN32
 		/*
 		** If we have just received input focus again after running in the background then
 		** we need to redraw.
@@ -348,7 +332,6 @@ bool Receive_Remote_File ( char *file_name, unsigned int file_length, int gamety
 			AllSurfaces.SurfacesRestored=FALSE;
 			display = REDRAW_ALL;
 		}
-#endif
 
 #ifdef WOLAPI_INTEGRATION
 		if( Session.Type == GAME_INTERNET && pWolapi && ( ::timeGetTime() > pWolapi->dwTimeNextWolapiPump ) )
@@ -434,12 +417,7 @@ bool Receive_Remote_File ( char *file_name, unsigned int file_length, int gamety
 			if (Ipx.Get_Global_Message (&receive_packet, &receive_packet_len,
 				&sender_address, &product_id)){
 
-#ifdef WINSOCK_IPX
 				if (receive_packet.Command == NET_FILE_CHUNK && sender_address == Session.HostAddress){
-#else	//WINSOCK_IPX
-				if (receive_packet.Command == NET_FILE_CHUNK &&
-							(Winsock.Get_Connected() || sender_address == Session.HostAddress)){
-#endif	//WINSOCK_IPX
 
 					if (receive_packet.BlockNumber == last_received_block + 1){
 
@@ -708,7 +686,6 @@ bool Send_Remote_File ( char *file_name, int gametype )
 
 	while ( process ){
 
-#ifdef WIN32
 		/*
 		** If we have just received input focus again after running in the background then
 		** we need to redraw.
@@ -717,7 +694,6 @@ bool Send_Remote_File ( char *file_name, int gametype )
 			AllSurfaces.SurfacesRestored=FALSE;
 			display = REDRAW_ALL;
 		}
-#endif
 
 #ifdef WOLAPI_INTEGRATION
 		if( Session.Type == GAME_INTERNET && pWolapi && ( ::timeGetTime() > pWolapi->dwTimeNextWolapiPump ) )

@@ -125,7 +125,6 @@ UnitTypeClass      ³   BuildingTypeClass      ³  VesselTypeClass
 #include "lint.h"
 
 
-#ifdef WIN32
 //#define WIN32_LEAN_AND_MEAN
 #include	<windows.h>
 #define WWFILE_H
@@ -134,7 +133,6 @@ UnitTypeClass      ³   BuildingTypeClass      ³  VesselTypeClass
 
 #define	_MAX_NAME	_MAX_FNAME
 
-#endif
 
 
 /*
@@ -197,13 +195,8 @@ struct NoInitClass {
 #define FILE_H
 #define WWMEM_H
 
-#ifndef WIN32
-#define TIMER_H
-#endif
 
-#ifdef WIN32
 #include	"key.h"
-#endif
 
 #include <wwlib32.h>
 #include	"mpu.h"
@@ -262,10 +255,8 @@ typedef struct {
 
 
 
-#ifdef WIN32
 #define	int386x(a,b,c,d)	0
 #define	int386(a,b,c)	0
-#endif
 
 
 /*
@@ -395,20 +386,14 @@ CELL Coord_Cell(COORDINATE coord);
 #include	"readline.h"
 #include	"vortex.h"
 #include "egos.h"
-#ifdef WIN32
 #include	"pcx.h"
-#endif
 
 #if(TEN)
 #include "tenmgr.h"
 #endif
 
 #if(MPATH)
-#ifdef WIN32
 #include "mpmgrw.h"
-#else
-#include "mpmgrd.h"
-#endif
 #endif
 
 // Denzil 5/18/98 - Mpeg movie playback
@@ -423,7 +408,6 @@ bool PlayMpegMovie(const char* name);
 extern int Get_CD_Drive(void);
 extern void Fatal(char const *message, ...);
 
-#ifdef WIN32
 
 /*
 ** For WIN32, replace the assert macro so we get an error on the debugger screen
@@ -450,7 +434,6 @@ extern int Load_Interpolated_Palettes(char const *filename, BOOL add=FALSE);
 extern void Rebuild_Interpolated_Palette(unsigned char *interpal);
 extern void Interpolate_2X_Scale( GraphicBufferClass *source, GraphicViewPortClass *dest ,char const *palette_file_name);
 void Increase_Palette_Luminance (unsigned char *palette , int red_percentage , int green_percentage , int blue_percentage ,int cap);
-#endif
 
 /*
 **	ADATA.CPP
@@ -484,11 +467,7 @@ bool Is_Speaking(void);
 /*
 **	CDFILE.CPP
 */
-#ifdef WIN32
 int harderr_handler(unsigned, unsigned, unsigned *);
-#else
-int harderr_handler(unsigned, unsigned, unsigned __far *);
-#endif
 
 /*
 **	COMBAT.CPP

@@ -41,7 +41,6 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#ifdef WIN32
 
 #include	"function.h"
 #include "tcpip.h"
@@ -193,7 +192,6 @@ extern bool bReconnectDialogCancelled;
 void Send_Statistics_Packet(void)
 {
 //	debugprint( "Stats: Send_Statistics_Packet() called.\n" );
-#ifndef INTERNET_OFF // Denzil 5/4/98
 
 #ifdef WOLAPI_INTEGRATION
 	if( !pWolapi )			//	Should no longer ever happen.
@@ -890,7 +888,6 @@ void Send_Statistics_Packet(void)
 	delete [] packet;
 
 	GameStatisticsPacketSent = true;
-#endif // INTERNET_OFF
 }
 
 
@@ -909,4 +906,3 @@ extern void Register_Game_End_Time(void)
 }
 
 
-#endif	//WIN32

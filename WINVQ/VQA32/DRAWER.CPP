@@ -112,15 +112,9 @@ static void PageFlip_VESA(VQAHandle *vqabuf);
 static long DrawFrame_Buffer(VQAHandle *vqa);
 static long PageFlip_Nop(VQAHandle *vqa);
 
-#ifndef PHARLAP_TNT
 static void __cdecl UnVQ_Nop(unsigned char *codebook, unsigned char *pointers,
 		unsigned char *buffer, unsigned long blocksperrow,
 		unsigned long numrows, unsigned long bufwidth);
-#else
-static void __cdecl UnVQ_Nop(unsigned char *codebook, unsigned char *pointers,
-		FARPTR buffer, unsigned long blocksperrow, unsigned long numrows,
-		unsigned long bufwidth);
-#endif
 
 #if(0)
 static void Mask_Rect(VQAHandle *vqa, unsigned long x1, unsigned long y1,
@@ -1377,11 +1371,7 @@ static long PageFlip_MCGA(VQAHandle *vqa)
 	long          blocksperrow;
 	long          numrows;
 
-	#ifndef PHARLAP_TNT
 	unsigned char *scrn;
-	#else
-	FARPTR        scrn;
-	#endif
 
 	/* Dereference commonly used data members for quicker access. */
 	vqabuf = ((VQAHandleP *)vqa)->VQABuf;
@@ -1438,11 +1428,7 @@ static long PageFlip_MCGA(VQAHandle *vqa)
 	 *-----------------------------------------------------------------------*/
 
 	/* Get screen address, blocks per row and number of rows. */
-	#ifndef PHARLAP_TNT
 	scrn = (unsigned char *)(0xA0000 + (unsigned long)drawer->ScreenOffset);
-	#else
-	FP_SET(scrn, drawer->ScreenOffset, 0x1C);
-	#endif
 
 	blocksperrow = drawer->BlocksPerRow;
 	numrows = drawer->NumRows;
@@ -1522,11 +1508,7 @@ static long DrawFrame_MCGABuf(VQAHandle *vqa)
 	VQAFrameNode *curframe;
 	long         rc;
 
-	#ifndef PHARLAP_TNT
 	unsigned char *scrn;
-	#else
-	FARPTR        scrn;
-	#endif
 
 	/* Dereference commonly used data members for quicker access. */
 	vqabuf = ((VQAHandleP *)vqa)->VQABuf;
@@ -1558,11 +1540,7 @@ static long DrawFrame_MCGABuf(VQAHandle *vqa)
 	/* Dereference current frame for quicker access. */
 	curframe = drawer->CurFrame;
 
-	#ifndef PHARLAP_TNT
 	scrn = drawer->ImageBuf;
-	#else
-	FP_SET(scrn, drawer->ImageBuf, 0x14);
-	#endif
 
 	/* Un-VQ the image */
 	vqabuf->UnVQ(curframe->Codebook->Buffer, curframe->Pointers, scrn,
@@ -1675,16 +1653,10 @@ static long PageFlip_MCGABuf(VQAHandle *vqa)
 	imgheight = ((VQAHandleP *)vqa)->Header.ImageHeight;
 	buf = drawer->ImageBuf;
 
-	#ifndef PHARLAP_TNT
 	scrn = (unsigned char *)0xA0000;
-	#endif
 
 	if ((imgwidth < 320) || (imgheight < 200)) {
-		#ifndef PHARLAP_TNT
 		scrn += drawer->ScreenOffset;
-		#else
-		scrn = (unsigned char *)drawer->ScreenOffset;
-		#endif
 
 		MCGA_Blit(buf, scrn, imgwidth, imgheight);
 	} else {
@@ -1731,11 +1703,7 @@ static long DrawFrame_VESA640(VQAHandle *vqa)
 	VQAFrameNode *curframe;
 	long         rc;
 
-	#ifndef PHARLAP_TNT
 	unsigned char *scrn;
-	#else
-	FARPTR        scrn;
-	#endif
 
 	/* Dereference data members for quicker access. */
 	vqabuf = ((VQAHandleP *)vqa)->VQABuf;
@@ -1767,11 +1735,7 @@ static long DrawFrame_VESA640(VQAHandle *vqa)
 		vqabuf->Flags &= (~VQADATF_DSLEEP);
 	}
 
-	#ifndef PHARLAP_TNT
 	scrn = drawer->ImageBuf + drawer->ScreenOffset;
-	#else
-	FP_SET(scrn, drawer->ImageBuf + drawer->ScreenOffset, 0x14);
-	#endif
 
 	/* Un-VQ the image */
 	vqabuf->UnVQ(curframe->Codebook->Buffer, curframe->Pointers, scrn,
@@ -1855,19 +1819,8 @@ static long DrawFrame_VESA320_32K(VQAHandle *vqa)
 		grain = ((VESAModeInfo *)(drawer->Display->Extended))->WinSize
 				/ ((VESAModeInfo *)(drawer->Display->Extended))->WinGranularity;
 
-		#ifndef PHARLAP_TNT
 		vqabuf->UnVQ(curframe->Codebook->Buffer, curframe->Pointers,
 				drawer->Palette_15, grain, 0, 0);
-		#else
-		{
-		FARPTR temp;
-
-		FP_SET(temp, drawer->Palette_15, 0x14);
-
-		vqabuf->UnVQ(curframe->Codebook->Buffer, curframe->Pointers, temp,
-				grain, 0, 0);
-		}
-		#endif
 
 		/* Invoke user's callback routine */
 		if (config->DrawerCallback != NULL) {
@@ -1952,21 +1905,9 @@ static long DrawFrame_VESA320_32KBuf(VQAHandle *vqa)
 		Prepare_Frame(vqabuf);
 
 		/* UnVQ buffered mode */
-		#ifndef PHARLAP_TNT
 		vqabuf->UnVQ(curframe->Codebook->Buffer, curframe->Pointers,
 				drawer->ImageBuf, drawer->BlocksPerRow, drawer->NumRows,
 				((VQAHandleP *)vqa)->Header.image_width);
-		#else
-		{
-		FARPTR scrn;
-
-		FP_SET(scrn, drawer->ImageBuf, 0x14);
-
-		vqabuf->UnVQ(curframe->Codebook->Buffer, curframe->Pointers, scrn,
-				drawer->BlocksPerRow, drawer->NumRows,
-				((VQAHandleP *)vqa)->Header.image_width);
-		}
-		#endif
 
 		/* Translate the palette to 15-bit */
 		if (curframe->Flags & VQAFRMF_PALETTE) {
@@ -2158,11 +2099,7 @@ static long DrawFrame_Buffer(VQAHandle *vqa)
 	long          palsize;
 	long          slowpal;
 
-	#ifndef PHARLAP_TNT
 	unsigned char *buff;
-	#else
-	FARPTR        buff;
-	#endif
 
 	/* Dereference data members for quicker access. */
 	config = &((VQAHandleP *)vqa)->Config;
@@ -2195,11 +2132,7 @@ static long DrawFrame_Buffer(VQAHandle *vqa)
 	/* Dereference current frame for quicker access. */
 	curframe = drawer->CurFrame;
 
-	#ifndef PHARLAP_TNT
 	buff = (unsigned char *)(drawer->ImageBuf + drawer->ScreenOffset);
-	#else
-	FP_SET(buff, drawer->ImageBuf + drawer->ScreenOffset, 0x14);
-	#endif
 
 
 	pal = curframe->Palette;
@@ -2267,15 +2200,9 @@ static long DrawFrame_Buffer(VQAHandle *vqa)
 *
 ****************************************************************************/
 
-#ifndef PHARLAP_TNT
 static void __cdecl UnVQ_Nop(unsigned char *codebook, unsigned char *pointers,
 		unsigned char *buffer, unsigned long blocksperrow,
 		unsigned long numrows, unsigned long bufwidth)
-#else
-static void __cdecl UnVQ_Nop(unsigned char *codebook, unsigned char *pointers,
-		FARPTR buffer, unsigned long blocksperrow, unsigned long numrows,
-		unsigned long bufwidth)
-#endif
 {
 	/* Suppress compiler warnings */
 	codebook = codebook;

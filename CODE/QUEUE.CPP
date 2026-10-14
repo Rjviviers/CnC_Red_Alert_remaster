@@ -688,11 +688,9 @@ static void Queue_AI_Multiplayer(void)
 			their_sent, their_recv);
 
 		if (rc != RC_NORMAL) {
-#ifdef WIN32
 			if (Session.Type == GAME_INTERNET){
 				Register_Game_End_Time();
 			}
-#endif	//WIN32
 
 			if (rc == RC_NOT_RESPONDING) {
 				WWMessageBox().Process (TXT_SYSTEM_NOT_RESPONDING);
@@ -825,7 +823,6 @@ static void Queue_AI_Multiplayer(void)
 #endif
 
 	if (rc != RC_NORMAL) {
-#ifdef WIN32
 			if (Session.Type == GAME_INTERNET){
 				Register_Game_End_Time();
 #ifdef WOLAPI_INTEGRATION
@@ -833,7 +830,6 @@ static void Queue_AI_Multiplayer(void)
 				bReconnectDialogCancelled = ( rc == RC_CANCEL );
 #endif
 			}
-#endif	//WIN32
 		if (rc == RC_NOT_RESPONDING) {
 			WWMessageBox().Process (TXT_SYSTEM_NOT_RESPONDING);
 		}
@@ -859,11 +855,9 @@ static void Queue_AI_Multiplayer(void)
 	//------------------------------------------------------------------------
 	if (!Execute_DoList(Session.MaxPlayers, HOUSE_MULTI1, net, &skip_crc,
 		their_frame, their_sent, their_recv)) {
-#ifdef WIN32
 		if (Session.Type == GAME_INTERNET){
 			Register_Game_End_Time();
 		}
-#endif	//WIN32
 		Stop_Game();
 		return;
 	}
@@ -1244,9 +1238,7 @@ static RetcodeType Wait_For_Players(int first_time, ConnManClass *net,
 		//---------------------------------------------------------------------
 		Call_Back();
 		if (!first_time && SpecialDialog == SDLG_NONE && reconnect_dlg==0) {
-#ifdef WIN32
 			WWMouse->Erase_Mouse(&HidPage, TRUE);
-#endif	//WIN32
 			Map.Input(input, x, y);
 			if (input)
 				Keyboard_Process(input);
@@ -2281,7 +2273,6 @@ static int Handle_Timeout(ConnManClass *net, long *their_frame,
 		}
 
 		id = net->Connection_ID(oldest_index);
-#ifdef WIN32
 		/*
 		** Send the game statistics packet now if the game is effectivly over
 		*/
@@ -2292,7 +2283,6 @@ static int Handle_Timeout(ConnManClass *net, long *their_frame,
 			ConnectionLost = true;
 			Send_Statistics_Packet();		//	Disconnect, and I'll be the only one left.
 		}
-#endif	//WIN32
 
 		if (id != ConnManClass::CONNECTION_NONE) {
 			for (i = oldest_index; i < net->Num_Connections() - 1; i++) {
@@ -2347,12 +2337,10 @@ static void Stop_Game(void)
 	if (IsMono) {
 		MonoClass::Disable();
 	}
-#ifdef WIN32
 	if (Session.Type == GAME_INTERNET){
 		ConnectionLost = true;
 		Send_Statistics_Packet();			//	Stop_Game()
 	}
-#endif	//WIN32
 
 	return;
 
@@ -3344,7 +3332,6 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 				if (DoList[j].Type==EventClass::EXIT ||
 						DoList[j].Type==EventClass::OPTIONS) {
 
-#ifdef WIN32
 					if (DoList[j].Type==EventClass::EXIT) {
 						/*
 						** Flag that this house lost because it quit.
@@ -3374,7 +3361,6 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 							Send_Statistics_Packet();		//	Event - player aborted, and there were only 2 left.
 						}
 					}
-#endif	//WIN32
 
 					if (Debug_Print_Events) {
 						if (DoList[j].Type==EventClass::EXIT) {

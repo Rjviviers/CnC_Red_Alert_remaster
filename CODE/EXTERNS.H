@@ -112,7 +112,6 @@ extern char const * NameOverride[25];
 extern int NameIDOverride[25];
 #endif
 
-#ifdef WIN32
 extern bool					GameInFocus;
 extern unsigned char 	*InterpolatedPalettes[100];
 extern BOOL					PalettesRead;
@@ -133,12 +132,6 @@ extern int							ScreenWidth;
 extern int							ScreenHeight;
 extern GraphicBufferClass		ModeXBuff;
 
-#else
-
-extern VideoBufferClass		SeenPage;
-extern GraphicBufferClass	SeenBuff;
-extern GraphicBufferClass &	VisiblePage;
-#endif
 
 
 /*
@@ -406,11 +399,7 @@ extern unsigned char const					RemapEmber[];
 
 extern int SoundOn;
 
-#ifdef WIN32
 extern GraphicViewPortClass	HidPage;
-#else
-extern GraphicBufferClass	HidPage;
-#endif
 extern int 						MenuList[][8];
 extern CDTimerClass<SystemTimerClass> FrameTimer;
 extern CDTimerClass<SystemTimerClass> CountDownTimer;
@@ -444,20 +433,15 @@ void Do_Vortex (int x, int y, int frame);
 /************************************************************
 ** Win32 specific externs
 */
-#ifdef WIN32
 extern bool ReadyToQuit;							//Are we about to exit cleanly
 extern bool InDebugger;							//Are we being run from a debugger
 void Memory_Error_Handler(void);				//Memory error handler function
 void WWDebugString (char *string);
-#else
-extern bool IsTheaterShape;
-#endif	//WIN32
 
 
 /*************************************************************
 ** Internet specific externs
 */
-#ifdef WIN32
 
 extern char PlanetWestwoodHandle[];			//Planet WW user name
 extern char PlanetWestwoodPassword[];		//Planet WW password
@@ -481,7 +465,6 @@ bool 	Client_Remote_Connect(void);
 extern	int UnitBuildPenalty;
 
 
-#endif	 //WIN32
 
 /*
 ** From SENDFILE.CPP - externs for scenario file transfers
