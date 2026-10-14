@@ -124,8 +124,6 @@ extern GraphicBufferClass	HiddenPage;
 extern GraphicBufferClass		VisiblePage;
 extern GraphicViewPortClass	SeenBuff;
 extern GraphicBufferClass		SysMemPage;
-extern LPDIRECTSOUND				SoundObject;
-extern LPDIRECTSOUNDBUFFER		PrimaryBufferPtr;
 extern int							ScreenWidth;
 extern int							ScreenHeight;
 extern GraphicBufferClass		ModeXBuff;
@@ -457,6 +455,14 @@ extern MCIMovie* MciMovie;
 #include "mpgset.h"
 extern MPGSettings* MpgSettings;
 #endif
+
+/*
+**	Mouse position globals with C linkage, defined in WINASM.ASM / CODE/WINASM.CPP (S07-C)
+**	and read by ENDING.CPP and INTRO.CPP. No original header declared them; added in S06a
+**	at S07-C's request.
+*/
+extern "C" int MouseQX;
+extern "C" int MouseQY;
 
 #endif
 

@@ -162,6 +162,7 @@ inline ShapeFlags_Type operator &(ShapeFlags_Type, ShapeFlags_Type);
 inline ShapeFlags_Type operator ~(ShapeFlags_Type);
 
 
+#ifdef __WATCOMC__
 void Set_Bit(void * array, int bit, int value);
 #pragma aux Set_Bit parm [esi] [ecx] [eax] \
 	modify [esi ebx] = 			\
@@ -282,6 +283,14 @@ extern void outport(int port, unsigned short data);
 		"mov	al,ah"		\
 		"out	dx,al"
 #endif
+#else	// __WATCOMC__
+/*
+**	S06a: portable, bit-exact C++ versions of the inline assembly above (Set_Bit, Get_Bit,
+**	First_True_Bit, First_False_Bit, Fixed_To_Cardinal, Cardinal_To_Fixed, outportb,
+**	outport). They live in a self-contained header so that unit tests can include them.
+*/
+#include	"watcom_aux.h"
+#endif	// __WATCOMC__
 
 
 /*

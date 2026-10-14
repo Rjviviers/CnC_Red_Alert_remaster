@@ -902,7 +902,8 @@ void Show_Who_Was_Responsible (void);
 **	names ever created, however there are other objects of this type (with different names) that
 **	are created.
 */
-extern CCPtr<AircraftClass> y1;
+// S06a: was "y1", which clashes with the POSIX Bessel function y1() from <math.h>.
+extern CCPtr<AircraftClass> y1_;
 extern CCPtr<AnimClass> y2;
 extern CCPtr<BuildingClass> y3;
 extern CCPtr<BulletClass> y4;

@@ -41,6 +41,7 @@
 class PaletteClass;
 class HSVClass;
 
+#ifdef __WATCOMC__
 #ifndef OUTPORTB
 #define OUTPORTB
 extern void outportb(int port, unsigned char data);
@@ -70,6 +71,19 @@ extern void outrgb(unsigned char red, unsigned char green, unsigned char blue);
 		"out	dx,al"		\
 		"jmp	e3"			\
 		"e3:"
+#else	// __WATCOMC__
+/*
+**	S06a: VGA DAC port output. User-mode programs cannot do port I/O on any current OS
+**	(the Win32 build would have faulted on it), so these do nothing; palettes are set
+**	through PaletteClass::Set instead. Same functions as in JSHELL.H (shared guard).
+*/
+#ifndef OUTPORTB
+#define OUTPORTB
+inline void outportb(int port, unsigned char data) {(void)port; (void)data;}
+inline void outport(int port, unsigned short data) {(void)port; (void)data;}
+#endif
+inline void outrgb(unsigned char red, unsigned char green, unsigned char blue) {(void)red; (void)green; (void)blue;}
+#endif	// __WATCOMC__
 
 /*
 **	Each color entry is represented by this class. It holds the values for the color

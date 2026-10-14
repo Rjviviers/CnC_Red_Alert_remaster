@@ -261,6 +261,12 @@ class TTimerClass : public BasicTimerClass<T> {
 		// Queries whether the timer is currently active.
 		bool Is_Active(void) const;
 
+	protected:
+		// S06a: members of a dependent base class must be named explicitly in a
+		// template (two-phase lookup; Watcom looked them up at instantiation).
+		using BasicTimerClass<T>::Timer;
+		using BasicTimerClass<T>::Started;
+
 	private:
 		unsigned long Accumulated;				//	Total accumulated ticks.
 };
@@ -485,6 +491,12 @@ class CDTimerClass : public BasicTimerClass<T> {
 
 		// Queries whether the timer is currently active.
 		bool Is_Active(void) const;
+
+	protected:
+		// S06a: members of a dependent base class must be named explicitly in a
+		// template (two-phase lookup; Watcom looked them up at instantiation).
+		using BasicTimerClass<T>::Timer;
+		using BasicTimerClass<T>::Started;
 
 	private:
 		unsigned long DelayTime;			// Ticks remaining before countdown timer expires.
