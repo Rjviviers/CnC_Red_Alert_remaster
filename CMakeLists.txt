@@ -23,7 +23,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/RABuildConfig.cmake)   # stage 2: afte
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # the compile-progress tool reads compile_commands.json
 
-# Generated from the original makefiles by scripts/gen_cmake_sources.py.
+# Hand-maintained source lists (ADR-0012; originally generated from the makefiles).
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/RASources.cmake)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RASources.cmake)

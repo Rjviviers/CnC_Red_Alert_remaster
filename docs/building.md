@@ -119,19 +119,16 @@ All architecture, standard and flag choices live in one file:
 | `vqa32wp` | `WINVQ/VQA32/MAKEFILE` | `OBJECTS` |
 | `vqm32wp` | `WINVQ/VQM32/MAKEFILE` | `OBJECTS` |
 
-The lists are in [`cmake/RASources.cmake`](../cmake/RASources.cmake), which is **generated**:
-
-```sh
-python3 scripts/gen_cmake_sources.py          # regenerate after changing a makefile
-python3 scripts/gen_cmake_sources.py --check  # CI: fail if the committed file is stale
-```
+The lists are in [`cmake/RASources.cmake`](../cmake/RASources.cmake). They are **hand-maintained**
+([ADR-0012](decisions/0012-hand-maintained-source-lists.md)): S03 generated them from the original
+makefiles with `scripts/gen_cmake_sources.py`, and S05 froze that output and deleted the generator
+when it started deleting files. When you add, delete or rename a source file, edit
+`cmake/RASources.cmake` in the same commit. The original makefiles (`CODE/MAKEFILE`, the
+`WIN32LIB/*/MAKEFILE`s, ...) are kept for reference only; they still name files that S05 deleted.
 
 Assembly (`.ASM`, TASM syntax) files are kept in `RA_*_ASM_SOURCES` but not compiled; S07
-replaces them. Objects named in a makefile without a source file in the repository are listed
+replaces them. Objects named in the original makefile without a source file in the repository are listed
 in `RA_*_MISSING_OBJECTS` (currently `CODE/PASSEDIT` and `CODE/PALETTE`).
-
-When the makefiles stop being the source of truth (once S05/S06 start removing files), switch to
-maintaining the lists in CMake directly and delete the generator; record that in the session log.
 
 ### Defines and include paths
 
@@ -169,7 +166,7 @@ The shim is regenerated on every configure. If you add or change an `#include`, 
 | `linux-gcc-x86` | `ubuntu-24.04` | GCC + `gcc-multilib`, `-m32`, Ninja |
 | `windows-msvc-x86` | `windows-2022` | MSVC x86 (via `ilammy/msvc-dev-cmd`), Ninja |
 
-Each job checks that `cmake/RASources.cmake` is up to date, configures, runs the progress tool,
+Each job configures, runs the progress tool,
 writes the totals and top errors to the job summary, and uploads `compile-progress.md`,
 `.json` and the per-file logs as an artifact (`compile-progress-<job>`). A job fails only if
 the build system is broken, never because game sources fail to compile.

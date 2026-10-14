@@ -1,6 +1,9 @@
-# GENERATED FILE - DO NOT EDIT.
-# Source lists derived from the original Watcom makefiles (Win32 configuration).
-# Regenerate with:  python3 scripts/gen_cmake_sources.py
+# Source lists for the CMake targets. HAND-MAINTAINED (ADR-0012).
+# Originally generated from the Watcom makefiles by scripts/gen_cmake_sources.py
+# (session S03); frozen in session S05 when files started being deleted, and
+# the generator was deleted then (it is still in the repository history). The
+# original makefiles are kept for reference only and are no longer the source
+# of truth. When you add, delete or rename a source file, edit this file.
 # Paths are relative to the repository root.
 
 # Game: CODE/MAKEFILE OBJECTS + LIBFILES (jshell.lib) + TECHFILES (tech.lib), Win32
