@@ -25,8 +25,10 @@
  *                   Start Date : 04/29/95                                 *
  *-------------------------------------------------------------------------*
  * Skirmish game setup dialog. This code was part of NULLDLG.CPP (the      *
- * modem/null-modem dialogs) and was moved here unchanged in session S05,  *
- * before the modem code was removed. See docs/codebase/removed-code.md.   *
+ * modem/null-modem dialogs) and was moved here in session S05; then the   *
+ * modem (serial host) code paths were removed. Only skirmish == true is   *
+ * supported now; the remaining !skirmish branches are dead UI code.       *
+ * See docs/codebase/removed-code.md.                                      *
  *-------------------------------------------------------------------------*
  * Functions:                                                              *
  *   Com_Scenario_Dialog -- Serial game scenario selection dialog				*
@@ -45,29 +47,9 @@ extern bool Is_Mission_Counterstrike (char *file_name);
 extern bool Is_Mission_Aftermath( char* file_name );
 #endif
 
-//
-// how much time (ticks) to go by before thinking other system
-// is not responding.
-//
-#define PACKET_SENDING_TIMEOUT	1800
-#define PACKET_CANCEL_TIMEOUT		900
-
 //extern char const *ForMisStr[];
 extern char const *EngMisStr[];
 
-
-//
-// how much time (ticks) to go by before sending another packet
-// of game options or serial connect.
-//
-#define PACKET_RETRANS_TIME	30
-#define PACKET_REDRAW_TIME		60
-
-static SerialPacketType SendPacket;
-static SerialPacketType ReceivePacket;
-extern char TheirName[MPLAYER_NAME_MAX];
-extern PlayerColorType TheirColor;
-extern HousesType TheirHouse;
 
 #ifdef FIXIT_VERSION_3
 bool Force_Scenario_Available( const char* szName );
@@ -76,8 +58,6 @@ bool bSpecialAftermathScenario( const char* szScenarioDescription );
 
 #define PCOLOR_BROWN	PCOLOR_GREY
 
-
-#define SHOW_MONO	0
 
 /***********************************************************************************************
  * Com_Scenario_Dialog -- Serial game scenario selection dialog										  *
@@ -271,25 +251,13 @@ int Com_Scenario_Dialog(bool skirmish)
 							d_color_x + (d_color_w * 6),
 							d_color_x + (d_color_w * 7)
 							};
-	bool parms_received = false;					// 1 = game options received
 	bool changed = false;							// 1 = user has changed an option
 
 	int rc;
-	int recsignedoff = false;
 	int i;
-	unsigned long version;
-	unsigned long starttime;
-	unsigned long timingtime;
-	unsigned long lastmsgtime;
-	unsigned long lastredrawtime;
 	unsigned long transmittime = 0;
-	unsigned long theirresponsetime;
-	int packetlen;
 	static bool first_time = true;
-	bool oppscorescreen = false;
 	bool gameoptions = Session.Type == GAME_SKIRMISH;
-	EventClass *event;					// event ptr
-	unsigned long msg_timeout = 1200;	// init to 20 seconds
 
 	CCFileClass loadfile ("SAVEGAME.NET");
 	bool load_game = false;					// 1 = load a saved game
@@ -565,51 +533,12 @@ int Com_Scenario_Dialog(bool skirmish)
 	Load_Title_Page(true);
 	CCPalette.Set();
 
-	extern char ModemRXString[];
-
-	if (strlen(ModemRXString) > 36)
-		ModemRXString[36] = 0;
-
-	if (strlen(ModemRXString) > 0)
-		Session.Messages.Add_Message (NULL, 0, ModemRXString, PCOLOR_BROWN,
-			TPF_TEXT, -1);
-
-	ModemRXString[0] = '\0';
-
-	/*
-	---------------------------- Init Mono Output ----------------------------
-	*/
-	#if(SHOW_MONO)
-	if (!skirmish) {
-		NullModem.Configure_Debug(sizeof (CommHeaderType),sizeof (SerialCommandType),
-			SerialPacketNames, 100, 8);
-		NullModem.Mono_Debug_Print(1);
-	}
-	#endif
-
 	/*
 	---------------------------- Processing loop -----------------------------
 	*/
-	if (!skirmish) {
-		NullModem.Reset_Response_Time();		// clear response time
-	}
-	theirresponsetime = 10000;				// initialize to an invalid value
-	timingtime = lastmsgtime = lastredrawtime = TickCount;
 
-
-	/*
-	** Those easily offended should avert their eyes from the following line. And whatever
-	** you do, dont search for 'goto'.
-	*/
-oh_dear_its_a_label:
 
 	while (process) {
-		#if(SHOW_MONO)
-		if (!skirmish) {
-			NullModem.Mono_Debug_Print(0);
-		}
-		#endif
-
 		if (!skirmish){
 			if (!ok_button_added && gameoptions && kludge_timer == 0){
 				okbtn.Add_Tail(*commands);
@@ -1148,41 +1077,7 @@ oh_dear_its_a_label:
 						Draw_Box(d_send_x, d_send_y, d_send_w, d_send_h, BOXSTYLE_BOX, true);
 						Session.Messages.Draw();
 						Show_Mouse();
-					} else if (i==3 || i==4) {
-					/*...............................................................
-					If 'input' returned 3, it means send the current message.
-					...............................................................*/
-						memset (&SendPacket, 0, sizeof(SerialPacketType));
-						SendPacket.Command = SERIAL_MESSAGE;
-						strcpy (SendPacket.Name, namebuf);
-						SendPacket.ID = Session.ColorIdx;
-						if (i==3) {
-							strcpy (SendPacket.Message.Message, Session.Messages.Get_Edit_Buf());
-						} else {
-							strcpy (SendPacket.Message.Message, Session.Messages.Get_Overflow_Buf());
-							Session.Messages.Clear_Overflow_Buf();
-						}
-
-						/*..................................................................
-						Send the message
-						..................................................................*/
-						if (!skirmish) {
-							NullModem.Send_Message (&SendPacket, sizeof(SendPacket), 1);
-							NullModem.Service();
-						}
-						/*..................................................................
-						Add the message to our own screen
-						..................................................................*/
-						Session.Messages.Add_Message (SendPacket.Name, SendPacket.ID,
-							SendPacket.Message.Message,
-							(Session.ColorIdx == PCOLOR_DIALOG_BLUE) ? PCOLOR_REALLY_BLUE : Session.ColorIdx,
-							TPF_TEXT, -1);
-						Session.Messages.Add_Edit((Session.ColorIdx == PCOLOR_DIALOG_BLUE) ?
-																				PCOLOR_REALLY_BLUE : Session.ColorIdx,
-														TPF_TEXT, NULL, '_', d_message_w);
-
-						if (display < REDRAW_MESSAGE) display = REDRAW_MESSAGE;
-					}	/* end of send message */
+					}
 				}
 				break;
 		}
@@ -1196,351 +1091,6 @@ oh_dear_its_a_label:
 			changed = true;
 		}
 
-		/*---------------------------------------------------------------------
-		If our Transmit flag is set, we need to send out a game option packet.
-		This message requires an ACK.  The first time through the loop, transmit
-		should be set, so we send out our default options; we'll then send
-		any changes we make to the defaults.
-		---------------------------------------------------------------------*/
-		if (skirmish) {
-			transmit = false;
-		}
-
-		if (transmit && (TickCount - transmittime) > PACKET_RETRANS_TIME) {
-			memset (&SendPacket, 0, sizeof(SerialPacketType));
-			SendPacket.Command = SERIAL_GAME_OPTIONS;
-			strcpy (SendPacket.Name, namebuf);
-			SendPacket.ScenarioInfo.CheatCheck = RuleINI.Get_Unique_ID();
-			SendPacket.ScenarioInfo.MinVersion = VerNum.Min_Version();
-			SendPacket.ScenarioInfo.MaxVersion = VerNum.Max_Version();
-			SendPacket.ScenarioInfo.House = Session.House;
-			SendPacket.ScenarioInfo.Color = Session.ColorIdx;
-			SendPacket.ScenarioInfo.Credits = Session.Options.Credits;
-			SendPacket.ScenarioInfo.IsBases = Session.Options.Bases;
-			SendPacket.ScenarioInfo.IsTiberium = Session.Options.Tiberium;
-			SendPacket.ScenarioInfo.IsGoodies = Session.Options.Goodies;
-			SendPacket.ScenarioInfo.AIPlayers = Session.Options.AIPlayers;
-			SendPacket.ScenarioInfo.BuildLevel = BuildLevel;
-			SendPacket.ScenarioInfo.UnitCount = Session.Options.UnitCount;
-			SendPacket.ScenarioInfo.Seed = Seed;
-			SendPacket.ScenarioInfo.Special = Special;
-			SendPacket.ScenarioInfo.GameSpeed = Options.GameSpeed;
-			SendPacket.ID = Session.ModemType;
-
-			/*
-			** Set up the scenario info so the remote player can match the scenario on his machine
-			** or request a download if it doesnt exist
-			*/
-			strcpy (SendPacket.ScenarioInfo.Scenario, Session.Scenarios[Session.Options.ScenarioIndex]->Description());
-			CCFileClass file (Session.Scenarios[Session.Options.ScenarioIndex]->Get_Filename());
-
-			SendPacket.ScenarioInfo.FileLength = file.Size();
-
-#ifdef WOLAPI_INTEGRATION
-			strcpy( SendPacket.ScenarioInfo.ShortFileName, Session.Scenarios[Session.Options.ScenarioIndex]->Get_Filename() );
-#else
-			strncpy (SendPacket.ScenarioInfo.ShortFileName, Session.Scenarios[Session.Options.ScenarioIndex]->Get_Filename(), sizeof(SendPacket.ScenarioInfo.ShortFileName));
-#endif
-			strncpy ((char*)SendPacket.ScenarioInfo.FileDigest, Session.Scenarios[Session.Options.ScenarioIndex]->Get_Digest(), sizeof SendPacket.ScenarioInfo.FileDigest);
-			SendPacket.ScenarioInfo.OfficialScenario = Session.Scenarios[Session.Options.ScenarioIndex]->Get_Official();
-			NullModem.Send_Message (&SendPacket, sizeof(SendPacket), 1);
-
-			transmittime = TickCount;
-			transmit = false;
-
-			//..................................................................
-			// Keep the player list up to date
-			//..................................................................
-			if (playerlist.Count()) {
-				item = (char *)playerlist.Get_Item(0);
-#ifdef OLDWAY
-				if (Session.House==HOUSE_GOOD) {
-					sprintf(item,"%s\t%s",namebuf,
-						Text_String(TXT_ALLIES));
-				} else {
-					sprintf(item,"%s\t%s",namebuf,
-						Text_String(TXT_SOVIET));
-				}
-#else	//OLDWAY
-				sprintf (item, "%s\t%s", namebuf, Text_String(HouseTypeClass::As_Reference(Session.House).Full_Name()));
-#endif	//OLDWAY
-				playerlist.Colors[0] = &ColorRemaps[(Session.ColorIdx == PCOLOR_DIALOG_BLUE) ?
-																				PCOLOR_REALLY_BLUE : Session.ColorIdx];
-				playerlist.Flag_To_Redraw();
-			}
-
-			//..................................................................
-			// Play a little sound effect
-			//..................................................................
-			Sound_Effect(VOC_OPTIONS_CHANGED);
-		}
-
-		//
-		// send a timing packet if enough time has gone by.
-		//
-		if (!skirmish &&  (TickCount - timingtime) > PACKET_TIMING_TIMEOUT) {
-			memset (&SendPacket, 0, sizeof(SerialPacketType));
-			SendPacket.Command = SERIAL_TIMING;
-			SendPacket.ScenarioInfo.ResponseTime = NullModem.Response_Time();
-			SendPacket.ID = Session.ModemType;
-
-			NullModem.Send_Message (&SendPacket, sizeof(SendPacket), 0);
-			timingtime = TickCount;
-		}
-
-		/*---------------------------------------------------------------------
-		Check for an incoming message
-		---------------------------------------------------------------------*/
-		if (!skirmish && NullModem.Get_Message (&ReceivePacket, &packetlen) > 0) {
-
-			lastmsgtime = TickCount;
-			msg_timeout = 600;		// reset timeout value to 10 seconds
-											// (only the 1st time through is 20 seconds)
-
-			// are we getting our own packets back??
-
-			if (ReceivePacket.Command >= SERIAL_CONNECT &&
-				ReceivePacket.Command < SERIAL_LAST_COMMAND &&
-				ReceivePacket.Command != SERIAL_MESSAGE &&
-				ReceivePacket.ID == Session.ModemType) {
-
-				WWMessageBox().Process (TXT_SYSTEM_NOT_RESPONDING);
-
-				// to skip the other system not responding msg
-				lastmsgtime = TickCount;
-
-				process = false;
-				rc = false;
-
-				// say we did receive sign off to keep from sending one
-				recsignedoff = true;
-				break;
-			}
-
-			event = (EventClass *)&ReceivePacket;
-			if (event->Type <= EventClass::FRAMEINFO) {
-				if ( (TickCount - lastredrawtime) > PACKET_REDRAW_TIME) {
-					lastredrawtime = TickCount;
-					oppscorescreen = true;
-					if (display < REDRAW_MESSAGE) display = REDRAW_MESSAGE;
-					parms_received = true;
-				}
-			} else {
-				switch ( ReceivePacket.Command ) {
-					/*..................................................................
-					Sign-off: Give the other machine time to receive my ACK, display a
-					message, and exit.
-					..................................................................*/
-					case (SERIAL_SIGN_OFF):
-						starttime = TickCount;
-						while (TickCount - starttime < 60)
-							NullModem.Service();
-						WWMessageBox().Process(TXT_USER_SIGNED_OFF);
-
-						// to skip the other system not responding msg
-						lastmsgtime = TickCount;
-
-						process = false;
-						rc = false;
-						recsignedoff = true;
-						break;
-
-					/*..................................................................
-					Game Options:  Store the other machine's name, color & house;
-					If they've picked the same color as myself, re-transmit my settings
-					to force him to choose a different color.  (Com_Show_Scenario_Dialog
-					is responsible for ensuring the colors are different.)
-					..................................................................*/
-					case (SERIAL_GAME_OPTIONS):
-						oppscorescreen = false;
-						gameoptions = true;
-						kludge_timer = 2*60;
-						strcpy (TheirName, ReceivePacket.Name);
-						TheirColor = ReceivePacket.ScenarioInfo.Color;
-						TheirHouse = ReceivePacket.ScenarioInfo.House;
-						transmit = true;
-
-						parms_received = true;
-						if (display < REDRAW_MESSAGE) display = REDRAW_MESSAGE;
-
-						//.........................................................
-						// "Clip" the other system's version range to our own
-						// ........................................................
-						version = VerNum.Clip_Version(ReceivePacket.ScenarioInfo.MinVersion,
-							ReceivePacket.ScenarioInfo.MaxVersion);
-						// ........................................................
-						// If the greatest-common-version comes back 0, the other
-						// system's range is too low for ours
-						// ........................................................
-						if (version == 0) {
-							WWMessageBox().Process (TXT_DESTGAME_OUTDATED);
-
-							// to skip the other system not responding msg
-							lastmsgtime = TickCount;
-
-							process = false;
-							rc = false;
-						} else if (version == 0xffffffff) {
-						// ........................................................
-						// If the greatest-common-version comes back 0xffffffff,
-						// the other system's range is too high for ours
-						// ........................................................
-							WWMessageBox().Process (TXT_YOURGAME_OUTDATED);
-
-							// to skip the other system not responding msg
-							lastmsgtime = TickCount;
-
-							process = false;
-							rc = false;
-						} else {
-
-							if (ReceivePacket.ScenarioInfo.CheatCheck != RuleINI.Get_Unique_ID()) {
-								WWMessageBox().Process (TXT_MISMATCH);
-
-								// to skip the other system not responding msg
-								lastmsgtime = TickCount;
-
-								process = false;
-								rc = false;
-
-							} else {
-
-
-								// ........................................................
-								// Otherwise, 'version' is the highest version we have in
-								// common; look up the protocol that goes with this version.
-								// ........................................................
-								Session.CommProtocol = VerNum.Version_Protocol(version);
-#ifndef FIXIT_VERSION_3
-								PlayingAgainstVersion = version;
-#endif
-							}
-						}
-						/*.........................................................
-						If this is the first game-options packet we've received,
-						init the game & player lists
-						.........................................................*/
-						if (playerlist.Count()==0) {
-							//......................................................
-							// Add two strings to the player list
-							//......................................................
-							item = new char [MPLAYER_NAME_MAX + 64];	//Need room to display country name
-							playerlist.Add_Item(item,
-								&ColorRemaps[Session.ColorIdx]);
-							item = new char [MPLAYER_NAME_MAX + 64];	//Need room to display country name
-							playerlist.Add_Item(item,
-								&ColorRemaps[TheirColor]);
-						}
-
-						//.........................................................
-						// Ensure the player list has the latest, greatest copy of
-						// our names & colors.  Do this every time we receive an
-						// options packet.
-						//.........................................................
-						item = (char *)playerlist.Get_Item(0);
-#ifdef OLDWAY
-						if (Session.House==HOUSE_GOOD) {
-							sprintf(item,"%s\t%s",namebuf,
-								Text_String(TXT_ALLIES));
-						} else {
-							sprintf(item,"%s\t%s",namebuf,
-								Text_String(TXT_SOVIET));
-						}
-#else	//OLDWAY
-						sprintf (item, "%s\t%s", namebuf, Text_String(HouseTypeClass::As_Reference(Session.House).Full_Name()));
-#endif	//OLDWAY
-						playerlist.Colors[0] = &ColorRemaps[(Session.ColorIdx == PCOLOR_DIALOG_BLUE) ?
-																				PCOLOR_REALLY_BLUE : Session.ColorIdx];
-
-						item = (char *)playerlist.Get_Item(1);
-#ifdef	OLDWAY
-						if (TheirHouse==HOUSE_GOOD) {
-							sprintf(item,"%s\t%s",TheirName,
-								Text_String(TXT_ALLIES));
-						} else {
-							sprintf(item,"%s\t%s",TheirName,
-								Text_String(TXT_SOVIET));
-						}
-#else	//OLDWAY
-						sprintf (item, "%s\t%s", TheirName, Text_String(HouseTypeClass::As_Reference(TheirHouse).Full_Name()));
-#endif	//OLDWAY
-						playerlist.Colors[1] = &ColorRemaps[(TheirColor == PCOLOR_DIALOG_BLUE) ?
-																						PCOLOR_REALLY_BLUE : TheirColor];
-
-						playerlist.Flag_To_Redraw();
-
-						//.........................................................
-						// Play a little sound effect
-						//.........................................................
-						Sound_Effect(VOC_OPTIONS_CHANGED);
-
-						break;
-
-					/*..................................................................
-					Incoming message: add to our list
-					..................................................................*/
-					case (SERIAL_MESSAGE):
-						oppscorescreen = false;
-
-						Session.Messages.Add_Message (ReceivePacket.Name,
-							((PlayerColorType)ReceivePacket.ID == PCOLOR_DIALOG_BLUE) ?
-														PCOLOR_REALLY_BLUE : (PlayerColorType)ReceivePacket.ID,
-							ReceivePacket.Message.Message,
-							((PlayerColorType)ReceivePacket.ID == PCOLOR_DIALOG_BLUE) ?
-														PCOLOR_REALLY_BLUE : (PlayerColorType)ReceivePacket.ID,
-							TPF_TEXT, -1);
-
-						Sound_Effect(VOC_INCOMING_MESSAGE);
-						if (display < REDRAW_MESSAGE) display = REDRAW_MESSAGE;
-
-						break;
-
-					//
-					// get their response time
-					//
-					case (SERIAL_TIMING):
-						oppscorescreen = false;
-						theirresponsetime = ReceivePacket.ScenarioInfo.ResponseTime;
-
-						if ( !gameoptions ) {
-
-							// retransmit of game options packet again
-							transmit = true;
-						}
-						break;
-
-					//
-					// print msg waiting for opponent
-					//
-					case (SERIAL_SCORE_SCREEN):
-						oppscorescreen = true;
-						if (display < REDRAW_MESSAGE) display = REDRAW_MESSAGE;
-						parms_received = true;
-						break;
-
-					default:
-						break;
-				}
-			}
-		}
-
-		// if we haven't received a msg for 10 seconds exit
-
-		if (!skirmish && (TickCount - lastmsgtime) > msg_timeout) {
-			WWMessageBox().Process (TXT_SYSTEM_NOT_RESPONDING);
-			process = false;
-			rc = false;
-
-			// say we did receive sign off to keep from sending one
-			recsignedoff = true;
-		}
-
-		/*---------------------------------------------------------------------
-		Service the connection
-		---------------------------------------------------------------------*/
-		if (!skirmish) {
-			NullModem.Service();
-		}
 	}
 
 	/*------------------------------------------------------------------------
@@ -1598,182 +1148,6 @@ oh_dear_its_a_label:
 			Scen.CDifficulty = DIFF_NORMAL;
 			Scen.Difficulty = DIFF_NORMAL;
 		}
-
-		if (!skirmish) {
-			who = new NodeNameType;
-
-			#ifdef FIXIT_MODEM_LOAD_CRASH
-			/* If the names of the players are the same then we MUST force them
-			 * be be unique. This is necessary to prevent a crash after loading
-			 * a modem save game.
-			 */
-			if (strcmp(TheirName, namebuf) == 0)
-				{
-				if (strlen(TheirName) == (MPLAYER_NAME_MAX - 1))
-					{
-					TheirName[MPLAYER_NAME_MAX - 1] = '\0';
-					}
-				else
-					{
-					strcat(TheirName, "2");
-					}
-				}
-			#endif
-
-			strcpy(who->Name, TheirName);
-			who->Player.House = TheirHouse;
-			who->Player.Color = TheirColor;
-			who->Player.ProcessTime = -1;
-			Session.Players.Add (who);
-		}
-
-		/*.....................................................................
-		Send all players a GO packet.
-		.....................................................................*/
-		memset (&SendPacket, 0, sizeof(SerialPacketType));
-		if (load_game) {
-			SendPacket.Command = SERIAL_LOADGAME;
-		} else {
-			SendPacket.Command = SERIAL_GO;
-		}
-
-		if (!skirmish) {
-			SendPacket.ScenarioInfo.ResponseTime = NullModem.Response_Time();
-			if ( theirresponsetime == 10000 ) {
-				;
-			} else if (SendPacket.ScenarioInfo.ResponseTime < theirresponsetime) {
-				SendPacket.ScenarioInfo.ResponseTime = theirresponsetime;
-			}
-		}
-
-		//
-		// calculated one way delay for a packet and overall delay to execute
-		// a packet
-		//
-		if (!skirmish) {
-			if (Session.CommProtocol == COMM_PROTOCOL_MULTI_E_COMP) {
-				Session.MaxAhead = max( ((((SendPacket.ScenarioInfo.ResponseTime / 8) +
-					(Session.FrameSendRate - 1)) / Session.FrameSendRate) *
-					Session.FrameSendRate), (Session.FrameSendRate * 2)
-											);
-			} else {
-				Session.MaxAhead = max( (SendPacket.ScenarioInfo.ResponseTime / 8),
-											  MODEM_MIN_MAX_AHEAD );
-			}
-		}
-		SendPacket.ID = Session.ModemType;
-
-		if (!skirmish) {
-			NullModem.Send_Message (&SendPacket, sizeof(SendPacket), 1);
-			starttime = TickCount;
-			while ( ( NullModem.Num_Send()
-				&& ((TickCount - starttime) < PACKET_SENDING_TIMEOUT) )
-				|| ((TickCount - starttime) < 60) ) {
-				#if(SHOW_MONO)
-				NullModem.Mono_Debug_Print(0);
-				#endif
-
-				NullModem.Service();
-			}
-
-			/*
-			** Wait for the go response. This will be either a 'GO' reply, a
-			** request for the scenario to be sent or a reply to say that the scenario
-			** cant be played.
-			*/
-			WWDebugString ("RA95 - About to wait for 'GO' response.\n");
-			do {
-				NullModem.Service();
-
-				if (NullModem.Get_Message (&ReceivePacket, &packetlen) > 0) {
-
-#ifdef FIXIT_VERSION_3
- 					if (ReceivePacket.Command == SERIAL_READY_TO_GO)
-					{
-						if( Session.Scenarios[Session.Options.ScenarioIndex]->Get_Official() )
-						{
-							if( !Force_Scenario_Available( Scen.ScenarioName ) )
-								Emergency_Exit(EXIT_FAILURE);
-						}
-						break;
-					}
-#else
- 					if (ReceivePacket.Command == SERIAL_READY_TO_GO) break;
-#endif
-
-					if (ReceivePacket.Command == SERIAL_NO_SCENARIO) {
-						WWMessageBox().Process(TXT_NO_EXPANSION_SCENARIO, TXT_CANCEL);
-						/*
-						** We have to recover from this somehow so....
-						*/
-						process = true;
-						display = REDRAW_ALL;
-						lastmsgtime = TickCount;
-						goto oh_dear_its_a_label;
-					}
-
-					if (ReceivePacket.Command == SERIAL_REQ_SCENARIO) {
-						WWDebugString ("RA95 - About to call 'Send_Remote_File'.\n");
-
-
-#ifdef FIXIT_VERSION_3
-						if( Session.Scenarios[Session.Options.ScenarioIndex]->Get_Official() )
-						{
-							if( !Force_Scenario_Available( Scen.ScenarioName ) )
-								Emergency_Exit(EXIT_FAILURE);
-						}
-#endif
-
-						Send_Remote_File (Scen.ScenarioName, 0);
-
-						break;
-					}
-				}
-
-			} while ( !Keyboard->Check() );
-
-		// clear queue to keep from doing any resends
-			NullModem.Init_Send_Queue();
-		}
-
-	} else {
-		if ( !recsignedoff ) {
-			/*.....................................................................
-			Broadcast my sign-off over my network
-			.....................................................................*/
-			if (!skirmish) {
-				memset (&SendPacket, 0, sizeof(SerialPacketType));
-				SendPacket.Command = SERIAL_SIGN_OFF;
-				SendPacket.ScenarioInfo.Color = Session.ColorIdx;		// use Color for ID
-				SendPacket.ID = Session.ModemType;
-				NullModem.Send_Message (&SendPacket, sizeof(SendPacket), 1);
-
-				starttime = TickCount;
-				while ( (NullModem.Num_Send()
-					&& ((TickCount - starttime) < PACKET_CANCEL_TIMEOUT) )
-					|| ((TickCount - starttime) < 60) ) {
-					#if(SHOW_MONO)
-					NullModem.Mono_Debug_Print(0);
-					#endif
-
-					if ( NullModem.Get_Message( &ReceivePacket, &packetlen ) > 0) {
-
-						// are we getting our own packets back??
-
-						if (ReceivePacket.Command == SERIAL_SIGN_OFF
-							&& ReceivePacket.ID == Session.ModemType) {
-
-							// exit while
-							break;
-						}
-					}
-
-					NullModem.Service();
-				}
-			}
-		}
-
-		if (!skirmish) Shutdown_Modem();
 	}
 
 	/*------------------------------------------------------------------------

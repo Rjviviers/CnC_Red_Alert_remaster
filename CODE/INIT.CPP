@@ -936,41 +936,6 @@ bool Select_Game(bool fade)
 							}
 							break;
 
-						case GAME_NULL_MODEM:
-						case GAME_MODEM:
-							if ( Session.Type != GAME_SKIRMISH && NullModem.Num_Connections() ) {
-								NullModem.Init_Send_Queue();
-
-								if ((Session.Type == GAME_NULL_MODEM &&
-									Session.ModemType == MODEM_NULL_HOST) ||
-									(Session.Type == GAME_MODEM &&
-									Session.ModemType == MODEM_DIALER) ) {
-
-									if ( !Com_Scenario_Dialog() ) {
-										Session.Type = Select_Serial_Dialog();
-										if (Session.Type == GAME_NORMAL) {		// user hit Cancel
-											display = true;
-											selection = SEL_NONE;
-										}
-									}
-								} else {
-									if ( !Com_Show_Scenario_Dialog() ) {
-										Session.Type = Select_Serial_Dialog();
-										if (Session.Type == GAME_NORMAL) {		// user hit Cancel
-											display = true;
-											selection = SEL_NONE;
-										}
-									}
-								}
-							} else {
-								Session.Type = Select_MPlayer_Game();
-								if (Session.Type == GAME_NORMAL) {		// 'Cancel'
-									display = true;
-									selection = SEL_NONE;
-								}
-							}
-							break;
-
 #ifndef WOLAPI_INTEGRATION
 						/*
 						** Handle being spawned from WChat. Internet play based on IPX code.
@@ -1082,10 +1047,8 @@ bool Select_Game(bool fade)
 //debugprint( "Session.Type = %i\n", Session.Type );
 					switch (Session.Type) {
 						/*
-						**	Modem, Null-Modem or internet
+						**	Internet or skirmish
 						*/
-						case GAME_MODEM:
-						case GAME_NULL_MODEM:
 #ifndef WOLAPI_INTEGRATION
 						case GAME_INTERNET:
 #endif
@@ -1322,8 +1285,6 @@ bool Select_Game(bool fade)
 
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 	switch(Session.Type) {
-		case GAME_MODEM:
-		case GAME_NULL_MODEM:
 		case GAME_IPX:
 #ifdef FIXIT_VERSION_3
 			if( !bAftermathMultiplayer ) {

@@ -110,30 +110,6 @@ char * SessionClass::GlobalPacketNames[] = {
 	"Load"
 };
 
-char * SessionClass::SerialPacketNames[] = {
-	"CONNECT",
-	"GAME_OPTIONS",
-	"SIGN_OFF",
-	"GO",
-	"MESSAGE",
-	"TIMING",
-	"SCORE_SCREEN",
-	"LOADGAME",
-	"LAST_COMMAND",
-};
-
-
-char * SessionClass::DialMethodCheck[ DIAL_METHODS ] = {
-	"T",
-	"P"
-};
-
-char *SessionClass::CallWaitStrings[ CALL_WAIT_STRINGS_NUM ] = {
-	"*70,",
-	"70#,",
-	"1170,",
-	"CUSTOM -                "
-};
 
 /***************************************************************************
  * SessionClass::SessionClass -- Constructor                               *
@@ -197,17 +173,6 @@ SessionClass::SessionClass(void)
 	GProductID = 0;
 
 	MetaSize = MAX_IPX_PACKET_SIZE;
-
-	ModemService = true;
-	CurPhoneIdx = 0;										// set from INI file
-	SerialDefaults.Port = 0x2f8;						// set from INI file
-	SerialDefaults.IRQ = 3;								// set from INI file
-	SerialDefaults.Baud = 9600;						// set from INI file
-	SerialDefaults.DialMethod = DIAL_TOUCH_TONE;	// set from INI file
-	SerialDefaults.InitStringIndex = 0;				// set from INI file
-	SerialDefaults.CallWaitStringIndex = 0;		// set from INI file
-	strcpy(SerialDefaults.CallWaitString,"");
-	ModemType = MODEM_NULL_HOST;						// set from INI file
 
 	TrapFrame = 0x7fffffff;		// frame to start trapping object values at
 	TrapObjType = RTTI_NONE;	// type of object to trap
@@ -718,28 +683,10 @@ SessionClass::Load(CCFileClass & file)
  *=========================================================================*/
 void SessionClass::Read_MultiPlayer_Settings (void)
 {
-	char *tokenptr;						// ptr to token
-	PhoneEntryClass *phone;				// a phone book entry
-	char *entry;							// a phone book entry
 	char buf[128];							// buffer for parsing INI entry
-	int i;
 	CELL cell;
 
 //	CCFileClass file (CONFIG_FILE_NAME);
-
-	//------------------------------------------------------------------------
-	//	Clear the initstring entries
-	//------------------------------------------------------------------------
-	for (i = 0; i < InitStrings.Count(); i++) {
-		delete[] InitStrings[i];
-	}
-	InitStrings.Clear();
-
-	//	Clear the dialing entries
-	for (i = 0; i < PhoneBook.Count(); i++) {
-		delete[] PhoneBook[i];
-	}
-	PhoneBook.Clear();
 
 	//	Create filename and read the file.
 	INIClass ini;
@@ -757,203 +704,7 @@ void SessionClass::Read_MultiPlayer_Settings (void)
 #else
 		House = (HousesType)ini.Get_Int("MultiPlayer", "Side", HOUSE_USSR);
 #endif
-		CurPhoneIdx = ini.Get_Int("MultiPlayer", "PhoneIndex", -1);
 		TrapCheckHeap = ini.Get_Int("MultiPlayer", "CheckHeap", 0);
-
-		//	Read in default serial settings
-		ini.Get_String("SerialDefaults", "ModemName", "NoName", SerialDefaults.ModemName, MODEM_NAME_MAX);
-		if (!strcmp ( SerialDefaults.ModemName, "NoName")) {
-			SerialDefaults.ModemName[0] = 0;
-		}
-		SerialDefaults.Port = ini.Get_Int("SerialDefaults", "Port", 0);
-		SerialDefaults.IRQ = ini.Get_Int("SerialDefaults", "IRQ", -1);
-		SerialDefaults.Baud = ini.Get_Int("SerialDefaults", "Baud", -1);
-		SerialDefaults.Compression = ini.Get_Int ("SerialDefaults", "Compression", 0);
-		SerialDefaults.ErrorCorrection = ini.Get_Int ("SerialDefaults", "ErrorCorrection", 0);
-		SerialDefaults.HardwareFlowControl = ini.Get_Int ("SerialDefaults", "HardwareFlowControl", 1);
-
-		ini.Get_String("SerialDefaults", "DialMethod", "T", buf, 2);
-
-
-		// find dial method
-		for (i = 0; i < DIAL_METHODS; i++) {
-			if ( !strcmpi( buf, DialMethodCheck[ i ]) ) {
-				SerialDefaults.DialMethod = (DialMethodType)i;
-				break;
-			}
-		}
-
-		// if method not found set to touch tone
-		if (i == DIAL_METHODS) {
-			SerialDefaults.DialMethod = DIAL_TOUCH_TONE;
-		}
-
-		SerialDefaults.InitStringIndex = ini.Get_Int("SerialDefaults", "InitStringIndex", 0);
-
-		SerialDefaults.CallWaitStringIndex = ini.Get_Int("SerialDefaults", "CallWaitStringIndex", CALL_WAIT_CUSTOM);
-
-		ini.Get_String("SerialDefaults", "CallWaitString", "", SerialDefaults.CallWaitString, CWAITSTRBUF_MAX);
-
-		if (SerialDefaults.IRQ == 0 || SerialDefaults.Baud == 0) {
-			SerialDefaults.Port = 0;
-			SerialDefaults.IRQ = -1;
-			SerialDefaults.Baud = -1;
-		}
-
-		int initcount = ini.Entry_Count("InitStrings");
-		for (int index = 0; index < initcount; index++) {
-			entry = new char[ INITSTRBUF_MAX ];
-			entry[0] = 0;
-			ini.Get_String("InitStrings", ini.Get_Entry("InitStrings", index), NULL, entry, INITSTRBUF_MAX);
-			strupr( entry );
-			InitStrings.Add( entry );
-		}
-
-		//	if no entries then have at least one
-		if (initcount == 0) {
-			entry = new char[ INITSTRBUF_MAX ];
-			strcpy( entry, "ATZ" );
-			InitStrings.Add( entry );
-			SerialDefaults.InitStringIndex = 0;
-		}
-
-		//	Read the entry names in
-		int phonecount = ini.Entry_Count("PhoneBook");
-		for (index = 0; index < phonecount; index++) {
-			//	Create a new phone book entry
-			phone = new PhoneEntryClass();
-
-			//	Read the entire entry in
-			ini.Get_String("PhoneBook", ini.Get_Entry("PhoneBook", index), NULL, buf, sizeof(buf));
-
-			//	Extract name, phone # & serial port settings
-			tokenptr = strtok( buf, "|" );
-			if (tokenptr) {
-				strcpy( phone->Name, tokenptr );
-				strupr( phone->Name );
-			} else {
-				phone->Name[0] = 0;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				strcpy( phone->Number, tokenptr );
-				strupr( phone->Number );
-			} else {
-				phone->Number[0] = 0;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				sscanf( tokenptr, "%x", &phone->Settings.Port );
-			} else {
-				phone->Settings.Port = 0;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				phone->Settings.IRQ = atoi( tokenptr );
-			} else {
-				phone->Settings.IRQ = -1;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				phone->Settings.Baud = atoi( tokenptr );
-			} else {
-				phone->Settings.Baud = -1;
-			}
-
-			phone->Settings.Compression = 0;
-			phone->Settings.ErrorCorrection = 0;
-			phone->Settings.HardwareFlowControl = 1;
-
-			/*
-			** Find out if this phonebook entry has the new settings included. If not
-			** then we need to skip this section.
-			*/
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr){
-				strcpy( buf, tokenptr );
-
-				// find dial method
-
-				for (i = 0; i < DIAL_METHODS; i++) {
-					if ( !strcmpi( buf, DialMethodCheck[ i ]) ) {
-						/*
-						** This must be an old phonebook entry
-						*/
-						break;
-					}
-				}
-
-				/*
-				** Method wasnt found - assume its a new phonebook entry so get the extra settings
-				*/
-				// if method not found set to touch tone
-
-				if (i == DIAL_METHODS) {
-
-					phone->Settings.Compression = atoi( tokenptr );
-
-					tokenptr = strtok( NULL, "|" );
-					if (tokenptr) {
-						phone->Settings.ErrorCorrection = atoi( tokenptr );
-					}
-
-					tokenptr = strtok( NULL, "|" );
-					if (tokenptr) {
-						phone->Settings.HardwareFlowControl = atoi( tokenptr );
-					}
-
-					tokenptr = strtok( NULL, "|" );
-				}
-			}
-
-
-			if (tokenptr) {
-				strcpy( buf, tokenptr );
-
-				//	find dial method
-				for (i = 0; i < DIAL_METHODS; i++) {
-					if ( !strcmpi( buf, DialMethodCheck[ i ]) ) {
-						phone->Settings.DialMethod = (DialMethodType)i;
-						break;
-					}
-				}
-
-				//	if method not found set to touch tone
-				if (i == DIAL_METHODS) {
-					phone->Settings.DialMethod = DIAL_TOUCH_TONE;
-				}
-			} else {
-				phone->Settings.DialMethod = DIAL_TOUCH_TONE;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				phone->Settings.InitStringIndex = atoi( tokenptr );
-			} else {
-				phone->Settings.InitStringIndex = 0;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				phone->Settings.CallWaitStringIndex = atoi( tokenptr );
-			} else {
-				phone->Settings.CallWaitStringIndex = CALL_WAIT_CUSTOM;
-			}
-
-			tokenptr = strtok( NULL, "|" );
-			if (tokenptr) {
-				strcpy (phone->Settings.CallWaitString, tokenptr);
-			} else {
-				phone->Settings.CallWaitString[0] = 0;
-			}
-
-			//	Add it to our list
-			PhoneBook.Add(phone);
-		}
 
 		//	Read special recording playback values, to help find sync bugs
 		TrapFrame = ini.Get_Int("SyncBug", "Frame", 0x7fffffff);
@@ -1113,61 +864,9 @@ void SessionClass::Write_MultiPlayer_Settings (void)
 	if (ini.Load(file)) {
 
 		//	Save the player's last-used Handle & Color
-		ini.Put_Int("MultiPlayer", "PhoneIndex", CurPhoneIdx);
 		ini.Put_Int("MultiPlayer", "Color", (int)PrefColor);
 		ini.Put_Int("MultiPlayer", "Side", House);
 		ini.Put_String("MultiPlayer", "Handle", Handle);
-
-		//	Clear all existing Settings.SerialDefault entries.
-		ini.Clear("SerialDefaults");
-
-		//	Save default serial settings in opposite order you want to see them
-		ini.Put_String("SerialDefaults", "CallWaitString", SerialDefaults.CallWaitString);
-		ini.Put_Int("SerialDefaults", "CallWaitStringIndex", SerialDefaults.CallWaitStringIndex);
-		ini.Put_Int("SerialDefaults", "InitStringIndex", SerialDefaults.InitStringIndex);
-		ini.Put_String("SerialDefaults", "DialMethod", DialMethodCheck[ SerialDefaults.DialMethod ]);
-		ini.Put_Int("SerialDefaults", "Baud", SerialDefaults.Baud);
-		ini.Put_Int("SerialDefaults", "IRQ", SerialDefaults.IRQ);
-		ini.Put_Int("SerialDefaults", "Port", SerialDefaults.Port, 1);
-		ini.Put_String("SerialDefaults", "ModemName", SerialDefaults.ModemName);
-		ini.Put_Int ("SerialDefaults", "Compression", SerialDefaults.Compression );
-		ini.Put_Int ("SerialDefaults", "ErrorCorrection", SerialDefaults.ErrorCorrection );
-		ini.Put_Int ("SerialDefaults", "HardwareFlowControl", SerialDefaults.HardwareFlowControl );
-
-		//	Clear all existing InitString entries.
-		ini.Clear("InitStrings");
-
-		//	Save all InitString entries.
-		for (int index = 0; index < InitStrings.Count(); index++) {
-			char buf[10];
-			sprintf( buf, "%03d", index);
-			ini.Put_String("InitStrings", buf, InitStrings[index]);
-		}
-
-		//	Clear all existing Phone Book entries.
-		ini.Clear("PhoneBook");
-
-		//	Save all Phone Book entries.
-		//	Format: Entry=Name,PhoneNum,Port,IRQ,Baud,InitString
-		for (int i = (PhoneBook.Count() - 1); i >= 0; i--) {
-			char buf[128];
-			char entrytext[10];
-			sprintf(buf,"%s|%s|%x|%d|%d|%d|%d|%d|%s|%d|%d|%s",
-				PhoneBook[i]->Name,
-				PhoneBook[i]->Number,
-				PhoneBook[i]->Settings.Port,
-				PhoneBook[i]->Settings.IRQ,
-				PhoneBook[i]->Settings.Baud,
-				PhoneBook[i]->Settings.Compression,
-				PhoneBook[i]->Settings.ErrorCorrection,
-				PhoneBook[i]->Settings.HardwareFlowControl,
-				DialMethodCheck[ PhoneBook[i]->Settings.DialMethod ],
-				PhoneBook[i]->Settings.InitStringIndex,
-				PhoneBook[i]->Settings.CallWaitStringIndex,
-				PhoneBook[i]->Settings.CallWaitString);
-			sprintf( entrytext, "%03d", i );
-			ini.Put_String("PhoneBook", entrytext, buf);
-		}
 
 		//	Write the INI data out to a file.
 		ini.Save(file);
@@ -1467,8 +1166,6 @@ void SessionClass::Read_Scenario_Descriptions (void)
  *=========================================================================*/
 void SessionClass::Free_Scenario_Descriptions(void)
 {
-	int i;
-
 	//------------------------------------------------------------------------
 	//	Clear the scenario descriptions & filenames
 	//------------------------------------------------------------------------
@@ -1477,22 +1174,6 @@ void SessionClass::Free_Scenario_Descriptions(void)
 	}
 	Scenarios.Clear();
 //	Filenum.Clear();
-
-	//------------------------------------------------------------------------
-	//	Clear the initstring entries
-	//------------------------------------------------------------------------
-	for (i = 0; i < InitStrings.Count(); i++) {
-		delete InitStrings[i];
-	}
-	InitStrings.Clear();
-
-	//------------------------------------------------------------------------
-	//	Clear the dialing entries
-	//------------------------------------------------------------------------
-	for (i = 0; i < PhoneBook.Count(); i++) {
-		delete PhoneBook[i];
-	}
-	PhoneBook.Clear();
 
 }	/* end of Free_Scenario_Descriptions */
 

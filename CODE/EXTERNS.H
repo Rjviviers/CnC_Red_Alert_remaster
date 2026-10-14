@@ -84,9 +84,7 @@ extern bool Debug_Check_Map;
 extern bool Debug_Playtest;
 
 extern bool Debug_Heap_Dump;
-extern bool Debug_Smart_Print;
 extern bool Debug_Trap_Check_Heap;
-extern bool Debug_Modem_Dump;
 extern bool Debug_Print_Events;
 
 extern void const *LightningShapes;
@@ -335,7 +333,6 @@ extern CELL 						CurrentCell;
 #endif
 
 extern SessionClass				Session;
-extern NullModemClass 			NullModem;
 extern IPXManagerClass 	 		Ipx;
 
 #if(TEN)

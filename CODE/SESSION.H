@@ -50,7 +50,6 @@ class BuildingClass;
 class BulletClass;
 class InfantryClass;
 class UnitClass;
-class PhoneEntryClass;
 class CellClass;
 
 //---------------------------------------------------------------------------
@@ -99,17 +98,6 @@ class CellClass;
 //...........................................................................
 #define DEFAULT_FRAME_SEND_RATE		3
 
-//...........................................................................
-// Modem-specific constants
-//...........................................................................
-#define	PORTBUF_MAX						64		// dialog field sizes
-#define	IRQBUF_MAX						3
-#define	BAUDBUF_MAX						7
-#define	INITSTRBUF_MAX					41
-#define	CWAITSTRBUF_MAX				16
-#define	CREDITSBUF_MAX					5
-#define	PACKET_TIMING_TIMEOUT		40		// ticks b/w sending a timing packet
-#define	MODEM_NAME_MAX					PORTBUF_MAX - 1	// Max length of modem name in list box
 
 //---------------------------------------------------------------------------
 // Enums
@@ -119,8 +107,6 @@ class CellClass;
 //...........................................................................
 typedef enum GameEnum {
 	GAME_NORMAL,									// not multiplayer
-	GAME_MODEM,										// modem game
-	GAME_NULL_MODEM,								// NULL-modem
 	GAME_IPX,										// IPX Network game
 	GAME_INTERNET,									// Internet H2H
 	GAME_SKIRMISH,									// 1 plr vs. AI's
@@ -129,46 +115,9 @@ typedef enum GameEnum {
 } GameType;
 
 //...........................................................................
-// Various Modem-specific enums
-//...........................................................................
-typedef enum DetectPortType {
-	PORT_VALID = 0,
-	PORT_INVALID,
-	PORT_IRQ_INUSE
-} DetectPortType;
-
-typedef enum DialStatusType {
-	DIAL_CONNECTED			= 0,
-	DIAL_NO_CARRIER,
-	DIAL_BUSY,
-	DIAL_ERROR,
-	DIAL_NO_DIAL_TONE,
-	DIAL_CANCELED
-} DialStatusType;
-
-typedef enum DialMethodType {
-	DIAL_TOUCH_TONE = 0,
-	DIAL_PULSE,
-	DIAL_METHODS
-} DialMethodType;
-
-typedef enum CallWaitStringType {
-	CALL_WAIT_TONE_1 = 0,
-	CALL_WAIT_TONE_2,
-	CALL_WAIT_PULSE,
-	CALL_WAIT_CUSTOM,
-	CALL_WAIT_STRINGS_NUM
-} CallWaitStringType;
-
-typedef enum ModemGameType {
-	MODEM_NULL_HOST = 0,
-	MODEM_NULL_JOIN,
-	MODEM_DIALER,
-	MODEM_ANSWERER
-} ModemGameType;
-
-//...........................................................................
-// Commands sent over the serial Global Channel
+// Commands sent over the serial Global Channel. The file-transfer values
+// (SERIAL_FILE_CHUNK, ...) are also used by the network file transfer
+// (SENDFILE.CPP), so this enum stays although modem play is gone (S05).
 //...........................................................................
 typedef enum SerialCommandType {
 	SERIAL_CONNECT			= 100,	// Are you there?  Hello?  McFly?
@@ -226,22 +175,6 @@ typedef struct {
 	PlayerColorType Color;
 } MPlayerScoreType;
 
-//...........................................................................
-// Settings for the serial port
-//...........................................................................
-typedef struct {
-	int Port;
-	int IRQ;
-	int Baud;
-	DialMethodType DialMethod;
-	int InitStringIndex;
-	int CallWaitStringIndex;
-	char CallWaitString[ CWAITSTRBUF_MAX ];
-	bool Compression;
-	bool ErrorCorrection;
-	bool HardwareFlowControl;
-	char ModemName [ MODEM_NAME_MAX ];
-} SerialSettingsType;
 
 //...........................................................................
 //	This is a "node", used for the lists of available games & players.  The
@@ -618,7 +551,6 @@ class SessionClass
 		static int CountMin[2];
 		static int CountMax[2];
 		static char * GlobalPacketNames[];
-		static char * SerialPacketNames[];
 
 		//.....................................................................
 		// For Recording & Playing back a file
@@ -647,18 +579,6 @@ class SessionClass
 		DynamicVectorClass <NodeNameType *> Players;	// list of players
 		DynamicVectorClass <NodeNameType *> Chat;		// list of chat nodes
 
-		//.....................................................................
-		// Modem-specific variables
-		//.....................................................................
-		unsigned ModemService		: 1;				// 1 = service modem in Call_Back
-		int CurPhoneIdx;							// phone listing index
-		SerialSettingsType SerialDefaults;	// default serial settings
-		ModemGameType ModemType;				// caller or answerer?
-
-		DynamicVectorClass<PhoneEntryClass *> PhoneBook;
-		DynamicVectorClass <char *> InitStrings;
-		static char * DialMethodCheck[ DIAL_METHODS ];
-		static char * CallWaitStrings[ CALL_WAIT_STRINGS_NUM ];
 
 		//.....................................................................
 		// For finding Sync Bugs

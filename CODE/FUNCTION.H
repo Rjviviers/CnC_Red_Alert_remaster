@@ -281,12 +281,6 @@ extern long LParam;
 #include	"ccptr.h"
 #include	"bar.h"
 
-/*
-**	Greenleaf specific includes.
-*/
-#include <modem.h>
-#include <fast.h>
-
 
 extern long Frame;
 CELL Coord_Cell(COORDINATE coord);
@@ -380,9 +374,7 @@ CELL Coord_Cell(COORDINATE coord);
 #include	"scenario.h"
 #include "msglist.h"			// Multiplayer chat message system
 #include "session.h"			// Multiplayer session class
-#include "phone.h"			// Phone list manager
 #include "ipxmgr.h"			// IPX connection manager
-#include	"nullmgr.h"			// Modem connection manager
 #include	"readline.h"
 #include	"vortex.h"
 #include "egos.h"
@@ -752,26 +744,9 @@ unsigned long Compute_Name_CRC(char *name);
 void Net_Reconnect_Dialog(int reconn, int fresh, int oldest_index, unsigned long timeval);
 
 /*
-** NULLDLG.CPP
+** SKIRMDLG.CPP (moved out of NULLDLG.CPP in S05; modem play removed)
 */
-int Init_Null_Modem( SerialSettingsType *settings );
-void Shutdown_Modem( void );
-void Modem_Signoff( void );
-int Test_Null_Modem( void );
-int Reconnect_Modem( void );
-void Destroy_Null_Connection(int id, int error);
-GameType Select_Serial_Dialog( void );
 int Com_Scenario_Dialog(bool skirmish=false);
-int Com_Show_Scenario_Dialog(void);
-
-void Smart_Printf( char *format, ... );
-void Hex_Dump_Data( char *buffer, int length );
-void itoh( int i, char *s);
-void Log_Start_Time( char *string );
-void Log_End_Time( char *string );
-void Log_Time( char *string );
-void Log_Start_Nest_Time( char *string );
-void Log_End_Nest_Time( char *string );
 
 /*
 **	OBJECT.CPP

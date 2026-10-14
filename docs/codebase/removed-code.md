@@ -92,3 +92,34 @@ it has none of these symbols).
 
 **Behaviour change:** the LAN menu entry now creates the UDP transport instead of IPX. Over UDP it does not
 work yet (no real broadcast, fixed port, own-address filter; see [networking.md](networking.md)). S12/S13 fix that.
+
+## 4. Modem / null-modem (serial) play and Greenleaf
+
+**Last commit with this code: `064a13a`** (the complete `NULLDLG.CPP`, before the skirmish dialog was moved out,
+is at `59ea2e1`). Evidence: [networking.md](networking.md#what-s05-can-remove-and-what-must-stay),
+[platform-dependencies.md](platform-dependencies.md) (Greenleaf), [libraries.md](libraries.md) (`WINCOMM`). Decision: ADR-0005.
+
+**Moved first, not deleted** (commit `064a13a`, a pure move): `Com_Scenario_Dialog` (the skirmish setup dialog) and
+`Find_Local_Scenario` (used by the LAN lobby, `NETDLG.CPP`) went from `NULLDLG.CPP` to the new `CODE/SKIRMDLG.CPP`.
+Then the modem paths inside `Com_Scenario_Dialog` were removed (everything that used `NullModem`, the serial
+packets, `Session.ModemType`, `ModemRXString`, `TheirName/TheirColor/TheirHouse`, the `goto` retry label and the
+`SHOW_MONO` debug code). The `bool skirmish` parameter and the remaining `!skirmish` UI branches were kept to keep
+the diff small; callers always pass `true`. S11 can simplify the function.
+
+| Removed | What it was | Why it could go |
+|---------|-------------|-----------------|
+| `CODE/NULLDLG.CPP` (rest) | Modem/null-modem dialogs: com settings, phone book, dial/answer, `Com_Show_Scenario_Dialog` (modem client), `Select_Serial_Dialog`, reconnect, plus debug helpers `Smart_Printf`, `Hex_Dump_Data`, `itoh`, `Log_*_Time` (only used by modem code) | Modem play dropped (ADR-0005) |
+| `CODE/NULLMGR.CPP/.H` | `NullModemClass`, the serial connection manager (the only real Greenleaf user) | Modem play dropped |
+| `CODE/NULLCONN.CPP/.H` | Serial connection (`commlib.h`) | Modem play dropped |
+| `CODE/SEQCONN.CPP/.H`, `CODE/NOSEQCON.CPP/.H` | Old sequenced / non-sequenced connections | Not built; nothing else includes them. (`COMQUEUE.*`, also not built, is kept on purpose: the session brief lists it with the connection layer) |
+| `WIN32LIB/WINCOMM/` (`WINCOMM.CPP`, `MODEMREG.CPP`, headers, makefile), `WIN32LIB/INCLUDE/WINCOMM.H`, `WIN32LIB/INCLUDE/MODEMREG.H` | `WinModemClass`/`WinNullModemClass` (Win32 serial API) and the modem registry reader | Only used by the modem code |
+| `CODE/FUNCTION.H`: `#include <modem.h>`, `#include <fast.h>` (Greenleaf), `#include "phone.h"`, `#include "nullmgr.h"`, the `NULLDLG.CPP` prototypes | Greenleaf GCL headers (not in the repository) and modem declarations | Every file included them; the Greenleaf headers and `phone.h` are missing from the release, so this also removes two "missing header" causes for S06 |
+| `CODE/WINASM.ASM`: the 15 empty Greenleaf stubs (`HMAnswer_`, `PortOpenGreenleafFast_`, …, with their `global`s and shared `ret`) and `_AbortModemFunctionPtr` | Link stubs | No callers left |
+| `CODE/SESSION.H/.CPP`: modem constants (`PORTBUF_MAX` … `MODEM_NAME_MAX`, `PACKET_TIMING_TIMEOUT`), enums `DetectPortType`, `DialStatusType`, `DialMethodType`, `CallWaitStringType`, `ModemGameType`, struct `SerialSettingsType`, members `ModemService`, `CurPhoneIdx`, `SerialDefaults`, `ModemType`, `PhoneBook`, `InitStrings`, statics `SerialPacketNames`, `DialMethodCheck`, `CallWaitStrings`, and reading/writing the `[SerialDefaults]`, `[InitStrings]`, `[PhoneBook]` and `PhoneIndex` INI entries | Modem settings | Modem play dropped. Existing INI sections are now ignored, not deleted |
+| `GameType` values `GAME_MODEM`, `GAME_NULL_MODEM` (`SESSION.H`) | Session types | Removed with every use. **The numeric values of the remaining `GameType` constants changed** (`GAME_IPX` 3 → 1, `GAME_INTERNET` 4 → 2, `GAME_SKIRMISH` 5 → 3, …). Checked: `Session.Type` is not saved in save games or recordings and is not sent over the network; the only ordered comparison (`DISPLAY.CPP`, inside `#ifndef FIXIT_VERSION_3`, dead) now starts at `GAME_IPX` |
+| Modem branches in `QUEUE.CPP` (`Process_Serial_Packet`, `NullModem` packet buffer, serial reconnect in `Handle_Timeout`, emergency-save-on-hang-up, `Destroy_Null_Connection` on EXIT / out-of-sync, local `RC_SERIAL_PROCESSED`/`RC_PLAYER_LEFT`/`RC_HUNG_UP`), `CONQUER.CPP` (`Modem_Signoff`, serial chat messages, `NullModem.Service()` in `Call_Back`), `INIT.CPP` (`GAME_MODEM`/`GAME_NULL_MODEM` cases), `MPLAYER.CPP` (the "Modem/Serial" button; the dialog is 11*RESFACTOR shorter), `SCORE.CPP` (serial timing packets on the score screen), `SENDFILE.CPP` (the `gametype == 0` serial file transfer), `NETDLG.CPP` (two `case` labels), `GLOBALS.CPP`/`EXTERNS.H` (`NullModem`, `Debug_Modem_Dump`, `Debug_Smart_Print`) | | Modem play dropped. Every LAN (`GAME_IPX`), internet and skirmish path is unchanged |
+
+**Kept:** `SerialCommandType`, `SerialPacketType` and `RemoteFileTransferType` (`SESSION.H`): the network file
+transfer in `SENDFILE.CPP` sends `SERIAL_FILE_CHUNK` packets, so these are part of the LAN path. `MAX_SERIAL_PACKET_SIZE`
+stays for the same reason. The `TXT_MODEM_*` string IDs in `CONQUER.H` and the modem-related `FIXIT_*` switches in
+`DEFINES.H` were left alone. Code inside `#ifdef NEVER` (e.g. the old `Write_MultiPlayer_Settings` body) was not touched.
