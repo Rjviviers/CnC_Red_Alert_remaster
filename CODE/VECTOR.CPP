@@ -54,10 +54,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	"function.h"
-#ifdef WINSOCK_IPX
 #include	"WSProto.h"
 #include	"WSPUDP.h"
-#endif	//WINSOCK_IPX
 #include "vector.h"
 #include	<mem.h>
 #include	<stdio.h>

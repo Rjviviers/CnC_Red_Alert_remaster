@@ -31,37 +31,25 @@
  *                  Last Update : June 23, 1995   [PWG]                    *
  *                                                                         *
  *-------------------------------------------------------------------------*
+ * Port (S09, 2026-10-14): no Win32/DirectSound headers. The DPMI locking  *
+ * the original did here (already compiled out with "#ifdef cuts") is gone.*
+ *-------------------------------------------------------------------------*
  * Functions:                                                              *
+ *   Init_Locked_Data -- Initializes sound driver locked data              *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#ifndef _WIN32 // Denzil 6/2/98 Watcom 11.0 complains without this check
-#define _WIN32
-#endif // _WIN32
-#define WIN32
-#include <windows.h>
-#include <windowsx.h>
-#include <objbase.h>
-#include "dsound.h"
-#include <mem.h>
-#include "wwmem.h"
-#include "wwstd.h"
+#include "audio_compat.h"
+#include "audio.h"
 #include "soundint.h"
-
 
 
 LockedDataType LockedData;
 
-/*=========================================================================*/
-/* The following PRIVATE functions are in this file:                       */
-/*=========================================================================*/
-
-
-/*= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =*/
 
 /***************************************************************************
  * INIT_LOCKED_DATA -- Initializes sound driver locked data                *
  *                                                                         *
- * INPUT:		none                                                          *
+ * INPUT:		none                                                       *
  *                                                                         *
  * OUTPUT:     none                                                        *
  *                                                                         *
@@ -70,51 +58,30 @@ LockedDataType LockedData;
  *=========================================================================*/
 void Init_Locked_Data(void)
 {
-
 	/*
-	** Initialize all of the data elements that need to be locked.
+	** There are many unchanging variables that need to be initialized
+	** with the sound system.
 	*/
 	LockedData.DigiHandle			= -1;
 	LockedData.ServiceSomething	= FALSE;
-	LockedData.MagicNumber			= 0xDEAF;
-	LockedData.UncompBuffer			= NULL;
-//	LockedData.StreamBufferSize	= (2*SECONDARY_BUFFER_SIZE)+128;
+	LockedData.MagicNumber			= AUD_FRAME_MAGIC;
+	LockedData.UncompBuffer			= 0;
 	LockedData.StreamBufferSize	= (SECONDARY_BUFFER_SIZE/4)+128;
 	LockedData.StreamBufferCount	= 16;
 	LockedData.SoundVolume			= 255;
 	LockedData.ScoreVolume			= 255;
 	LockedData._int					= FALSE;
-
-	#ifdef cuts
-	/*
-	** Lock the sound specific c functions that will cause us problems if
-	** they are swapped out during an interrupt.
-	*/
-	DPMI_Lock(&LockedData,							4096L);
-	DPMI_Lock(Simple_Copy, 							4096L);
-	DPMI_Lock(Sample_Copy, 							4096L);
-	DPMI_Lock((void *)maintenance_callback, 	4096L);
-	DPMI_Lock((void *)DigiCallback, 				4096L);
-	DPMI_Lock((void *)HMI_TimerCallback, 		4096L);
-	DPMI_Lock(Audio_Add_Long_To_Pointer,		4096L);
-	DPMI_Lock(DPMI_Unlock,							4096L);
-
-	/*
-	** Lock the library functions that will cause us problems if they are
-	** swapped out during an interrupt.
-	*/
-	DPMI_Lock(Mem_Copy,								4096L);
-	DPMI_Lock(Audio_Mem_Set,						4096L);
-	DPMI_Lock(__GETDS,								4096L);
-
-	/*
-	** Finally lock the two assembly modules that need locking.  This can
-	** be handled by calling the lock function that is local to thier module
-	** swapped out during an interrupt.
-	*/
-	Decompress_Frame_Lock();
-	sosCODEC_Lock();
-
-	#endif	//cuts
 }
 
+
+/*
+** Port: give LockedData its "no driver" state before Audio_Init runs, so
+** every API call before Audio_Init (or after a failed one) is a no-op. In
+** the original, DigiHandle was 0 until Audio_Init and such calls reached
+** DirectSound with null buffers.
+*/
+namespace {
+struct LockedDataInitializer {
+	LockedDataInitializer(void) {Init_Locked_Data();}
+} LockedDataInit;
+}

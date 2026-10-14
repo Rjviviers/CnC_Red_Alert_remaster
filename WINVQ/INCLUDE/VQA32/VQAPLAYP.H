@@ -433,15 +433,9 @@ typedef struct _VQAData {
 	long (*Draw_Frame)(VQAHandle *vqa);
 	long (*Page_Flip)(VQAHandle *vqa);
 
-	#ifndef PHARLAP_TNT
 	void __cdecl (*UnVQ)(unsigned char *codebook, unsigned char *pointers,
 			unsigned char *buffer, unsigned long blocksperrow,
 			unsigned long numrows, unsigned long bufwidth);
-	#else
-	void __cdecl (*UnVQ)(unsigned char *codebook, unsigned char *pointers,
-			FARPTR buffer, unsigned long blocksperrow, unsigned long numrows,
-			unsigned long bufwidth);
-	#endif
 
 	VQAFrameNode  *FrameData;
 	VQACBNode     *CBData;

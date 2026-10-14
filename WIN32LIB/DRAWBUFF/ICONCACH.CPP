@@ -59,7 +59,7 @@
 #include "gbuffer.h"
 
 
-static	DDSURFACEDESC	VideoSurfaceDescription;
+// S08: the DirectDraw surface description used by Cache_It is gone with DirectDraw.
 
 IconCacheClass	CachedIcons[MAX_CACHED_ICONS];
 
@@ -329,18 +329,19 @@ int Get_Free_Cache_Slot (void)
 
 
 /***********************************************************************************************
- * ICC::IconCacheClass -- constructor for icon cache class                                     *
+ * IconCacheClass -- video-memory icon cache, now permanently empty (S08)                      *
  *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
+ *    The cache kept 24x24 map icons in DirectDraw video-memory surfaces so the hardware      *
+ *    blitter could draw them. There is no video memory or blitter any more (ADR-0004): every *
+ *    buffer is system memory (GBUFFER.CPP DD_Init), so GraphicViewPortClass::Draw_Stamp never *
+ *    takes the cached path (it requires IsDirectDraw). Cache_It always fails, which makes    *
+ *    Cache_New_Icon fail and keeps every icon on the software path. The class keeps its      *
+ *    layout and members. Deleting the cache together with STMPCACH.ASM (S07-A) is listed in  *
+ *    docs/codebase/platform-layer.md, "Remaining integration for S10".                       *
  *                                                                                             *
  * HISTORY:                                                                                    *
  *    11/13/95 9:41AM ST : Created                                                             *
+ *    2026-10-14 S08: DirectDraw removed; cache always empty.                                  *
  *=============================================================================================*/
 IconCacheClass::IconCacheClass (void)
 {
@@ -349,261 +350,39 @@ IconCacheClass::IconCacheClass (void)
 	DrawFrequency	=0;
 	CacheSurface	=NULL;
 	IconSource		=NULL;
+	TimesDrawn		=0;
+	TimesFailed		=0;
 }
 
 
-
-/***********************************************************************************************
- * ICC::~IconCacheClass -- destructor for icon cache class                                     *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    11/13/95 9:41AM ST : Created                                                             *
- *=============================================================================================*/
 IconCacheClass::~IconCacheClass (void)
 {
-	if (IsCached && CacheSurface){
-		CacheSurface->Release();
-	}
+	CacheSurface = NULL;
 }
 
 
-
-
-/***********************************************************************************************
- * ICC::Restore -- Restores the icons video surface memory and reloads it based on the original*
- *                 icon pointer                                                                *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: Relies on the icons original pointer still being valie                            *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    11/13/95 9:43AM ST : Created                                                             *
- *=============================================================================================*/
 void IconCacheClass::Restore (void)
 {
-	if (IsCached && CacheSurface){
-		CacheSurface->Restore();
-		if (IconSource){
-			Cache_It(IconSource);
-		}
-	}
+	SurfaceLost = FALSE;
 }
 
 
-/***********************************************************************************************
- * ICC::Cache_It -- allocate video memory and copy an icon to it                               *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    icon_ptr -- ptr to icon data                                                      *
- *                                                                                             *
- * OUTPUT:   bool -- success?                                                                  *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    11/13/95 9:44AM ST : Created                                                             *
- *=============================================================================================*/
-BOOL IconCacheClass::Cache_It (void *icon_ptr)
+BOOL IconCacheClass::Cache_It (void *)
 {
-	DDSCAPS	surface_capabilities;
-	BOOL		return_value;
-
-	/*
-	** If we dont have a direct draw interface yet then just fail
-	*/
-	if (!DirectDrawObject) return(FALSE);
-
-	/*
-	** Set up the description of the surface we want to create
-	*/
-	memset (&VideoSurfaceDescription , 0 , sizeof ( VideoSurfaceDescription ));
-
-	VideoSurfaceDescription.dwSize			= sizeof( VideoSurfaceDescription );
-	VideoSurfaceDescription.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-	VideoSurfaceDescription.dwFlags			= DDSD_CAPS |	DDSD_HEIGHT | DDSD_WIDTH;
-	VideoSurfaceDescription.dwHeight			= ICON_WIDTH;
-	VideoSurfaceDescription.dwWidth			= ICON_HEIGHT;
-
-	/*
-	** If this cache object doesnt already have a surface then create one
-	*/
-	if (!CacheSurface){
-		if (DD_OK!=DirectDrawObject->CreateSurface( &VideoSurfaceDescription , &CacheSurface , NULL)){
-			CacheMemoryExhausted = TRUE;
-			return(FALSE);
-		}
-
-	}
-
-	/*
-	** Make sure the surface we created isnt really in system memory
-	*/
-	if (DD_OK != CacheSurface->GetCaps(&surface_capabilities)){
-		return(FALSE);
-	}
-
-	if ((DDSCAPS_SYSTEMMEMORY & surface_capabilities.dwCaps) == DDSCAPS_SYSTEMMEMORY){
-		CacheSurface->Release();
-		return(FALSE);
-	}
-
-	return_value=FALSE;
-	/*
-	** Lock the surface so we can copy the icon to it
-	*/
-	if (DD_OK== CacheSurface->Lock ( NULL
-								, &(VideoSurfaceDescription)
-								, DDLOCK_WAIT
-								, NULL)){
-		/*
-		** Copy the icon to the surface and flag that icon is cached
-		*/
-		Cache_Copy_Icon (icon_ptr , VideoSurfaceDescription.lpSurface , VideoSurfaceDescription.lPitch);
-		IsCached=TRUE;
-		SurfaceLost=FALSE;
-		IconSource=icon_ptr;
-		return_value=TRUE;
-	}
-	CacheSurface->Unlock(NULL);
-	return (return_value);
+	TimesFailed++;
+	return (FALSE);
 }
 
 
-/***********************************************************************************************
- * ICC::Uncache_It -- release the video memory used to cache an icon                           *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    11/13/95 9:48AM ST : Created                                                             *
- *=============================================================================================*/
 void IconCacheClass::Uncache_It(void)
 {
-
-	if (IsCached && CacheSurface){
-		CacheSurface->Release();
-		IsCached=FALSE;
-		CacheSurface=NULL;
-		IconSource=NULL;
-		CacheMemoryExhausted=FALSE;
-	}
+	IsCached		= FALSE;
+	CacheSurface	= NULL;
+	IconSource		= NULL;
 }
 
 
-
-/***********************************************************************************************
- * ICC::Draw_It -- use the blitter to draw a cached icon                                       *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    surface to draw to                                                                *
- *           x coord to draw to (relative to window)                                           *
- *           y coord to draw to (relative to window)                                           *
- *           window left coord                                                                 *
- *           window top coord                                                                  *
- *           window width                                                                      *
- *           window height                                                                     *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    11/13/95 9:48AM ST : Created                                                             *
- *=============================================================================================*/
-void IconCacheClass::Draw_It (LPDIRECTDRAWSURFACE dest_surface , int x_pixel, int y_pixel, int window_left , int window_top , int window_width , int window_height)
+void IconCacheClass::Draw_It (LPDIRECTDRAWSURFACE , int , int , int , int , int , int )
 {
-	RECT		source_rectangle;
-	RECT		dest_rectangle;
-	int		clip;
-	HRESULT	return_code;
-
-	/*
-	** Set up the source and destination coordinates as required by direct draw
-	*/
-	source_rectangle.left 	= 0;
-	source_rectangle.top  	= 0;
-	source_rectangle.right	= ICON_WIDTH;
-	source_rectangle.bottom	= ICON_HEIGHT;
-
-	dest_rectangle.left 	= window_left+x_pixel;
-	dest_rectangle.top  	= window_top+y_pixel;
-	dest_rectangle.right	= dest_rectangle.left+ICON_WIDTH;
-	dest_rectangle.bottom	= dest_rectangle.top+ICON_HEIGHT;
-
-	/*
-	** Clip the coordinates to the window
-	*/
-	if (dest_rectangle.left<window_left){
-		source_rectangle.left += window_left-dest_rectangle.left;
-		dest_rectangle.left=window_left;
-	}
-
-	if (dest_rectangle.right>=window_left+window_width){
-		clip = dest_rectangle.right-(window_left+window_width);
-		source_rectangle.right -= clip;
-		dest_rectangle.right -= clip;
-	}
-
-	if (dest_rectangle.top<window_top){
-		source_rectangle.top += window_top-dest_rectangle.top;
-		dest_rectangle.top=window_top;
-	}
-
-	if (dest_rectangle.bottom>=window_top+window_height){
-		clip = dest_rectangle.bottom-(window_top+window_height);
-		source_rectangle.bottom -= clip;
-		dest_rectangle.bottom -= clip;
-	}
-
-	if (source_rectangle.left>=source_rectangle.right){
-		return;
-	}
-
-	if (source_rectangle.top>=source_rectangle.bottom){
-		return;
-	}
-
-	/*
-	** Do the blit
-	*/
-		return_code = dest_surface->Blt (&dest_rectangle ,
-													CacheSurface ,
-													&source_rectangle ,
-													DDBLT_WAIT |
-													DDBLT_ASYNC ,
-													NULL);
-
-	if (return_code == DDERR_SURFACELOST && Gbuffer_Focus_Loss_Function){
-		Gbuffer_Focus_Loss_Function();
-	}
-
-	if ( return_code != DDERR_SURFACELOST && return_code != DD_OK ) {
-		char temp[100];
-		sprintf(temp,"DD Error code %d\n", return_code & 0xFFFF);
-		OutputDebugString(temp);
-	}
-
-	TimesDrawn++;
-
+	/* Never cached, so never drawn from the cache. */
 }
-

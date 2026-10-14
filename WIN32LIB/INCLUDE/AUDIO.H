@@ -34,6 +34,9 @@
  * Functions:                                                              *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#ifndef WW_AUDIO_H
+#define WW_AUDIO_H
+
 #include "wwstd.h"
 
 /*=========================================================================*/
@@ -155,6 +158,9 @@ extern int Misc;
 extern SFX_Type SoundType;
 extern Sample_Type SampleType;
 
-extern CRITICAL_SECTION	GlobalAudioCriticalSection;
+// Port (S09): GlobalAudioCriticalSection (a Win32 CRITICAL_SECTION) was removed.
+// Nothing outside the library used it; the mixer's lock replaces it.
 
 extern int StreamLowImpact;
+
+#endif // WW_AUDIO_H

@@ -86,16 +86,7 @@ B<A> test;
 
 
 #include	"function.h"
-#ifdef WIN32
-#ifdef WINSOCK_IPX
 #include	"WSProto.h"
-#else	//WINSOCK_IPX
-#include	"tcpip.h"
-#endif	//WINSOCK_IPX
-#else
-#include	"fakesock.h"
-TcpipManagerClass	Winsock;
-#endif
 #include	<stdlib.h>
 #include	<stdio.h>
 #include	<string.h>
@@ -104,16 +95,7 @@ TcpipManagerClass	Winsock;
 #include	<io.h>
 #include	<dos.h>
 #include	<share.h>
-#include	"ccdde.h"
 #include	"vortex.h"
-
-#ifdef WOLAPI_INTEGRATION
-//#include "WolDebug.h"
-#include "WolStrng.h"
-#include "WolapiOb.h"
-extern WolapiObject* pWolapi;
-#define PAGE_RESPOND_KEY	KN_RETURN	//KN_COMMA
-#endif
 
 #ifdef MPEGMOVIE
 #ifdef MCIMPEG
@@ -126,7 +108,6 @@ MPG_RESPONSE far __stdcall MpegCallback(MPG_CMD cmd, LPVOID data, LPVOID user);
 #define SHAPE_TRANS		0x40
 
 void * Get_Shape_Header_Data(void * ptr);
-extern bool Spawn_WChat(bool can_launch);
 
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 void Enable_Secret_Units(void);
@@ -180,13 +161,7 @@ char FormationEvent = 0;	// 0 = no event, 1 = formation was toggled
 
 	 --------------------------------------------------*/
 
-#if(TEN)
-void TEN_Call_Back(void);
-#endif	// TEN
 
-#if(MPATH)
-void MPATH_Call_Back(void);
-#endif	// MPATH
 
 /***********************************************************************************************
  * Main_Game -- Main game startup routine.                                                     *
@@ -260,19 +235,6 @@ void Main_Game(int argc, char * argv[])
 		} else {
 			Show_Mouse();
 		}
-
-#ifdef WIN32
-		if (Session.Type == GAME_INTERNET) {
-			Register_Game_Start_Time();
-			GameStatisticsPacketSent = false;
-			PacketLater = NULL;
-			ConnectionLost = false;
-		} else {
-#ifndef WOLAPI_INTEGRATION
-			DDEServer.Disable();
-#endif	//	!WOLAPI_INTEGRATION
-		}
-#endif	//WIN32
 
 #ifdef SCENARIO_EDITOR
 		/*
@@ -416,15 +378,6 @@ void Main_Game(int argc, char * argv[])
 #endif
 
 
-#ifdef WIN32
-		/*
-		** Send the game stats to WChat if we haven't already done so
-		*/
-		if (!GameStatisticsPacketSent && PacketLater) {
-			Send_Statistics_Packet();		//	After game sending if PacketLater set.
-		}
-#endif	//WIN32
-
 		/*
 		**	Scenario is done; fade palette to black
 		*/
@@ -445,34 +398,13 @@ void Main_Game(int argc, char * argv[])
 			Session.RecordFile.Close();
 		}
 
-		if (Session.Type == GAME_NULL_MODEM || Session.Type == GAME_MODEM) {
+		if (Session.Type == GAME_IPX) {
 			if (!Session.Play) {
-				Modem_Signoff();
-			}
-		} else {
-			if (Session.Type == GAME_IPX) {
-				if (!Session.Play) {
-					Shutdown_Network();
-				}
+				Shutdown_Network();
 			}
 		}
 
-#if(TEN)
 
-		if (Session.Type == GAME_TEN) {
-			Shutdown_TEN();
-			//Prog_End();
-			Emergency_Exit(0);
-		}
-#endif	// TEN
-
-#if(MPATH)
-		if (Session.Type == GAME_MPATH) {
-			Shutdown_MPATH();
-			//Prog_End();
-			Emergency_Exit(0);
-		}
-#endif	// MPATH
 
 		/*
 		**	If we're playing back, the mouse will be hidden; show it.
@@ -483,21 +415,6 @@ void Main_Game(int argc, char * argv[])
 			Session.Type = GAME_NORMAL;
 			Session.Play = 0;
 		}
-#ifndef WOLAPI_INTEGRATION
-#ifdef WIN32
-		if (Special.IsFromWChat) {
-			Shutdown_Network();		      // Clear up the pseudo IPX stuff
-#ifndef WINSOCK_IPX
-			Winsock.Close();
-#endif	//WINSOCK_IPX
-			Special.IsFromWChat = false;
-			SpawnedFromWChat = false;
-			DDEServer.Delete_MPlayer_Game_Info();	//Make sure we dont use the same start packet twice
-			Session.Type = GAME_NORMAL;			//Have to do this or we will got straight to the multiplayer menu
-			Spawn_WChat(false);		//Will switch back to Wchat. It must be there because its been poking us
-		}
-#endif	//WIN32
-#endif	//	!WOLAPI_INTEGRATION
 	}
 
 	/*
@@ -540,7 +457,6 @@ void Keyboard_Process(KeyNumType & input)
 	*/
 	Message_Input(input);
 
-#ifdef WIN32
 	/*
 	**	The VK_BIT must be stripped from the "plain" value of the key so that a comparison to
 	**	KN_1, for example, will yield TRUE if in fact the "1" key was pressed.
@@ -550,10 +466,6 @@ void Keyboard_Process(KeyNumType & input)
 	KeyNumType key = KeyNumType(input & ~WWKEY_VK_BIT);
 
 
-#else
-	KeyNumType plain = KeyNumType(input & ~(KN_SHIFT_BIT|KN_ALT_BIT|KN_CTRL_BIT));
-	KeyNumType key = plain;
-#endif
 
 #ifdef CHEAT_KEYS
 
@@ -583,11 +495,7 @@ void Keyboard_Process(KeyNumType & input)
 #endif
 
 #ifdef CHEAT_KEYS
-#ifdef WIN32
 	if (Debug_Playtest && input == (KA_W|KN_ALT_BIT)) {
-#else
-	if (Debug_Playtest && input == (KN_W|KN_ALT_BIT)) {
-#endif
 		PlayerPtr->Blockage = false;
 		PlayerPtr->Flag_To_Win();
 	}
@@ -615,15 +523,9 @@ void Keyboard_Process(KeyNumType & input)
 	**	CTRL or ALT key is held down.
 	*/
 	int action = 0;
-#ifdef WIN32
 	if (input & WWKEY_SHIFT_BIT) action = 1;
 	if (input & WWKEY_ALT_BIT) action = 3;
 	if (input & WWKEY_CTRL_BIT) action = 2;
-#else
-	if (input & KN_SHIFT_BIT) action = 1;
-	if (input & KN_ALT_BIT) action = 3;
-	if (input & KN_CTRL_BIT) action = 2;
-#endif
 
 	/*
 	**	If the "N" key is pressed, then select the next object.
@@ -713,9 +615,7 @@ void Keyboard_Process(KeyNumType & input)
 	if (key != 0 && (key == Options.KeyHome1 || key == Options.KeyHome2)) {
 		if (CurrentObject.Count()) {
 			Map.Center_Map();
-#ifdef WIN32
 			Map.Flag_To_Redraw(true);
-#endif
 			input = KN_NONE;
 		} else {
 			input = Options.KeyBase;
@@ -1144,7 +1044,6 @@ static void Message_Input(KeyNumType &input)
 	int rc;
 	char txt[MAX_MESSAGE_LENGTH+32];
 	int id;
-	SerialPacketType * serial_packet;
 	int i;
 	KeyNumType copy_input;
 	//char *msg;
@@ -1157,30 +1056,9 @@ static void Message_Input(KeyNumType &input)
 	**	'to' portion.  At the other end, the buffer allocated to display the
 	**	message must be MAX_MESSAGE_LENGTH plus the size of "From: xxx (house)".
 	*/
-#ifdef WOLAPI_INTEGRATION
-	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH && 
-		( ( input >= KN_F1 && input < (KN_F1 + Session.MaxPlayers) ) || input == PAGE_RESPOND_KEY ) && 
-		!Session.Messages.Is_Edit()) {
-#else
 	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH && input >= KN_F1 && input < (KN_F1 + Session.MaxPlayers) && !Session.Messages.Is_Edit()) {
-#endif
 		memset (txt, 0, 40);
-
-		/*
-		**	For a serial game, send a message on F1 or F4; set 'txt' to the
-		**	"Message:" string & add an editable message to the list.
-		*/
-		if (Session.Type==GAME_NULL_MODEM || Session.Type==GAME_MODEM) {
-			if (input==KN_F1 || input==(KN_F1 + Session.MaxPlayers - 1)) {
-
-				strcpy(txt, Text_String(TXT_MESSAGE));	// "Message:"
-
-				Session.Messages.Add_Edit (Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-			}
-		} else if ((Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) && !Session.Messages.Is_Edit()) {
+		if ((Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) && !Session.Messages.Is_Edit()) {
 		/*
 		**	For a network game:
 		**	F1-F7 = "To <name> (house):" (only allowed if we're not in ObiWan mode)
@@ -1196,11 +1074,7 @@ static void Message_Input(KeyNumType &input)
 
 				Map.Flag_To_Redraw(false);
 
-#ifdef WOLAPI_INTEGRATION
-			} else if ((input - KN_F1) < Ipx.Num_Connections() && !Session.ObiWan && input != PAGE_RESPOND_KEY ) {
-#else
 			} else if ((input - KN_F1) < Ipx.Num_Connections() && !Session.ObiWan) {
-#endif
 				id = Ipx.Connection_ID(input - KN_F1);
 				Session.MessageAddress = (*(Ipx.Connection_Address (id)));
 				sprintf(txt, Text_String(TXT_TO), Ipx.Connection_Name(id));
@@ -1210,99 +1084,7 @@ static void Message_Input(KeyNumType &input)
 
 				Map.Flag_To_Redraw(false);
 			}
-#ifdef WOLAPI_INTEGRATION
-			else if( Session.Type == GAME_INTERNET && pWolapi && !pWolapi->bConnectionDown && input == PAGE_RESPOND_KEY )
-			{
-				if( *pWolapi->szExternalPager )
-				{
-					//	Respond to a page from external ww online user that paged me.
-					//	Set MessageAddress to all zeroes, as a flag to ourselves later on.
-					NetNumType blip;
-					NetNodeType blop;
-					memset( blip, 0, 4 );
-					memset( blop, 0, 6 );
-					Session.MessageAddress = IPXAddressClass( blip, blop );
-
-					//	Tell pWolapi not to reset szExternalPager for the time being.
-					pWolapi->bFreezeExternalPager = true;
-
-					sprintf( txt, Text_String( TXT_TO ), pWolapi->szExternalPager );
-
-					Session.Messages.Add_Edit(Session.ColorIdx,
-						TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-					Map.Flag_To_Redraw(false);
-
-					Keyboard->Clear();
-				}
-				else
-				{
-					Session.Messages.Add_Message( NULL, 0, TXT_WOL_NOTPAGED, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
-					Sound_Effect( VOC_SYS_ERROR );
-				}
-			}
-#endif
 		}
-#if(TEN)
-		/*
-		**	For a TEN game:
-		**	F1-F7 = "To <name> (house):" (only allowed if we're not in ObiWan mode)
-		**	F8 = "To All:"
-		*/
-		else if (Session.Type == GAME_TEN && !Session.Messages.Is_Edit()) {
-			if (input==(KN_F1 + Session.MaxPlayers - 1)) {
-
-				Session.TenMessageAddress = -1;		// set to broadcast
-				strcpy(txt,Text_String(TXT_TO_ALL));	// "To All:"
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-
-			}  else if ((input - KN_F1) < Ten->Num_Connections() && !Session.ObiWan) {
-
-				id = Ten->Connection_ID(input - KN_F1);
-				Session.TenMessageAddress = Ten->Connection_Address(id);
-				sprintf(txt,Text_String(TXT_TO),Ten->Connection_Name(id));
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-			}
-		}
-#endif	// TEN
-#if(MPATH)
-		/*
-		**	For a MPATH game:
-		**	F1-F7 = "To <name> (house):" (only allowed if we're not in ObiWan mode)
-		**	F8 = "To All:"
-		*/
-		else if (Session.Type == GAME_MPATH && !Session.Messages.Is_Edit()) {
-			if (input==(KN_F1 + Session.MaxPlayers - 1)) {
-
-				Session.MPathMessageAddress = 0;			// set to broadcast
-				strcpy(txt,Text_String(TXT_TO_ALL));	// "To All:"
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-
-			}  else if ((input - KN_F1) < MPath->Num_Connections() && !Session.ObiWan) {
-
-				id = MPath->Connection_ID(input - KN_F1);
-				Session.MPathMessageAddress = MPath->Connection_Address(id);
-				sprintf(txt,Text_String(TXT_TO),MPath->Connection_Name(id));
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-			}
-		}
-#endif	// MPATH
 	}
 
 	/*
@@ -1327,11 +1109,6 @@ static void Message_Input(KeyNumType &input)
 	if (rc==2 && Session.Type != GAME_NORMAL) {
 		if (copy_input==KN_ESC) {
 			Map.Flag_To_Redraw(true);
-#ifdef WOLAPI_INTEGRATION
-			if( pWolapi )
-				//	Just in case user was responding to a page from outside the game, and we had frozen the "szExternalPager".
-				pWolapi->bFreezeExternalPager = false;
-#endif
 		} else {
 			Map.Flag_To_Redraw(false);
 		}
@@ -1342,55 +1119,7 @@ static void Message_Input(KeyNumType &input)
 	**	Send a message
 	*/
 	if ((rc==3 || rc==4) && Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH) {
-		/*
-		**	Serial game: fill in a SerialPacketType & send it.
-		**	(Note: The size of the SerialPacketType.Command must be the same as
-		**	the EventClass.Type!)
-		*/
-		if (Session.Type==GAME_NULL_MODEM || Session.Type==GAME_MODEM) {
-			serial_packet = (SerialPacketType *)NullModem.BuildBuf;
-
-			serial_packet->Command = SERIAL_MESSAGE;
-			strcpy (serial_packet->Name, Session.Players[0]->Name);
-			serial_packet->ID = Session.ColorIdx;
-
-			if (rc==3) {
-				strcpy (serial_packet->Message.Message, Session.Messages.Get_Edit_Buf());
-			} else {
-				strcpy (serial_packet->Message.Message, Session.Messages.Get_Overflow_Buf());
-				Session.Messages.Clear_Overflow_Buf();
-			}
-
-			/*
-			** Send the message, and store this message in our LastMessage
-			** buffer; the computer may send us a version of it later.
-			*/
-			NullModem.Send_Message(NullModem.BuildBuf,
-				sizeof(SerialPacketType), 1);
-
-#ifdef FIXIT_CSII	//	checked - ajw 9/28/98
-	char *ptr = &serial_packet->Message.Message[0];
-	if (!strncmp(ptr,"SECRET UNITS ON ",15) && NewUnitsEnabled) {
-		Enable_Secret_Units();
-	}
-#endif
-			strcpy(Session.LastMessage, serial_packet->Message.Message);
-		} else if (Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) {
-#ifdef WOLAPI_INTEGRATION
-			NetNumType blip;
-			NetNodeType blop;
-			Session.MessageAddress.Get_Address( blip, blop );
-			if(	blip[0] + blip[1] + blip[2] + blip[3] + blop[0] + blop[1] + blop[2] + blop[3] + blop[4] + blop[5] == 0 )
-			{
-				//	This message is a response to the last person that paged me.
-				if( pWolapi && !pWolapi->bConnectionDown )		//	(As connection may have gone down.)
-				{
-					pWolapi->Page( pWolapi->szExternalPager, Session.Messages.Get_Edit_Buf(), false );
-					pWolapi->bFreezeExternalPager = false;
-				}
-			}
-			else
-#endif
+		if (Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) {
 			{
 
 			/*
@@ -1448,51 +1177,7 @@ static void Message_Input(KeyNumType &input)
 			}
 		}
 
-#if(TEN)
-		/*
-		**	TEN game: fill in a GlobalPacketType & send it.
-		*/
-		else if (Session.Type == GAME_TEN) {
-			Session.GPacket.Command = NET_MESSAGE;
-			strcpy (Session.GPacket.Name, Session.Players[0]->Name);
-			Session.GPacket.Message.Color = Session.ColorIdx;
-			Session.GPacket.Message.NameCRC = Compute_Name_CRC(Session.GameName);
 
-			if (rc==3) {
-				strcpy (Session.GPacket.Message.Buf, Session.Messages.Get_Edit_Buf());
-			} else {
-				strcpy (Session.GPacket.Message.Buf,
-					Session.Messages.Get_Overflow_Buf());
-				Session.Messages.Clear_Overflow_Buf();
-			}
-
-			Ten->Send_Global_Message(&Session.GPacket, sizeof(GlobalPacketType),
-				1, Session.TenMessageAddress);
-		}
-#endif	// TEN
-
-#if(MPATH)
-		/*
-		**	MPATH game: fill in a GlobalPacketType & send it.
-		*/
-		else if (Session.Type == GAME_MPATH) {
-			Session.GPacket.Command = NET_MESSAGE;
-			strcpy (Session.GPacket.Name, Session.Players[0]->Name);
-			Session.GPacket.Message.Color = Session.ColorIdx;
-			Session.GPacket.Message.NameCRC = Compute_Name_CRC(Session.GameName);
-
-			if (rc==3) {
-				strcpy (Session.GPacket.Message.Buf, Session.Messages.Get_Edit_Buf());
-			} else {
-				strcpy (Session.GPacket.Message.Buf,
-					Session.Messages.Get_Overflow_Buf());
-				Session.Messages.Clear_Overflow_Buf();
-			}
-
-			MPath->Send_Global_Message(&Session.GPacket, sizeof(GlobalPacketType),
-				1, Session.MPathMessageAddress);
-		}
-#endif	// MPATH
 
 		/*
 		**	Tell the map to completely update itself, since a message is now missing.
@@ -1631,61 +1316,7 @@ void Call_Back(void)
 		IPX_Call_Back();
 	}
 
-	/*
-	**	Serial game maintenance.
-	*/
-	if (Session.Type == GAME_NULL_MODEM || ((Session.Type == GAME_MODEM) && Session.ModemService)) {
-		NullModem.Service();
-	}
 
-#ifdef WOLAPI_INTEGRATION
-	//	Wolapi maintenance.
-	if( pWolapi )
-	{
-		if( pWolapi->bInGame )
-		{
-			if( !pWolapi->bConnectionDown && ::timeGetTime() > pWolapi->dwTimeNextWolapiPump )
-			{
-				pWolapi->pChat->PumpMessages();
-				pWolapi->pNetUtil->PumpMessages();
-				pWolapi->dwTimeNextWolapiPump = ::timeGetTime() + WOLAPIPUMPWAIT + 700;		//	Slower pump during games.
-				if( pWolapi->bConnectionDown )
-				{
-					//	Connection to server lost.
-					Session.Messages.Add_Message( NULL, 0, TXT_WOL_WOLAPIGONE, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
-					Sound_Effect( WOLSOUND_LOGOUT );
-//	ajw (Wolapi object is now left around, so we can try to send game results.)
-//					//	Kill wolapi.
-//					pWolapi->UnsetupCOMStuff();
-//					delete pWolapi;
-//					pWolapi = NULL;
-				}
-			}
-		}
-		else
-		{
-			//	When showing a modal dialog during chat, this pumping is turned on. It's turned off immediately following.
-			if( pWolapi->bPump_In_Call_Back && ( ::timeGetTime() > pWolapi->dwTimeNextWolapiPump ) )
-			{
-				pWolapi->pChat->PumpMessages();
-				pWolapi->pNetUtil->PumpMessages();
-				pWolapi->dwTimeNextWolapiPump = ::timeGetTime() + WOLAPIPUMPWAIT;
-			}
-		}
-	}
-#endif
-
-#if(TEN)
-	if (Session.Type == GAME_TEN) {
-		TEN_Call_Back();
-	}
-#endif	// TEN
-
-#if(MPATH)
-	if (Session.Type == GAME_MPATH) {
-		MPATH_Call_Back();
-	}
-#endif	// MPATH
 }
 
 
@@ -1781,124 +1412,8 @@ void IPX_Call_Back(void)
 }
 
 
-#if(TEN)
-void TEN_Call_Back(void)
-{
-	int id;
-
-	Ten->Service();
-
-	if (Ten->Get_Global_Message (&Session.GPacket, &Session.GPacketlen,
-		&Session.TenAddress)) {
-
-		//
-		//	If this is another player signing off, remove the connection &
-		//	mark that player's house as non-human, so the computer will take
-		//	it over.
-		//
-		if (Session.GPacket.Command == NET_SIGN_OFF) {
-			for (int i = 0; i < Ten->Num_Connections(); i++) {
-
-				id = Ten->Connection_ID(i);
-
-				if (Session.TenAddress == Ten->Connection_Address(id)) {
-					Destroy_TEN_Connection(id, 0);
-				}
-			}
-		}
-
-		//
-		//	Process a message from another user.
-		//
-		else if (Session.GPacket.Command == NET_MESSAGE) {
-			if (!Session.Messages.Concat_Message(Session.GPacket.Name,
-				Session.GPacket.Message.Color,
-				Session.GPacket.Message.Buf, Rule.MessageDelay * TICKS_PER_MINUTE)) {
-
-				Session.Messages.Add_Message (Session.GPacket.Name,
-					Session.GPacket.Message.Color,
-					Session.GPacket.Message.Buf,
-					Session.GPacket.Message.Color,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL |
-					TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
-
-				Sound_Effect(VOC_INCOMING_MESSAGE);
-
-				/*
-				**	Tell the map to do a partial update (just to force the messages
-				**	to redraw).
-				*/
-				Map.Flag_To_Redraw(true);
-
-				/*
-				**	Save this message in our last-message buffer
-				*/
-				strcpy(Session.LastMessage, Session.GPacket.Message.Buf);
-			}
-		}
-	}
-}
-#endif	// TEN
 
 
-#if(MPATH)
-void MPATH_Call_Back(void)
-{
-	int id;
-
-	MPath->Service();
-
-	if (MPath->Get_Global_Message (&Session.GPacket, &Session.GPacketlen,
-		&Session.MPathAddress)) {
-
-		//
-		//	If this is another player signing off, remove the connection &
-		//	mark that player's house as non-human, so the computer will take
-		//	it over.
-		//
-		if (Session.GPacket.Command == NET_SIGN_OFF) {
-			for (int i = 0; i < MPath->Num_Connections(); i++) {
-
-				id = MPath->Connection_ID(i);
-
-				if (Session.MPathAddress == MPath->Connection_Address(id)) {
-					Destroy_MPATH_Connection(id, 0);
-				}
-			}
-		}
-
-		//
-		//	Process a message from another user.
-		//
-		else if (Session.GPacket.Command == NET_MESSAGE) {
-			if (!Session.Messages.Concat_Message(Session.GPacket.Name,
-				Session.GPacket.Message.Color,
-				Session.GPacket.Message.Buf, Rule.MessageDelay * TICKS_PER_MINUTE)) {
-
-				Session.Messages.Add_Message (Session.GPacket.Name,
-					Session.GPacket.Message.Color,
-					Session.GPacket.Message.Buf,
-					Session.GPacket.Message.Color,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL |
-					TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
-
-				Sound_Effect(VOC_INCOMING_MESSAGE);
-
-				/*
-				**	Tell the map to do a partial update (just to force the messages
-				**	to redraw).
-				*/
-				Map.Flag_To_Redraw(true);
-
-				/*
-				**	Save this message in our last-message buffer
-				*/
-				strcpy(Session.LastMessage, Session.GPacket.Message.Buf);
-			}
-		}
-	}
-}
-#endif	// MPATH
 
 
 /***********************************************************************************************
@@ -2099,9 +1614,7 @@ static void Sync_Delay(void)
 		Call_Back();
 
 		if (SpecialDialog == SDLG_NONE) {
-#ifdef WIN32
 			WWMouse->Erase_Mouse(&HidPage, TRUE);
-#endif	//WIN32
 			KeyNumType input = KN_NONE;
 			int x, y;
 			Map.Input(input, x, y);
@@ -2130,10 +1643,8 @@ static void Sync_Delay(void)
  * HISTORY:                                                                                    *
  *   10/01/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-#ifdef WIN32
 extern void Check_For_Focus_Loss(void);
 void Reallocate_Big_Shape_Buffer(void);
-#endif	//WIN32
 
 
 bool Main_Loop()
@@ -2147,7 +1658,6 @@ Mono_Set_Cursor(0,0);
 
 	if (!GameActive) return(!GameActive);
 
-#ifdef WIN32
 	/*
 	** Call the focus loss handler
 	*/
@@ -2157,7 +1667,6 @@ Mono_Set_Cursor(0,0);
 	** Allocate extra memory for uncompressed shapes as needed
 	*/
 	Reallocate_Big_Shape_Buffer();
-#endif
 
 	/*
 	** Sync-bug trapping code
@@ -2228,12 +1737,8 @@ Mono_Set_Cursor(0,0);
 	**	Update the display, unless we're inside a dialog.
 	*/
 	if (!Session.Play) {
-#ifdef WIN32
 		if (SpecialDialog == SDLG_NONE && GameInFocus) {
 			WWMouse->Erase_Mouse(&HidPage, TRUE);
-#else
-		if (SpecialDialog == SDLG_NONE) {
-#endif
 			Map.Input(input, x, y);
 			if (input) {
 				Keyboard_Process(input);
@@ -2276,11 +1781,7 @@ Mono_Set_Cursor(0,0);
 	**	a message has expired & been removed, and the entire map must be updated.
 	*/
 	if (Session.Messages.Manage()) {
-#ifdef WIN32
 		HiddenPage.Clear();
-#else	//WIN32
-		HidPage.Clear();
-#endif	//WIN32
 		Map.Flag_To_Redraw(true);
 	}
 
@@ -2307,18 +1808,8 @@ Mono_Set_Cursor(0,0);
 	*/
 	if (PlayerWins) {
 
-#ifdef WIN32
-
-		/*
-		** Send the game statistics to WChat.
-		*/
-		if (Session.Type == GAME_INTERNET && !GameStatisticsPacketSent) {
-			Register_Game_End_Time();
-			Send_Statistics_Packet();		//	Player just won.
-		}
 
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
-#endif	//WIN32
 		PlayerLoses = false;
 		PlayerWins = false;
 		PlayerRestarts = false;
@@ -2327,17 +1818,7 @@ Mono_Set_Cursor(0,0);
 		return(!GameActive);
 	}
 	if (PlayerLoses) {
-#ifdef WIN32
-		/*
-		** Send the game statistics to WChat.
-		*/
-		if (Session.Type == GAME_INTERNET && !GameStatisticsPacketSent) {
-			Register_Game_End_Time();
-			Send_Statistics_Packet();		//	Player just lost.
-		}
-
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
-#endif	//WIN32
 		PlayerWins = false;
 		PlayerLoses = false;
 		PlayerRestarts = false;
@@ -2346,9 +1827,7 @@ Mono_Set_Cursor(0,0);
 		return(!GameActive);
 	}
 	if (PlayerRestarts) {
-#ifdef WIN32
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
-#endif	//WIN32
 		PlayerWins = false;
 		PlayerLoses = false;
 		PlayerRestarts = false;
@@ -2362,10 +1841,6 @@ Mono_Set_Cursor(0,0);
 		Scen.bLocalProposesDraw && Scen.bOtherProposesDraw )
 	{
 		//	End game in a draw.
-		if (Session.Type == GAME_INTERNET && !GameStatisticsPacketSent) {
-			Register_Game_End_Time();
-			Send_Statistics_Packet();
-		}
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
 		Map.Help_Text(TXT_NONE);
 		Do_Draw();
@@ -2393,7 +1868,6 @@ Mono_Set_Cursor(0,0);
 
 
 
-#ifdef WIN32
 	if (Debug_MotionCapture) {
 		static void ** _array = 0;
 		static int _sequence = 0;
@@ -2444,7 +1918,6 @@ Mono_Set_Cursor(0,0);
 			_sequence = 0;
 		}
 	}
-#endif
 
 	BEnd(BENCH_GAME_FRAME);
 
@@ -2478,9 +1951,7 @@ bool Map_Edit_Loop(void)
 	*/
 	KeyNumType input;
 
-#ifdef WIN32
 	WWMouse->Erase_Mouse(&HidPage, TRUE);
-#endif	//WIN32
 
 	int x;
 	int y;
@@ -2542,11 +2013,7 @@ void Go_Editor(bool flag)
 		/*
 		** Force a complete redraw of the screen
 		*/
-#ifdef WIN32
 		HiddenPage.Clear();
-#else
-		HidPage.Clear();
-#endif
 		Map.Flag_To_Redraw(true);
 		Map.Render();
 
@@ -2814,13 +2281,11 @@ void Free_Interpolated_Palettes(void)
  * HISTORY:                                                                                    *
  *   12/19/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-#ifdef WIN32
 extern void Suspend_Audio_Thread(void);
 extern void Resume_Audio_Thread(void);
 
 #ifdef MOVIE640
 extern GraphicBufferClass VQ640;
-#endif
 #endif
 void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 	{
@@ -2859,10 +2324,8 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 	if (name) {
 		char fullname[_MAX_FNAME+_MAX_EXT];
 		_makepath(fullname, NULL, NULL, name, ".VQA");
-		#ifdef WIN32
 		char palname [_MAX_FNAME+_MAX_EXT];
 		_makepath(palname , NULL, NULL, name, ".VQP");
-		#endif	//WIN32
 		#ifdef CHEAT_KEYS
 		//			Mono_Set_Cursor(0, 0);Mono_Printf("[%s]", fullname);
 		#endif
@@ -2900,7 +2363,6 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 		VQAHandle * vqa = NULL;
 
 
-		#ifdef WIN32
 		#ifdef MOVIE640
 		if(IsVQ640) {
 			AnimControl.ImageWidth = 640;
@@ -2911,7 +2373,6 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 			AnimControl.ImageHeight = 200;
 			AnimControl.ImageBuf = (unsigned char *)SysMemPage.Get_Offset();
 		}
-		#endif
 		#endif
 
 		if (!Debug_Quiet && Get_Digi_Handle() != -1) {
@@ -2925,7 +2386,6 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 
 			if (VQA_Open(vqa, fullname, &AnimControl) == 0) {
 				Brokeout = false;
-				#ifdef WIN32
 				//Suspend_Audio_Thread();
 				#ifdef MOVIE640
 				if(!IsVQ640) {
@@ -2937,10 +2397,8 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 				//Set_Palette(BlackPalette);
 				SysMemPage.Clear();
 				InMovie = true;
-				#endif	//WIN32
 				VQA_Play(vqa, VQAMODE_RUN);
 				VQA_Close(vqa);
-				#ifdef WIN32
 				//Resume_Audio_Thread();
 				InMovie = FALSE;
 				#ifdef MOVIE640
@@ -2952,7 +2410,6 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 				#endif
 				IsVQ640 = false;
 				Set_Primary_Buffer_Format();
-				#endif	//WIN32
 
 				/*
 				**	Any movie that ends prematurely must have the screen
@@ -3313,13 +2770,9 @@ void const * Get_Radar_Icon(void const * shapefile, int shapenum, int frames, in
 		** just need to skip past this set of icons and try to build the
 		** next frame.
 		*/
-#ifdef WIN32
 		void * ptr;
 		if ((ptr = (void *)(Build_Frame(shapefile, shapenum + framelp, SysMemPage.Get_Buffer()))) != NULL) {
 			ptr = Get_Shape_Header_Data(ptr);
-#else	//WIN#@
-		if (Build_Frame(shapefile, shapenum + framelp, HidPage.Get_Buffer()) <= (unsigned long)HidPage.Get_Size() ) {
-#endif	//WIN32
 
 			/*
 			** Loop through the icon width and the icon height building icons
@@ -3328,7 +2781,6 @@ void const * Get_Radar_Icon(void const * shapefile, int shapenum, int frames, in
 			*/
 			for (int icony = 0; icony < icon_height; icony ++) {
 				for (int iconx = 0; iconx < icon_width; iconx ++) {
-#ifdef WIN32
 
 					for (int y = 0; y < zoomfactor; y++) {
 						for (int x = 0; x < zoomfactor; x++) {
@@ -3338,15 +2790,6 @@ void const * Get_Radar_Icon(void const * shapefile, int shapenum, int frames, in
 								for (lp = 0; lp < 9; lp ++) {
 									pixel	= *(char *)((char *)ptr + ((gety - _offy[lp]) * pixel_width) + getx-_offx[lp]);
 
-#else	//WIN32
-					for (int y = 0; y < 3; y++) {
-						for (int x = 0; x < 3; x++) {
-							int getx = (iconx * 24) + (x << 3) + 4;
-							int gety = (icony * 24) + (y << 3) + 4;
-							if ((getx < pixel_width) && (gety < pixel_height)) {
-								for (lp = 0; lp < 9; lp ++) {
-									pixel	= *(char *)((char *)HidPage.Get_Buffer(), ((gety - _offy[lp]) * pixel_width) + getx-_offx[lp]);
-#endif	//WIN32
 									if (pixel == LTGREEN) pixel = 0;
 									if (pixel) {
 										break;
@@ -3407,9 +2850,7 @@ void const * Get_Radar_Icon(void const * shapefile, int shapenum, int frames, in
 void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation, long scale)
 {
 	int predoffset;
-#ifdef WIN32
 	unsigned	long	shape_pointer;
-#endif	//WIN32
 
 
 	/*
@@ -3452,7 +2893,6 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 #endif
 
 
-#ifdef WIN32
 		/*
 		** In WIn95, build shape returns a pointer to the shape not its size
 		*/
@@ -3465,15 +2905,6 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 														WindowList[window][WINDOWHEIGHT]);
 			unsigned char * buffer = (unsigned char *) shape_pointer;	//Get_Shape_Header_Data((void*)shape_pointer);
 
-#else	//WIN32
-		if ( Build_Frame(shapefile, shapenum, _ShapeBuffer ) <= (unsigned long)_ShapeBufferSize) {
-			GraphicViewPortClass draw_window(LogicPage,
-														WindowList[window][WINDOWX],
-														WindowList[window][WINDOWY],
-														WindowList[window][WINDOWWIDTH],
-														WindowList[window][WINDOWHEIGHT]);
-			unsigned char * buffer = (unsigned char *)_ShapeBuffer;
-#endif	//WIN32
 
 			UseOldShapeDraw = false;
 			/*
@@ -3485,9 +2916,7 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 				** Get the raw shape data without the new header and flag to use the old shape drawing
 				*/
 				UseOldShapeDraw = true;
-#ifdef WIN32
 				buffer = (unsigned char *) Get_Shape_Header_Data((void*)shape_pointer);
-#endif
 
 				if (Debug_Rotate) {
 
@@ -3579,15 +3008,10 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	}
 
 	char * shape;
-#ifdef WIN32
 	void * sh = (void *)Build_Frame(shapedata, shapenum, _ShapeBuffer);
 	if (sh == NULL) return(rect);
 //	shape = (char *)sh;
 	shape = (char *)Get_Shape_Header_Data(sh);
-#else
-	Build_Frame(shapedata, shapenum, _ShapeBuffer);
-	shape = (char *)_ShapeBuffer;
-#endif
 
 	int width = Get_Build_Frame_Width(shapedata);
 	int height = Get_Build_Frame_Height(shapedata);
@@ -3729,7 +3153,6 @@ TechnoTypeClass const * Fetch_Techno_Type(RTTIType type, int id)
  * HISTORY:                                                                                    *
  *   06/24/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-#ifdef WIN32
 void VQA_PauseAudio(void);
 void Check_VQ_Palette_Set(void);
 
@@ -3769,22 +3192,6 @@ long VQ_Call_Back(unsigned char *, long )
 	return(false);
 }
 
-#else	//WIN32
-
-long VQ_Call_Back(unsigned char *, long )
-{
-	Call_Back();
-	if ((BreakoutAllowed || Debug_Flag) && Keyboard->Check()) {
-		if (Keyboard->Get() == KN_ESC) {
-			Keyboard->Clear();
-			Brokeout = true;
-			return(true);
-		}
-		Keyboard->Clear();
-	}
-	return(false);
-}
-#endif	//WIN32
 
 
 /***********************************************************************************************
@@ -3881,9 +3288,7 @@ void Handle_Team(int team, int action)
 			*/
 			if (action == 3) {
 				Map.Center_Map();
-#ifdef WIN32
 				Map.Flag_To_Redraw(true);
-#endif	//WIn32
 			}
 			break;
 
@@ -4100,12 +3505,10 @@ void Handle_View(int view, int action)
 
 			Map.Set_Tactical_Position(Coord_Whole(Cell_Coord(Scen.Views[view] - (MAP_CELL_W * 4 * RESFACTOR) - (5*RESFACTOR))));
 
-#ifdef WIN32
 			/*
 			** Win95 scrolling logic cant handle just jumps in screen position so redraw the lot.
 			*/
 			Map.Flag_To_Redraw (true);
-#endif	//WIN32
 		} else {
 			Scen.Views[view] = Coord_Cell(Map.TacticalCoord) + (MAP_CELL_W*4*RESFACTOR) + (5*RESFACTOR);
 		}
@@ -4131,7 +3534,6 @@ static char * _CD_Volume_Label[] = {
 static int _Num_Volumes = ARRAY_SIZE(_CD_Volume_Label);
 
 
-#ifdef WIN32
 /***********************************************************************************************
  * Get_CD_Index -- returns the volume type of the CD in the given drive                        *
  *                                                                                             *
@@ -4224,73 +3626,6 @@ int Get_CD_Index (int cd_drive, int timeout)
 			}	
 		}
 	}
-#else
-int Get_CD_Index(int cd_drive, int)
-	{
-	char buffer[128];
-
-	/*
-	** We need to do this twice because of the possibilities of a directory
-	** being cached.  If this is so, it will only be discovered when we
-	** actually attempt to read a file from the drive.
-	*/
-	if(cd_drive) for (int count = 0; count < 2; count ++)
-		{
-		struct find_t ft;
-		int file;
-		int open_failed;
-
-		/*
-		** Create a path for the cd drive and attempt to read the volume label from
-		** it.
-		*/
-		sprintf(buffer, "%c:\\", 'A' + cd_drive);
-
-		/*
-		** If we are able to read the volume label, this is good but not enough.
-		** Further verification must be done.
-		*/
-		if (!_dos_findfirst(buffer, _A_VOLID, &ft))
-			{
-			/*
-			** Since some versions of disk cacheing software will cache the CD's
-			** directory tracks, we may think the CD is in the drive when it is
-			** actually not.  To resolve this we must attempt to open a file on
-			** the cd.  Opening a file will always update the directory tracks
-			** (suposedly).
-			*/
-			sprintf(buffer, "%c:\\main.mix", 'A' + cd_drive);
-			open_failed = _dos_open(buffer, O_RDONLY|SH_DENYNO, &file);
-
-			if (!open_failed)
-				{
-				_dos_close(file);
-
-				/*
-				** Hey some times the stupid dos driver appends a period to the
-				** name if it is eight characters long.  If the last char is a
-				** period then erase it.
-				*/
-				if (ft.name[strlen(ft.name)-1] == '.')
-					{
-					ft.name[strlen(ft.name)-1] = 0;
-					}
-
-				/*
-				** Match the volume label to the list of known C&C volume labels.
-				*/
-				for (int i = 0 ; i < _Num_Volumes; i++)
-					{
-					if (!stricmp(_CD_Volume_Label[i], ft.name))
-						return (i);
-					}
-				}
-			}
-		}
-
-	return -1;
-	}
-#endif
 
 
 /***********************************************************************************************
@@ -4962,11 +4297,7 @@ bool Force_CD_Available(int cd)
 				#endif
 				}
 
-			#ifdef WIN32
 			GraphicViewPortClass * oldpage = Set_Logic_Page(SeenBuff);
-			#else
-			GraphicBufferClass * oldpage = Set_Logic_Page(SeenBuff);
-			#endif
 			theme_playing = Theme.What_Is_Playing();
 			Theme.Stop();
 			int hidden = Get_Mouse_State();
@@ -5249,11 +4580,7 @@ void * Hires_Load(char * name)
 	int 	length;
 	void * return_ptr;
 
-#ifdef WIN32
 	sprintf(filename, "H%s", name);
-#else
-   strcpy(filename, name);
-#endif
 	CCFileClass file (filename);
 
 	if (file.Is_Available()) {
@@ -5347,7 +4674,6 @@ int Owner_From_Name(char const * text)
  *=============================================================================================*/
 void Shake_The_Screen(int shakes)
 {
-#ifdef WIN32
 	shakes += shakes;
 
 	Hide_Mouse();
@@ -5375,9 +4701,6 @@ void Shake_The_Screen(int shakes)
 	}
 	HidPage.Blit(SeenPage);
 	Show_Mouse();
-#else
-	Shake_Screen(shakes);
-#endif
 }
 
 

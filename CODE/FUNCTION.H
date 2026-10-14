@@ -125,7 +125,6 @@ UnitTypeClass      ³   BuildingTypeClass      ³  VesselTypeClass
 #include "lint.h"
 
 
-#ifdef WIN32
 //#define WIN32_LEAN_AND_MEAN
 #include	<windows.h>
 #define WWFILE_H
@@ -134,7 +133,6 @@ UnitTypeClass      ³   BuildingTypeClass      ³  VesselTypeClass
 
 #define	_MAX_NAME	_MAX_FNAME
 
-#endif
 
 
 /*
@@ -197,13 +195,8 @@ struct NoInitClass {
 #define FILE_H
 #define WWMEM_H
 
-#ifndef WIN32
-#define TIMER_H
-#endif
 
-#ifdef WIN32
 #include	"key.h"
-#endif
 
 #include <wwlib32.h>
 #include	"mpu.h"
@@ -262,10 +255,8 @@ typedef struct {
 
 
 
-#ifdef WIN32
 #define	int386x(a,b,c,d)	0
 #define	int386(a,b,c)	0
-#endif
 
 
 /*
@@ -289,12 +280,6 @@ extern long LParam;
 #include	"ccini.h"
 #include	"ccptr.h"
 #include	"bar.h"
-
-/*
-**	Greenleaf specific includes.
-*/
-#include <modem.h>
-#include <fast.h>
 
 
 extern long Frame;
@@ -389,27 +374,13 @@ CELL Coord_Cell(COORDINATE coord);
 #include	"scenario.h"
 #include "msglist.h"			// Multiplayer chat message system
 #include "session.h"			// Multiplayer session class
-#include "phone.h"			// Phone list manager
 #include "ipxmgr.h"			// IPX connection manager
-#include	"nullmgr.h"			// Modem connection manager
 #include	"readline.h"
 #include	"vortex.h"
 #include "egos.h"
-#ifdef WIN32
 #include	"pcx.h"
-#endif
 
-#if(TEN)
-#include "tenmgr.h"
-#endif
 
-#if(MPATH)
-#ifdef WIN32
-#include "mpmgrw.h"
-#else
-#include "mpmgrd.h"
-#endif
-#endif
 
 // Denzil 5/18/98 - Mpeg movie playback
 #ifdef MPEGMOVIE
@@ -423,7 +394,6 @@ bool PlayMpegMovie(const char* name);
 extern int Get_CD_Drive(void);
 extern void Fatal(char const *message, ...);
 
-#ifdef WIN32
 
 /*
 ** For WIN32, replace the assert macro so we get an error on the debugger screen
@@ -450,7 +420,6 @@ extern int Load_Interpolated_Palettes(char const *filename, BOOL add=FALSE);
 extern void Rebuild_Interpolated_Palette(unsigned char *interpal);
 extern void Interpolate_2X_Scale( GraphicBufferClass *source, GraphicViewPortClass *dest ,char const *palette_file_name);
 void Increase_Palette_Luminance (unsigned char *palette , int red_percentage , int green_percentage , int blue_percentage ,int cap);
-#endif
 
 /*
 **	ADATA.CPP
@@ -484,11 +453,7 @@ bool Is_Speaking(void);
 /*
 **	CDFILE.CPP
 */
-#ifdef WIN32
 int harderr_handler(unsigned, unsigned, unsigned *);
-#else
-int harderr_handler(unsigned, unsigned, unsigned __far *);
-#endif
 
 /*
 **	COMBAT.CPP
@@ -513,13 +478,7 @@ bool Is_Aftermath_Installed (void);
 #endif
 
 
-#if(TEN)
-void Ten_Call_Back(void);
-#endif	// TEN
 
-#if(MPATH)
-void MPATH_Call_Back(void);
-#endif	// MPATH
 
 void Center_About_Objects(void);
 bool Force_CD_Available(int cd);
@@ -729,37 +688,9 @@ bool Using_DVD();
 #endif
 int Abort_Dialog(void);
 
-#if(TEN)
-int Read_TEN_Game_Options(void);
-#endif	// TEN
 
-#if(MPATH)
-int Read_MPATH_Game_Options(void);
-#endif	// MPATH
 
-#if(TEN)
-/*
-** CCTEN.CPP
-*/
-int Init_TEN(void);
-void Shutdown_TEN(void);
-void Connect_TEN(void);
-void Destroy_TEN_Connection(int id, int error);
-void Send_TEN_Win_Packet(void);
-void Send_TEN_Alliance(char *whom, int ally);
-void Send_TEN_Out_Of_Sync(void);
-void Send_TEN_Packet_Too_Late(void);
-#endif	// TEN
 
-#if(MPATH)
-/*
-** CCMPATH.CPP
-*/
-int Init_MPATH(void);
-void Shutdown_MPATH(void);
-void Connect_MPATH(void);
-void Destroy_MPATH_Connection(int id, int error);
-#endif	// MPATH
 
 /*
 ** NETDLG.CPP
@@ -773,26 +704,9 @@ unsigned long Compute_Name_CRC(char *name);
 void Net_Reconnect_Dialog(int reconn, int fresh, int oldest_index, unsigned long timeval);
 
 /*
-** NULLDLG.CPP
+** SKIRMDLG.CPP (moved out of NULLDLG.CPP in S05; modem play removed)
 */
-int Init_Null_Modem( SerialSettingsType *settings );
-void Shutdown_Modem( void );
-void Modem_Signoff( void );
-int Test_Null_Modem( void );
-int Reconnect_Modem( void );
-void Destroy_Null_Connection(int id, int error);
-GameType Select_Serial_Dialog( void );
 int Com_Scenario_Dialog(bool skirmish=false);
-int Com_Show_Scenario_Dialog(void);
-
-void Smart_Printf( char *format, ... );
-void Hex_Dump_Data( char *buffer, int length );
-void itoh( int i, char *s);
-void Log_Start_Time( char *string );
-void Log_End_Time( char *string );
-void Log_Time( char *string );
-void Log_Start_Nest_Time( char *string );
-void Log_End_Nest_Time( char *string );
 
 /*
 **	OBJECT.CPP
@@ -988,7 +902,8 @@ void Show_Who_Was_Responsible (void);
 **	names ever created, however there are other objects of this type (with different names) that
 **	are created.
 */
-extern CCPtr<AircraftClass> y1;
+// S06a: was "y1", which clashes with the POSIX Bessel function y1() from <math.h>.
+extern CCPtr<AircraftClass> y1_;
 extern CCPtr<AnimClass> y2;
 extern CCPtr<BuildingClass> y3;
 extern CCPtr<BulletClass> y4;

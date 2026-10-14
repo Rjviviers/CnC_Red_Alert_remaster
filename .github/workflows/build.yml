@@ -1,0 +1,109 @@
+# Build + compile-progress report (session S03, see docs/building.md).
+# Since S08 the platform layer (raplatform, platform_demo, SDL3) is built for
+# real, and a failure there fails the job.
+#
+# The code does not compile yet (Watcom C++ 10.6 era). These jobs therefore do
+# not build the game; they configure CMake and run scripts/compile_progress.py,
+# which compiles every source file on its own and reports how many succeed.
+# A job fails only when the build system itself is broken (CMake configure
+# error, compiler cannot be started) - never because game sources fail to
+# compile. The source lists in cmake/RASources.cmake are hand-maintained
+# (ADR-0012), so there is no generated-file check any more.
+
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-gcc-x86:
+    name: Linux (GCC, 32-bit x86)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # SDL3 (S08, ADR-0020) is built from source at configure time. For a real
+      # X11 window and ALSA audio in the 32-bit build it needs the i386 development
+      # files; see docs/building.md "SDL3". Tests run on SDL's offscreen driver.
+      - name: Install 32-bit toolchain and SDL3 build dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-multilib g++-multilib ninja-build \
+            libx11-dev:i386 libxext-dev:i386 libxrandr-dev:i386 libxcursor-dev:i386 \
+            libxi-dev:i386 libxfixes-dev:i386 libasound2-dev:i386
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86
+
+      # New code (platform layer, S08) must always build: this step fails the job.
+      - name: Build platform layer
+        run: cmake --build build --target raplatform platform_demo
+
+      - name: Compile progress
+        run: python3 scripts/compile_progress.py --build-dir build --no-configure
+
+      # Unlike the compile-progress report, failing unit tests fail the job.
+      - name: Unit tests
+        run: |
+          cmake --build build --target ra_tests
+          ctest --test-dir build --output-on-failure
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-progress-linux-gcc-x86
+          path: |
+            build/compile-progress.md
+            build/compile-progress.json
+            build/compile-progress-logs/
+          if-no-files-found: warn
+
+  windows-msvc-x86:
+    name: Windows (MSVC, Win32)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      # x86 Developer Command Prompt environment: puts the 32-bit cl.exe,
+      # CMake and Ninja (shipped with Visual Studio) on PATH.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86
+
+      # New code (platform layer, S08) must always build: this step fails the job.
+      - name: Build platform layer
+        run: cmake --build build --target raplatform platform_demo
+
+      - name: Compile progress
+        run: python scripts/compile_progress.py --build-dir build --no-configure
+
+      # Unlike the compile-progress report, failing unit tests fail the job.
+      - name: Unit tests
+        run: |
+          cmake --build build --target ra_tests
+          ctest --test-dir build --output-on-failure
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-progress-windows-msvc-x86
+          path: |
+            build/compile-progress.md
+            build/compile-progress.json
+            build/compile-progress-logs/
+          if-no-files-found: warn

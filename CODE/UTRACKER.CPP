@@ -51,12 +51,6 @@
 /*
 ** Define host to network to host functions for DOS
 */
-#ifndef WIN32
-
-#define htonl(val) 0
-#define ntohl(val) 0
-
-#endif	//WIN32
 
 
 /***********************************************************************************************

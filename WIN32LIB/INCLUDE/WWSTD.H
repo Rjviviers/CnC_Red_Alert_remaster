@@ -42,15 +42,6 @@
 // Win 95 includes
 //
 
-#ifndef WIN32
-#ifndef _WIN32 // Denzil 6/2/98 Watcom 11.0 complains without this check
-#define _WIN32
-#endif // _WIN32
-#define WIN32 1
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <windowsx.h>
-#endif
 
 
 // Note: SKB 4/11/94
@@ -197,7 +188,9 @@ typedef void 	VOID;
 // WORD and UWORD should be an INT or UINT, especially on the stack and structures that will
 // not be in large arrays.  When size efficiency is more important then speed, use WORD UWORD.
 
-#define	VOID		void
+// S06a: was "#define VOID void". The Windows headers only typedef CHAR/SHORT/LONG when
+// VOID is not yet defined, so define it by including them (they define VOID themselves).
+#include <windows.h>
 
 #pragma	warn -eas
 #define	TRUE		1

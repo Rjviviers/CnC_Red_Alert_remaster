@@ -48,11 +48,7 @@ WORD sosDIGILoadDriver          (  WORD, WORD, LPSTR far *, LPSTR far *, PSTR, P
 WORD sosDIGIUnLoadDriver         (  WORD  );
 WORD sosDIGIGetDeviceCaps        (  WORD, LPSOSDEVICECAPS  );
 
-#ifdef PHARLAP
 LPSTR sosDIGIAllocateBuffer      (  WORD , WORD *, WORD * );
-#else
-LPSTR sosDIGIAllocateBuffer      (  WORD , WORD *, WORD * );
-#endif
 
 WORD sosDIGIStopSample           (  WORD, WORD  );
 WORD sosDIGISamplesPlaying       (  WORD  );
@@ -102,29 +98,15 @@ WORD  sosDIGIGetPanSpeed         ( WORD, WORD );
 WORD  sosDIGIGetSampleID         ( WORD, WORD );
 WORD  sosDIGIGetSampleHandle     ( WORD, WORD );
 WORD  sosDIGISetMasterVolume     ( WORD, WORD );
-#ifdef PHARLAP
-VOID  sosFreeVDSPage          ( unsigned short, unsigned short, DWORD );
-WORD  sosAllocVDSPage         ( unsigned short *, unsigned short *, DWORD * );
-#else
 WORD  sosAllocVDSPage            ( LPSTR *, WORD *, WORD * );
 VOID  sosFreeVDSPage             ( WORD, WORD, LONG );
-#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef PHARLAP
-extern   int   cdecl sosRealFree          ( int );
-extern   BOOL  cdecl  _sos_read( WORD, LPSTR, WORD, WORD * );
-extern   int   cdecl sosRealAlloc( int, int *, int * );
-extern   void  cdecl sosDRVFarMemCopy( LPSTR, LPSTR, WORD );
-extern   int   cdecl sosGetCS( VOID );
-extern   int   cdecl sosGetES( VOID );
-#else
 extern   int   cdecl sosRealAlloc         ( int, int *, int * );
 extern   int   cdecl sosRealFree          ( int );
-#endif
 
 // sos driver functions
 extern   WORD  cdecl sosDRVLockMemory     ( DWORD, DWORD );

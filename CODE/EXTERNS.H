@@ -84,9 +84,7 @@ extern bool Debug_Check_Map;
 extern bool Debug_Playtest;
 
 extern bool Debug_Heap_Dump;
-extern bool Debug_Smart_Print;
 extern bool Debug_Trap_Check_Heap;
-extern bool Debug_Modem_Dump;
 extern bool Debug_Print_Events;
 
 extern void const *LightningShapes;
@@ -112,7 +110,6 @@ extern char const * NameOverride[25];
 extern int NameIDOverride[25];
 #endif
 
-#ifdef WIN32
 extern bool					GameInFocus;
 extern unsigned char 	*InterpolatedPalettes[100];
 extern BOOL					PalettesRead;
@@ -127,18 +124,10 @@ extern GraphicBufferClass	HiddenPage;
 extern GraphicBufferClass		VisiblePage;
 extern GraphicViewPortClass	SeenBuff;
 extern GraphicBufferClass		SysMemPage;
-extern LPDIRECTSOUND				SoundObject;
-extern LPDIRECTSOUNDBUFFER		PrimaryBufferPtr;
 extern int							ScreenWidth;
 extern int							ScreenHeight;
 extern GraphicBufferClass		ModeXBuff;
 
-#else
-
-extern VideoBufferClass		SeenPage;
-extern GraphicBufferClass	SeenBuff;
-extern GraphicBufferClass &	VisiblePage;
-#endif
 
 
 /*
@@ -342,16 +331,9 @@ extern CELL 						CurrentCell;
 #endif
 
 extern SessionClass				Session;
-extern NullModemClass 			NullModem;
 extern IPXManagerClass 	 		Ipx;
 
-#if(TEN)
-extern TenConnManClass			*Ten;
-#endif
 
-#if(MPATH)
-extern MPlayerManClass			*MPath;
-#endif
 
 #if(TIMING_FIX)
 extern int										NewMaxAheadFrame1;
@@ -406,11 +388,7 @@ extern unsigned char const					RemapEmber[];
 
 extern int SoundOn;
 
-#ifdef WIN32
 extern GraphicViewPortClass	HidPage;
-#else
-extern GraphicBufferClass	HidPage;
-#endif
 extern int 						MenuList[][8];
 extern CDTimerClass<SystemTimerClass> FrameTimer;
 extern CDTimerClass<SystemTimerClass> CountDownTimer;
@@ -444,44 +422,21 @@ void Do_Vortex (int x, int y, int frame);
 /************************************************************
 ** Win32 specific externs
 */
-#ifdef WIN32
 extern bool ReadyToQuit;							//Are we about to exit cleanly
 extern bool InDebugger;							//Are we being run from a debugger
 void Memory_Error_Handler(void);				//Memory error handler function
 void WWDebugString (char *string);
-#else
-extern bool IsTheaterShape;
-#endif	//WIN32
 
 
 /*************************************************************
-** Internet specific externs
+** Internet specific externs (the rest went with WOL/WChat in S05)
 */
-#ifdef WIN32
 
-extern char PlanetWestwoodHandle[];			//Planet WW user name
-extern char PlanetWestwoodPassword[];		//Planet WW password
-extern char PlanetWestwoodIPAddress[];		//IP of server or other player
 extern long PlanetWestwoodPortNumber;		//Port number to send to
-extern bool PlanetWestwoodIsHost;				//Flag true if player has control of game options
-extern unsigned long PlanetWestwoodGameID;	//Game ID
-extern HWND	WChatHWND;							//Handle to Wchat window.
-extern bool	GameStatisticsPacketSent;
-extern bool	ConnectionLost;
-extern void *PacketLater;
-extern bool SpawnedFromWChat;
 extern int ShowCommand;
-void	Register_Game_Start_Time(void);
-void	Register_Game_End_Time(void);
-void	Send_Statistics_Packet(void);
-void 	Check_From_WChat(char *wchat_name);
-bool 	Do_The_Internet_Menu_Thang (void);
-bool 	Server_Remote_Connect(void);
-bool 	Client_Remote_Connect(void);
 extern	int UnitBuildPenalty;
 
 
-#endif	 //WIN32
 
 /*
 ** From SENDFILE.CPP - externs for scenario file transfers
@@ -500,6 +455,14 @@ extern MCIMovie* MciMovie;
 #include "mpgset.h"
 extern MPGSettings* MpgSettings;
 #endif
+
+/*
+**	Mouse position globals with C linkage, defined in WINASM.ASM / CODE/WINASM.CPP (S07-C)
+**	and read by ENDING.CPP and INTRO.CPP. No original header declared them; added in S06a
+**	at S07-C's request.
+*/
+extern "C" int MouseQX;
+extern "C" int MouseQY;
 
 #endif
 

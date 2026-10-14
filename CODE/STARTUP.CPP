@@ -41,35 +41,21 @@
 #include	<conio.h>
 #include	<io.h>
 
-#ifdef WIN32
-#include  "ccdde.h"
-#include	"ipx95.h"
-#endif	//WIN32
-
 #ifdef MCIMPEG // Denzil 6/15/98
 #include "mcimovie.h"
 #endif
 
-#ifdef WOLAPI_INTEGRATION
-//#include "WolDebug.h"
-#endif
 
 bool Read_Private_Config_Struct(FileClass & file, NewConfigType * config);
 void Print_Error_End_Exit(char * string);
 void Print_Error_Exit(char * string);
 
-#ifdef WIN32
 //WinTimerClass * WinTimer;
 extern void Create_Main_Window ( HANDLE instance , int command_show , int width , int height);
-extern bool RA95AlreadyRunning;
 HINSTANCE	ProgramInstance;
 void Check_Use_Compressed_Shapes (void);
 void Read_Setup_Options(RawFileClass *config_file);
 bool VideoBackBufferAllowed = true;
-#else
-BOOL Init_Timer_System(unsigned int freq, int partial = FALSE);
-BOOL Remove_Timer_System(VOID);
-#endif	//WIN32
 
 const char* Game_Registry_Key();
 
@@ -104,61 +90,21 @@ const char* Game_Registry_Key();
  * HISTORY:                                                                                    *
  *   03/20/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-#ifdef WIN32
 //int PASCAL WinMain(HINSTANCE, HINSTANCE, char *, int )
 int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int command_show )
-#else	//WIN32
-int main(int argc, char * argv[])
-#endif	//WIN32
 
 {
-#ifdef WIN32
 
 	#ifndef MPEGMOVIE // Denzil 6/10/98
 	DDSCAPS	surface_capabilities;
 	#endif
 
-	/*
-	** First thing to do is check if there is another instance of Red Alert already running
-	**  and if so, switch to the existing instance and terminate ourselves.
-	*/
-	SpawnedFromWChat = false;
 
-	if (RA95AlreadyRunning) {	//Set in the DDEServer constructor
-		//MessageBox (NULL, "Error - attempt to restart Red Alert 95 when already running.", "Red Alert", MB_ICONEXCLAMATION|MB_OK);
-
-		HWND ccwindow;
-    	ccwindow = FindWindow (WINDOW_NAME, WINDOW_NAME);
-    	if (ccwindow) {
-    		SetForegroundWindow ( ccwindow );
-    		ShowWindow ( ccwindow, SW_RESTORE );
-    	}
-
-		return (EXIT_SUCCESS);
-	}
-
-
-#endif
 //printf("in program.\n");getch();
 //printf("ram free = %ld\n",Ram_Free(MEM_NORMAL));getch();
-#ifdef WIN32
 	if (Ram_Free(MEM_NORMAL) < 7000000) {
-#else
-
-	void *temp_mem = malloc (13*1024*1024);
-	if (temp_mem) {
-		free (temp_mem);
-	}else{
-
-	//if (Ram_Free(MEM_NORMAL) < 13000000) {
-//	if (Ram_Free(MEM_NORMAL) < 3500000) {
-#endif
 		printf (TEXT_NO_RAM);
 
-#ifndef WIN32
-		printf (TEXT_USE_START_MENU);
-		getch();
-#endif
 
 #if (0)
 
@@ -180,7 +126,6 @@ int main(int argc, char * argv[])
 		return(EXIT_FAILURE);
 	}
 
-#ifdef WIN32
 
 	if (strstr(command_line, "f:\\projects\\c&c0") != NULL ||
 			strstr(command_line, "F:\\PROJECTS\\C&C0") != NULL) {
@@ -239,7 +184,6 @@ int main(int argc, char * argv[])
 
 	} while ( command_char != 0 && command_char != 13 && argc<20 );
 
-#endif	//WIN32
 
 	/*
 	**	Remember the current working directory and drive.
@@ -269,85 +213,11 @@ int main(int argc, char * argv[])
 	}
 	chdir(path);
 
-#ifdef WOLAPI_INTEGRATION
-	//	Look for special wolapi install program, used after the patch to version 3, to install "Shared Internet Components".
-	WIN32_FIND_DATA wfd;
-	HANDLE hWOLSetupFile = FindFirstFile( "wolsetup.exe", &wfd );
-	bool bWOLSetupFile = ( hWOLSetupFile != INVALID_HANDLE_VALUE );
-//	if( bWOLSetupFile )
-//		debugprint( "Found wolsetup.exe\n" );
-	FindClose( hWOLSetupFile );
-	//	Look for special registry entry that tells us when the setup exe has done its thing.
-	HKEY hKey;
-	RegOpenKeyEx( HKEY_LOCAL_MACHINE, Game_Registry_Key(), 0, KEY_READ, &hKey );
-	DWORD dwValue;
-	DWORD dwBufSize = sizeof( DWORD );
-	if( RegQueryValueEx( hKey, "WolapiInstallComplete", 0, NULL, (LPBYTE)&dwValue, &dwBufSize ) == ERROR_SUCCESS )
-	{
-//		debugprint( "Found WolapiInstallComplete in registry\n" );
-		//	Setup has finished. Delete the setup exe and remove reg key.
-		if( bWOLSetupFile )
-		{
-			if( DeleteFile( "wolsetup.exe" ) )
-				RegDeleteValue( hKey, "WolapiInstallComplete" );
-		}
-		else
-			RegDeleteValue( hKey, "WolapiInstallComplete" );
-	}
-	RegCloseKey( hKey );
-
-	//	I've been having problems getting the patch to delete "conquer.eng", which is present in the game
-	//	directory for 1.08, but which must NOT be present for this version (Aftermath mix files provide the
-	//	string overrides that the 1.08 separate conquer.eng did before Aftermath).
-	//	Delete conquer.eng if it's found.
-	if( FindFirstFile( "conquer.eng", &wfd ) != INVALID_HANDLE_VALUE )
-		DeleteFile( "conquer.eng" );
-
-#endif
 
 	if (Parse_Command_Line(argc, argv)) {
 
-#if(TEN)
-	//
-	// Only allow the TEN version of the game to run if the TEN
-	// or AllowSoloPlayOptions arguments are specified.
-	//
-	if (Session.AllowSolo==0 && Session.Type != GAME_TEN) {
-#ifdef WIN32
-		MessageBox(NULL, "Red Alert for TEN\n (c) 1996 Westwood Studios",
-			"Red Alert", MB_OK);
-		exit(0);
-#else
-		printf("\n");
-		printf("                         Red Alert for TEN\n");
-		printf("                     (c) 1996 Westwood Studios\n");
-		printf("\n");
-		exit(0);
-#endif	// WIN32
-	}
-#endif	// TEN
 
-#if(MPATH)
-	//
-	// Only allow the MPATH version of the game to run if the MPATH
-	// or AllowSoloPlayOptions arguments are specified.
-	//
-	if (Session.AllowSolo==0 && Session.Type != GAME_MPATH) {
-#ifdef WIN32
-		MessageBox(NULL, "Red Alert for MPATH\n (c) 1996 Westwood Studios",
-			"Red Alert", MB_OK);
-		exit(0);
-#else
-		printf("\n");
-		printf("                        Red Alert for MPATH\n");
-		printf("                     (c) 1996 Westwood Studios\n");
-		printf("\n");
-		exit(0);
-#endif	// WIN32
-	}
-#endif	// MPATH
 
-#ifdef WIN32
 		WindowsTimer = new WinTimerClass(60, FALSE);
 
 		int time_test = WindowsTimer->Get_System_Tick_Count();
@@ -356,14 +226,8 @@ int main(int argc, char * argv[])
 			MessageBox(0, TEXT_ERROR_TIMER, TEXT_SHORT_TITLE, MB_OK|MB_ICONSTOP);
 			return(EXIT_FAILURE);
 		}
-#else	//WIN32
-		Init_Timer_System(60, true);
-#endif	//WIN32
 		RawFileClass cfile(CONFIG_FILE_NAME);
 
-#ifndef WIN32
-		Install_Keyboard_Interrupt(Get_RM_Keyboard_Address(), Get_RM_Keyboard_Size());
-#endif	//WIN32
 
 #ifdef NEVER
 		Keyboard->IsLibrary = true;
@@ -374,19 +238,16 @@ int main(int argc, char * argv[])
 
 		Keyboard = new KeyboardClass();
 
-#ifdef WIN32
 		/*
 		** If there is loads of memory then use uncompressed shapes
 		*/
 		Check_Use_Compressed_Shapes();
-#endif
 
 		/*
 		** If there is not enough disk space free, don't allow the product to run.
 		*/
 		if (Disk_Space_Available() < INIT_FREE_DISK_SPACE) {
 
-#ifdef WIN32
 			char	disk_space_message [512];
 			sprintf (disk_space_message, TEXT_CRITICALLY_LOW, (INIT_FREE_DISK_SPACE) / (1024 * 1024));
 			int reply = MessageBox(NULL, disk_space_message, TEXT_SHORT_TITLE, MB_ICONQUESTION|MB_YESNO);
@@ -395,23 +256,12 @@ int main(int argc, char * argv[])
 					delete WindowsTimer;
 				return (EXIT_FAILURE);
 			}
-#else
-			printf(TEXT_INSUFFICIENT);
-			printf(TEXT_MUST_HAVE, INIT_FREE_DISK_SPACE / (1024 * 1024));
-			printf("\n");
-			if (Keyboard) Keyboard->Get();
-//			Keyboard::IsLibrary = false;
-			Remove_Keyboard_Interrupt();
-			Remove_Timer_System();
-			return(EXIT_FAILURE);
-#endif
 		}
 
 		if (cfile.Is_Available()) {
 
 			Read_Private_Config_Struct(cfile, &NewConfig);
 
-#ifdef WIN32
 
 			/*
 			** Set the options as requested by the ccsetup program
@@ -420,27 +270,8 @@ int main(int argc, char * argv[])
 
 			Create_Main_Window( instance , command_show , ScreenWidth , ScreenHeight );
 			SoundOn = Audio_Init ( MainWindow , 16 , false , 11025*2 , 0 );
-#else	//WIN32
-			if (!Debug_Quiet) {
-				Audio_Init(NewConfig.DigitCard,
-						NewConfig.Port,
-						NewConfig.IRQ,
-						NewConfig.DMA,
-						PLAYBACK_RATE_NORMAL,
-//						(NewConfig.Speed) ? PLAYBACK_RATE_SLOW : PLAYBACK_RATE_NORMAL,
-						NewConfig.BitsPerSample,
-//						4,
-						(Get_CPU() < 5) ? 3 : 5,
-//						(NewConfig.Speed) ? 3 : 5,
-						NewConfig.Reverse);
-				SoundOn = true;
-			} else {
-				Audio_Init(0, -1, -1, -1, PLAYBACK_RATE_NORMAL, 8, 5, false);
-			}
-#endif	//WIN32
 
 
-#ifdef WIN32
 			#ifdef MPEGMOVIE // Denzil 6/10/98
 			if (!InitDDraw())
 				return (EXIT_FAILURE);
@@ -560,16 +391,6 @@ int main(int argc, char * argv[])
 
 			CDFileClass::Set_CD_Drive (CDList.Get_First_CD_Drive());
 
-#else	//WIN32
-
-			Options.Adjust_Variables_For_Resolution();
-			if (!Special.IsFromInstall) {
-				BlackPalette.Set();
-//				Set_Palette(Palette);
-				Set_Video_Mode(MCGA_MODE);
-			}
-			MouseInstalled = Install_Mouse(32, 24, 320, 200);
-#endif	//WIN32
 
 			/*
 			** See if we should run the intro
@@ -580,10 +401,8 @@ int main(int argc, char * argv[])
 			/*
 			**	Check for forced intro movie run disabling. If the conquer
 			**	configuration file says "no", then don't run the intro.
-			** Don't do this for TEN & MPath.
 			*/
-			if (!Special.IsFromInstall && Session.Type != GAME_TEN &&
-				Session.Type != GAME_MPATH) {
+			if (!Special.IsFromInstall) {
 				Special.IsFromInstall = ini.Get_Bool("Intro", "PlayIntro", true);
 			}
 			SlowPalette = ini.Get_Bool("Options", "SlowPalette", false);
@@ -599,22 +418,6 @@ int main(int argc, char * argv[])
 				ini.Save(cfile);
 			}
 
-#ifndef WOLAPI_INTEGRATION
-#ifdef WIN32
-			/*
-			** If WChat has been trying to send us a game start packet then receive it and
-			** flag that we were spawned from WCHat so we dont play the into movie.
-			*/
-			if (DDEServer.Get_MPlayer_Game_Info()){
-				Check_From_WChat(NULL);
-			}else{
-				//Check_From_WChat("C&CSPAWN.INI");
-				//if (Special.IsFromWChat){
-				//	DDEServer.Disable();
-				//}
-			}
-#endif	//WIN32
-#endif
 			/*
 			**	If the intro is being run for the first time, then don't
 			**	allow breaking out of it with the <ESC> key.
@@ -638,16 +441,10 @@ int main(int argc, char * argv[])
 			#endif
 			#endif
 			
-#ifdef WIN32
 			VisiblePage.Clear();
 			HiddenPage.Clear();
-#else	//WIN32
-			SeenPage.Clear();
-			Set_Video_Mode(RESET_MODE);
-#endif	//WIN32
 			Memory_Error_Exit = Print_Error_Exit;
 
-#ifdef WIN32
 			/*
 			** Flag that this is a clean shutdown (not killed with Ctrl-Alt-Del)
 			*/
@@ -668,33 +465,20 @@ int main(int argc, char * argv[])
 
 			return (EXIT_SUCCESS);
 
-#else	//WIN32
-			Remove_Mouse();
-			Sound_End();
-#endif	//WIN32
 		} else {
 			puts(TEXT_SETUP_FIRST);
 			Keyboard->Get();
 		}
 
-#ifdef WIN32
 		if (WindowsTimer) {
 		 	delete WindowsTimer;
 		 	WindowsTimer = NULL;
 		}
 
-#else	//WIN32
-		Remove_Keyboard_Interrupt();
-		Remove_Timer_System();
-#endif	//WIN32
 	}
 	/*
 	**	Restore the current drive and directory.
 	*/
-#ifndef WIN32
-	_dos_setdrive(olddrive, &drivecount);
-	chdir(oldpath);
-#endif	//WIN32
 	return(EXIT_SUCCESS);
 }
 
@@ -748,21 +532,9 @@ bool InitDDraw(void)
 		{
 		VisiblePage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)(GBC_VISIBLE|GBC_VIDEOMEM));
 
-		/* Check that we really got a video memory page. Failure is fatal. */
-		memset(&surface_capabilities, 0, sizeof(surface_capabilities));
-		VisiblePage.Get_DD_Surface()->GetCaps(&surface_capabilities);
-
-		if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY)
-			{
-			/* Aaaarrgghh! */
-			WWDebugString(TEXT_DDRAW_ERROR);WWDebugString("\n");
-			MessageBox(MainWindow, TEXT_DDRAW_ERROR, TEXT_SHORT_TITLE, MB_ICONEXCLAMATION|MB_OK);
-
-			if (WindowsTimer)
-				delete WindowsTimer;
-				
-			return false;
-			}
+		/* S08: the "did we really get a video memory page" check (DirectDraw GetCaps) is
+		 * gone: the visible page is system memory presented by the platform layer, and
+		 * Get_Free_Video_Memory() returns 0, so the hidden page below is system memory too. */
 
 		/* If we have enough left then put the hidpage in video memory unless...
 		 *
@@ -839,7 +611,6 @@ bool InitDDraw(void)
  * HISTORY:                                                                                    *
  *   03/20/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-#ifdef WIN32
 void __cdecl Prog_End(void)
 {
 	Sound_End();
@@ -852,21 +623,6 @@ void __cdecl Prog_End(void)
 		 WindowsTimer = NULL;
 	}
 }
-#else	//WIN32
-
-void Prog_End(void)
-{
-	if (Session.Type == GAME_MODEM || Session.Type == GAME_NULL_MODEM) {
-		NullModem.Change_IRQ_Priority(0);
-	}
-
-	Set_Video_Mode(RESET_MODE);
-	Remove_Keyboard_Interrupt();
-	Remove_Mouse();
-	Sound_End();
-	Remove_Timer_System();
-}
-#endif	//WIN32
 
 
 void Print_Error_End_Exit(char * string)
@@ -906,7 +662,6 @@ void Print_Error_Exit(char * string)
 void Emergency_Exit ( int code )
 {
 
-#ifdef WIN32
 
 	/*
 	** Clear out the video buffers so we dont glitch when we lose focus
@@ -936,13 +691,6 @@ void Emergency_Exit ( int code )
 	}while (ReadyToQuit == 3);
 
 
-#else	//WIN32
-	/*
-	** Do the DOS end
-	*/
-	Prog_End();
-
-#endif	//WIN32
 
 	exit ( code );
 }
@@ -957,7 +705,6 @@ void Emergency_Exit ( int code )
 
 
 
-#ifdef WIN32
 
 /***********************************************************************************************
  * Read_Setup_Options -- Read stuff in from the INI file that we need to know sooner           *
@@ -1042,28 +789,8 @@ void Read_Setup_Options( RawFileClass *config_file )
 	}
 }
 
-void Get_OS_Version (void)
-{
-
-	WindowsNT = ((GetVersion() & 0x80000000) == 0) ? true : false;
-
-#if (0)
-	OSVERSIONINFO	osversion;
-	if ( GetVersionEx (&osversion) ){
-		WindowsNT = (osversion.dwPlatformId == VER_PLATFORM_WIN32_NT) ? true : false;
-		OutputDebugString ("RA95 - Got OS version\n");
-	}else{
-		OutputDebugString ("RA95 - Failed to get OS version\n");
-		char fuck [128];
-		sprintf (fuck,"RA95 - Error code is %d\n", GetLastError());
-		OutputDebugString (fuck);
-
-	}
-#endif	//(0)
-
-}
 
 
-#endif	//WIN32
+
 
 

@@ -57,6 +57,7 @@
  * HISTORY:                                                                                    *
  *   07/17/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
+#if defined(__WATCOMC__) || defined(__BORLANDC__)
 unsigned long Get_CPU_Clock(unsigned long & high);
 #ifndef __BORLANDC__
 #pragma aux Get_CPU_Clock parm [esi] \
@@ -64,6 +65,25 @@ unsigned long Get_CPU_Clock(unsigned long & high);
 	value [eax] = \
 	"db 0fh,031h" \
 	"mov [esi],edx"
+#endif
+#else
+/*
+**	S06a: the RDTSC instruction ("db 0fh,031h") through the compiler intrinsic. Only used
+**	for benchmarking (BENCH.H), never by the simulation.
+*/
+#if defined(_MSC_VER)
+#include	<intrin.h>
+#define RA_RDTSC() __rdtsc()
+#else
+// Not <x86intrin.h>: it defines _rotl as a macro, which breaks the _rotl template in JSHELL.H.
+#define RA_RDTSC() __builtin_ia32_rdtsc()
+#endif
+inline unsigned long Get_CPU_Clock(unsigned long & high)
+{
+	unsigned long long tsc = RA_RDTSC();
+	high = (unsigned long)(tsc >> 32);
+	return((unsigned long)(tsc & 0xFFFFFFFFUL));
+}
 #endif
 
 #endif

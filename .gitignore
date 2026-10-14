@@ -1,0 +1,7 @@
+# Agent worktrees (local only)
+.claude/worktrees/
+
+# CMake build directories (see docs/building.md)
+/build/
+/build-*/
+/out/

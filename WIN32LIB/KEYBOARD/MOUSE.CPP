@@ -34,10 +34,31 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "mouse.h"
-#include <mmsystem.h>
+#include "platform.h"
+
+/*
+** S08 (2026-10-14): the cursor no longer runs on a Windows multimedia-timer thread and no
+** longer reads the OS cursor with GetCursorPos. Process_Mouse is a platform poll hook
+** (run from Platform_Pump_Events, i.e. whenever the game checks the keyboard) and the
+** position comes from Platform_Get_Mouse_Position, already in game (frame-buffer)
+** coordinates. Everything is on one thread, so the critical section is no longer used.
+** The WWMouseClass layout (MOUSE.H, read by the S07-C port of WWMOUSE) is unchanged.
+*/
+static void Get_Cursor_Pos(POINT *pt)
+{
+	int x, y;
+	Platform_Get_Mouse_Position(&x, &y);
+	pt->x = x;
+	pt->y = y;
+}
+
+static void Process_Mouse_Hook(void *)
+{
+	extern void Process_Mouse_Poll(void);
+	Process_Mouse_Poll();
+}
 
 static WWMouseClass *_Mouse=NULL;
-void CALLBACK Process_Mouse( UINT event_id, UINT res1 , DWORD user, DWORD  res2, DWORD  res3 );
 extern BOOL GameInFocus;
 
 
@@ -76,9 +97,7 @@ WWMouseClass::WWMouseClass(GraphicViewPortClass *scr, int mouse_max_width, int m
 	PrevCursor		= NULL;
 	MouseUpdate		= 0;
 	State				= 1;
-	timeBeginPeriod ( 1000/ 60);
 
-	InitializeCriticalSection (&MouseCriticalSection);
 	//
 	// Install the timer callback event handler
 	//
@@ -91,7 +110,8 @@ WWMouseClass::WWMouseClass(GraphicViewPortClass *scr, int mouse_max_width, int m
 	EraseFlags		= FALSE;
 
 	_Mouse			= this;
-	TimerHandle = timeSetEvent( 1000/60 , 1 , ::Process_Mouse, 0 , TIME_PERIODIC);
+	TimerHandle = 0;						// S08: no timer; driven by the platform pump
+	Platform_Add_Poll_Hook(Process_Mouse_Hook, NULL);
 
 	/*
 	** Force the windows mouse pointer to stay withing the graphic view port region
@@ -105,11 +125,8 @@ WWMouseClass::~WWMouseClass()
 
 	if (MouseCursor) delete[] MouseCursor;
 	if (MouseBuffer) delete[] MouseBuffer;
-	if (TimerHandle) {
-		timeKillEvent(TimerHandle);
-	}
-	timeEndPeriod (1000/60);
-	DeleteCriticalSection(&MouseCriticalSection);
+	Platform_Remove_Poll_Hook(Process_Mouse_Hook, NULL);
+	if (_Mouse == this) _Mouse = NULL;
 
 	/*
 	** Free up the windows mouse pointer movement
@@ -137,17 +154,13 @@ void Unblock_Mouse(GraphicBufferClass *buffer)
 
 void WWMouseClass::Block_Mouse(GraphicBufferClass *buffer)
 {
-	if (buffer == Screen->Get_Graphic_Buffer()){
-		EnterCriticalSection(&MouseCriticalSection);
-	}
+	(void)buffer;		// S08: single-threaded, nothing to block
 }
 
 
 void WWMouseClass::Unblock_Mouse(GraphicBufferClass *buffer)
 {
-	if (buffer == Screen->Get_Graphic_Buffer()){
-		LeaveCriticalSection(&MouseCriticalSection);
-	}
+	(void)buffer;		// S08: single-threaded, nothing to unblock
 }
 
 
@@ -158,14 +171,7 @@ void WWMouseClass::Set_Cursor_Clip(void)
 {
 
 	if (Screen){
-		RECT	region;
-
-		region.left		= 0;
-		region.top 		= 0;
-		region.right	= Screen->Get_Width();
-		region.bottom	= Screen->Get_Height();
-
-		ClipCursor(&region);
+		Platform_Set_Mouse_Clip(true);	// S08: keep the cursor in the window
 	}
 }
 
@@ -173,7 +179,7 @@ void WWMouseClass::Set_Cursor_Clip(void)
 
 void WWMouseClass::Clear_Cursor_Clip(void)
 {
-	ClipCursor(NULL);
+	Platform_Set_Mouse_Clip(false);
 }
 
 
@@ -206,7 +212,7 @@ void WWMouseClass::Process_Mouse(void)
 	//
 	// Get the mouse's current real cursor position
 	//
-	GetCursorPos(&pt);			// get the current cursor position
+	Get_Cursor_Pos(&pt);			// get the current cursor position
 	//
 	// If the mouse has moved then we are responsible to redraw the mouse
 	//
@@ -354,7 +360,7 @@ void WWMouseClass::Low_Show_Mouse(int x, int y)
 void WWMouseClass::Show_Mouse()
 {
 	POINT	pt;
-	GetCursorPos(&pt);
+	Get_Cursor_Pos(&pt);
 
 	MouseUpdate++;
 	Low_Show_Mouse(pt.x, pt.y);
@@ -408,7 +414,7 @@ void WWMouseClass::Conditional_Hide_Mouse(int x1, int y1, int x2, int y2)
 	// the hiding region and hide if necessary.
 	//
 	if (!(MCFlags & CONDHIDDEN)) {
-		GetCursorPos(&pt);
+		Get_Cursor_Pos(&pt);
 		if (MouseBuffX >= MouseCXLeft && MouseBuffX <= MouseCXRight && MouseBuffY >= MouseCYUpper && MouseBuffY <= MouseCYLower) {
 			Low_Hide_Mouse();
 			MCFlags |= CONDHIDDEN;
@@ -457,7 +463,7 @@ void WWMouseClass::Draw_Mouse(GraphicViewPortClass *scr)
 	//
 	//	Get the position that the mouse is currently located at
 	//
-	GetCursorPos(&pt);
+	Get_Cursor_Pos(&pt);
 	if (MCFlags & CONDHIDE && pt.x >= MouseCXLeft && pt.x <= MouseCXRight && pt.y >= MouseCYUpper && pt.y <= MouseCYLower) {
 		Hide_Mouse();
 		MCFlags |= CONDHIDDEN;
@@ -568,7 +574,7 @@ int WWMouseClass::Get_Mouse_State(void)
 int WWMouseClass::Get_Mouse_X(void)
 {
 	POINT 	pt;
-	GetCursorPos(&pt);
+	Get_Cursor_Pos(&pt);
 	return(pt.x);
 }
 
@@ -586,7 +592,7 @@ int WWMouseClass::Get_Mouse_X(void)
 int WWMouseClass::Get_Mouse_Y(void)
 {
 	POINT 	pt;
-	GetCursorPos(&pt);
+	Get_Cursor_Pos(&pt);
 	return(pt.y);
 }
 
@@ -605,14 +611,14 @@ void WWMouseClass::Get_Mouse_XY(int &x, int &y)
 {
 	POINT 	pt;
 
-	GetCursorPos(&pt);
+	Get_Cursor_Pos(&pt);
 	x = pt.x;
 	y = pt.y;
 }
 
 #pragma off(unreferenced)
 
-void CALLBACK Process_Mouse( UINT event_id, UINT res1 , DWORD user, DWORD  res2, DWORD  res3 )
+void Process_Mouse_Poll(void)
 {
 	static	BOOL	in_mouse_callback = false;
 

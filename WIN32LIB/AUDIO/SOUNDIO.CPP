@@ -54,40 +54,34 @@
  *   Sample_Copy -- Copies sound data from source format to raw format.                        *
  *   File_Stream_Preload -- Handles initial proload of a streaming samples bu*
  *   Sample_Length -- returns length of a sample in ticks                  *
+ *   (S09: several of the functions listed above no longer exist; see the port note below.)   *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-extern	void Colour_Debug (int call_number);
-#pragma 	pack(4)
+/*
+** Port (S09, 2026-10-14): DirectSound is gone. Every sample tracker plays
+** through a voice of the software mixer (audio_mixer.h), and the mixer's
+** output goes to an AudioBackendClass (audio_backend.h): SDL3, or the null
+** backend. The public functions keep their signatures (audio.h). What
+** changed, function by function, is listed in docs/codebase/audio.md.
+**
+** Threading: the backend may call the mixer from its own thread. The mixer's
+** recursive lock replaces GlobalAudioCriticalSection: every function here
+** that touches LockedData takes it (AudioLockClass). File reads happen on the
+** game thread with the lock released, as before.
+*/
 
-#define WIN32
-#ifndef _WIN32 // Denzil 6/2/98 Watcom 11.0 complains without this check
-#define _WIN32
-#endif // _WIN32
+#include "audio_compat.h"
+#include "audio.h"
+#include "soundint.h"
+#include "audio_mixer.h"
+#include "audio_backend.h"
 
-#include	<windows.h>
-#include	<windowsx.h>
-#include	"dsound.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include	<mem.h>
-#include	<wwmem.h>
-#include	"soundint.h"
-#include	<stdio.h>
-#include	<string.h>
-#include	<direct.h>
-#include	<stdlib.h>
-#include <process.h>
-#include	<keyboard.h>
-#include	<file.h>
-#include	<bios.h>
-#include	<timer.h>
-#include	<math.h>
-#pragma		pack(1)
-#include	"audio.h"
-#pragma		pack(4)
-
-LPDIRECTSOUNDBUFFER	DumpBuffer;
-HANDLE						SoundThreadHandle = NULL;
-BOOL						SoundThreadActive = FALSE;
+#ifndef MIN
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
 
 /*
 **      If this is defined, then the streaming audio buffer will be filled
@@ -95,18 +89,6 @@ BOOL						SoundThreadActive = FALSE;
 **      the streaming buffer in smaller chunks.
 */
 #define SIMPLE_FILLING
-
-/*
-**      This is the number of times per sec that the maintenance callback gets called.
-*/
-#define MAINTENANCE_RATE                        40	//30 times per sec plus a safety margin
-
-/*
-**      Size of the temporary buffer in XMS/EMS that direct file
-**      streaming of sounds will allocate.
-*/
-//#define STREAM_BUFFER_SIZE              (128L*1024L)
-#define STREAM_BUFFER_SIZE              (128L*1024L)
 
 /*
 ** Define the number of "StreamBufferSize" blocks that are read in
@@ -117,57 +99,90 @@ BOOL						SoundThreadActive = FALSE;
 #define STREAM_CUSHION_BLOCKS   4
 
 
-/*
-**      This is the maximum size that a sonarc block can be.  All sonarc blocks
-**      must be either a multiple of this value or a binary root of this value.
-*/
-#define LARGEST_SONARC_BLOCK            2048
-
-
 //////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// structs ///////////////////////////////////////
 
-//void						*DigiBuffer = NULL;
 static BOOL				StartingFileStream = FALSE;
 int						StreamLowImpact = FALSE;
-MemoryFlagType			StreamBufferFlag = MEM_NORMAL;
 int							Misc;
 SFX_Type					SoundType;
 Sample_Type				SampleType;
 int							ReverseChannels = FALSE;
-LPDIRECTSOUND			SoundObject;			//Direct sound object
-LPDIRECTSOUNDBUFFER	PrimaryBufferPtr;		//Pointer to the  buffer that the
-unsigned					SoundTimerHandle=0;	//Windows Handle for sound timer
-WAVEFORMATEX				DsBuffFormat;			//format of direct sound buffer
-DSBUFFERDESC				BufferDesc;				//Buffer description for creating buffers
-WAVEFORMATEX				PrimaryBuffFormat;	//Copy of format of direct sound primary buffer
-DSBUFFERDESC				PrimaryBufferDesc;	//Copy of buffer description for re-creating primary buffer
-CRITICAL_SECTION		GlobalAudioCriticalSection;
 void						*FileStreamBuffer = NULL;	//Buffer for streaming audio from CD
+
 /*
-** Function to call if we detect focus loss
+** Function to call if we detect focus loss. (Port: kept for the game, which
+** sets it; nothing calls it now, because SDL has no "buffer lost" error.)
 */
-extern	void (*Audio_Focus_Loss_Function)(void) = NULL;
+void (*Audio_Focus_Loss_Function)(void) = NULL;
+
+static BOOL				AudioDone = FALSE;
+
+/*
+** Port: the mixer and the open backend.
+*/
+static AudioMixerClass		Mixer;
+static AudioBackendClass	*Backend = NULL;
+static bool						DevicePaused = true;
+
+AudioMixerClass &Audio_Mixer(void)
+{
+	return(Mixer);
+}
 
 
 /*=========================================================================*/
 /* The following PRIVATE functions are in this file:                       */
 /*=========================================================================*/
 
-static BOOL File_Callback(short id, short *odd, void **buffer, long *size);
-static int __cdecl Stream_Sample_Vol(void *buffer, long size, BOOL (*callback)(short id, short *odd, void **buffer, long *size), int volume, int handle);
-void CALLBACK Sound_Timer_Callback ( UINT, UINT, DWORD, DWORD, DWORD );
-//static int __cdecl Stream_Sample(void *buffer, long size, BOOL (*callback)(short id, short *odd, void **buffer, long *size));
-void Sound_Thread (void *);
-volatile BOOL AudioDone;
+static int File_Callback(short id, short *odd, void **buffer, long *size);
+static int Stream_Sample_Vol(void *buffer, long size, int (*callback)(short id, short *odd, void **buffer, long *size), int volume, int handle);
+void File_Stream_Preload(int handle);
+void Suspend_Audio_Thread(void);
+void Resume_Audio_Thread(void);
 /*= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =*/
 
+
+/*
+** Backend -> mixer, and mixer -> maintenance_callback glue.
+*/
+static void Mix_Callback(void *user, short *out, int frames)
+{
+	((AudioMixerClass *)user)->Mix(out, frames);
+}
+
+static void Tick_Callback(void *)
+{
+	maintenance_callback();
+}
+
+
+/***********************************************************************************************
+ * Reap_Finished_Samples -- marks trackers whose mixer voice has finished as stopped.         *
+ *                                                                                             *
+ *    The original's maintenance_callback called Stop_Sample when DirectSound played past the *
+ *    end of the data. The mixer runs on the audio thread, where file handles must not be     *
+ *    touched, so the game-side functions do that bookkeeping here instead.                    *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   10/14/2026 S09 : Created.                                                                 *
+ *=============================================================================================*/
+static void Reap_Finished_Samples(void)
+{
+	AudioLockClass lock(Mixer);
+	for (int index = 0; index < MAX_SFX; index++) {
+		SampleTrackerType *st = &LockedData.SampleTracker[index];
+		if (st->Active && !st->Loading && !Mixer.Is_Voice_Playing(index)) {
+			Stop_Sample(index);
+		}
+	}
+}
 
 
 // This callback is called whenever the queue buffer playback has begun
 // and another buffer is needed for queuing up.  Returns TRUE if there
 // is more data to read from the file.
-static BOOL File_Callback(short id, short *odd, void **buffer, long *size)
+static int File_Callback(short id, short *odd, void **buffer, long *size)
 {
 	SampleTrackerType       *st;            // Pointer to sample playback control struct.
 	void                    *ptr;           // Pointer to working portion of file buffer.
@@ -176,63 +191,48 @@ static BOOL File_Callback(short id, short *odd, void **buffer, long *size)
 		st = &LockedData.SampleTracker[id];
 	 	ptr = st->FileBuffer;
 	 	if (ptr) {
+			int pending;
 
 	 	  	/*
 	 	  	** Move the next pending block into the primary
 	 	  	** position.  Do this only if the queue pointer is
 	 	  	** null.
 	 	  	*/
-			if (!AudioDone){
-				EnterCriticalSection(&GlobalAudioCriticalSection);
-			}
-
-			st->DontTouch = TRUE;
-
-			if (!AudioDone){
-				LeaveCriticalSection(&GlobalAudioCriticalSection);
-			}
-
-			if (!*buffer && st->FilePending) {
-	 	  		*buffer = Add_Long_To_Pointer(ptr, (long)(*odd % LockedData.StreamBufferCount)*(long)LockedData.StreamBufferSize);
-	 	  		st->FilePending--;
-	 	  		*odd = (short)(*odd + 1);
-	 	  		if (!st->FilePending) {
-	 	  			*size = st->FilePendingSize;
-	 	  		} else {
-	 	  			*size = LockedData.StreamBufferSize;
+			{
+				AudioLockClass lock(Mixer);
+				if (!*buffer && st->FilePending) {
+	 	  			*buffer = Audio_Add_Long_To_Pointer(ptr, (long)(*odd % LockedData.StreamBufferCount)*(long)LockedData.StreamBufferSize);
+	 	  			st->FilePending--;
+	 	  			*odd = (short)(*odd + 1);
+	 	  			if (!st->FilePending) {
+	 	  				*size = st->FilePendingSize;
+	 	  			} else {
+	 	  				*size = LockedData.StreamBufferSize;
+	 	  			}
 	 	  		}
-	 	  	}
-			if (!AudioDone){
-				EnterCriticalSection(&GlobalAudioCriticalSection);
+				pending = st->FilePending;
 			}
-	 	  	st->DontTouch = FALSE;
-			if (!AudioDone){
-				LeaveCriticalSection(&GlobalAudioCriticalSection);
-			}
-			Sound_Timer_Callback(0,0,0,0,0);	//Shouldnt block as we are calling it from the same thread
 
 	 	  	/*
 	 	  	** If the file handle is still valid, then read in the next
 	 	  	** block and add it to the next pending slot available.
 	 	  	*/
-	 	  	if (st->FilePending <
+	 	  	if (pending <
 	 	  		(StreamLowImpact ? (LockedData.StreamBufferCount>>1) : ((LockedData.StreamBufferCount-3))) && st->FileHandle != WW_ERROR) {
-
 
 	 	  		int num_empty_buffers;
 
 #ifdef SIMPLE_FILLING
-				num_empty_buffers = (LockedData.StreamBufferCount-2) - st->FilePending;
+				num_empty_buffers = (LockedData.StreamBufferCount-2) - pending;
 #else
-
 				//
 				// num_empty_buffers will be from 1 to StreamBufferCount
 				//
 				if (StreamLowImpact) {
-					num_empty_buffers = MIN((LockedData.StreamBufferCount >> 1)+STREAM_CUSHION_BLOCKS, (LockedData.StreamBufferCount - 2) - st->FilePending);
+					num_empty_buffers = MIN((LockedData.StreamBufferCount >> 1)+STREAM_CUSHION_BLOCKS, (LockedData.StreamBufferCount - 2) - pending);
 				}
 				else {
-					num_empty_buffers = (LockedData.StreamBufferCount - 2) - st->FilePending;
+					num_empty_buffers = (LockedData.StreamBufferCount - 2) - pending;
 				}
 #endif
 
@@ -240,9 +240,16 @@ static BOOL File_Callback(short id, short *odd, void **buffer, long *size)
 					int     tofill;
 					long    psize;
 
-					tofill = (*odd + st->FilePending) % LockedData.StreamBufferCount;
+					/*
+					** The mixer may promote a pending block meanwhile; that moves Odd and
+					** FilePending by one each in opposite directions, so 'tofill' stays put.
+					*/
+					{
+						AudioLockClass lock(Mixer);
+						tofill = (*odd + st->FilePending) % LockedData.StreamBufferCount;
+					}
 
-					ptr = Add_Long_To_Pointer(st->FileBuffer, (long)tofill * (long)LockedData.StreamBufferSize);
+					ptr = Audio_Add_Long_To_Pointer(st->FileBuffer, (long)tofill * (long)LockedData.StreamBufferSize);
 					psize = Read_File(st->FileHandle, ptr, LockedData.StreamBufferSize);
 
 				 	/*
@@ -260,17 +267,9 @@ static BOOL File_Callback(short id, short *odd, void **buffer, long *size)
 				 	**      that this buffer is valid.
                 */
 				 	if (psize) {
-						if (!AudioDone){
-							EnterCriticalSection(&GlobalAudioCriticalSection);
-						}
-						st->DontTouch = TRUE;
+						AudioLockClass lock(Mixer);
 				 	  	st->FilePendingSize = psize;
 				 	  	st->FilePending++;
-				 	  	st->DontTouch = FALSE;
-						if (!AudioDone){
-							LeaveCriticalSection(&GlobalAudioCriticalSection);
-						}
-						Sound_Timer_Callback(0,0,0,0,0);	//Shouldnt block as we are calling it from the same thread
 				 	}
 				 	num_empty_buffers--;
 				}
@@ -280,25 +279,10 @@ static BOOL File_Callback(short id, short *odd, void **buffer, long *size)
 				**  is empty.  If so, then assign the first available pending buffer to the
              **  queue.
 				*/
-				if (!AudioDone){
-					EnterCriticalSection(&GlobalAudioCriticalSection);
+				{
+					AudioLockClass lock(Mixer);
+					Audio_Promote_Stream_Queue(st);
 				}
-				st->DontTouch = TRUE;
-             if (!st->QueueBuffer && st->FilePending) {
-					st->QueueBuffer = Add_Long_To_Pointer(st->FileBuffer, (long)(st->Odd%LockedData.StreamBufferCount)*(long)LockedData.StreamBufferSize);
-					st->FilePending--;
-                st->Odd++;
-                if (!st->FilePending) {
-						st->QueueSize = st->FilePendingSize;
-					} else {
-                	st->QueueSize = LockedData.StreamBufferSize;
-					}
-				}
-				st->DontTouch = FALSE;
-				if (!AudioDone){
-					LeaveCriticalSection(&GlobalAudioCriticalSection);
-				}
-				Sound_Timer_Callback(0,0,0,0,0);	//Shouldnt block as we are calling it from the same thread
 			}
 
 			/*
@@ -306,41 +290,34 @@ static BOOL File_Callback(short id, short *odd, void **buffer, long *size)
 			**      can slot into the primary position, then signal that
 			**      no furthur callbacks are needed.
 			*/
+			AudioLockClass lock(Mixer);
 			if (st->FilePending) {
-				//LeaveCriticalSection(&GlobalAudioCriticalSection);
 				return(TRUE);
 			}
 		}
-		//LeaveCriticalSection(&GlobalAudioCriticalSection);
-
 	}
-  return(FALSE);
+	return(FALSE);
 }
 
 
-
-
-
 // Generic streaming sample playback initialization.
-static int __cdecl Stream_Sample_Vol(void *buffer, long size, BOOL (*callback)(short id, short *odd, void **buffer, long *size), int volume, int handle)
+static int Stream_Sample_Vol(void *buffer, long size, int (*callback)(short id, short *odd, void **buffer, long *size), int volume, int handle)
 {
 	int								playid=-1;      // Sample play ID.
 	SampleTrackerType               *st;                    // Working pointer to sample control structure.
 	long							oldsize;                // Copy of original sound size.
-	AUDHeaderType                   header;
 
 	if (!AudioDone && buffer && size && LockedData.DigiHandle != -1) {
 
 		/*
-	 	** Start the first section of the sound playing.
+	 	** Start the first section of the sound playing. The header's size
+	 	** field is patched to the size of this first block for the call.
 	 	*/
-	 	Mem_Copy(buffer, &header, sizeof(header));
-	 	oldsize = header.Size;
-	 	header.Size = size-sizeof(header);
-	 	Mem_Copy(&header, buffer, sizeof(header));
+		AudioLockClass lock(Mixer);
+	 	oldsize = AUD_SIZE(buffer);
+		Aud_Put_U32((char *)buffer + 2, (unsigned long)(size - AUD_HEADER_SIZE));
 	 	playid = Play_Sample_Handle(buffer, 0xFF, volume, 0x0, handle);
-	 	header.Size = oldsize;
-	 	Mem_Copy(&header, buffer, sizeof(header));
+		Aud_Put_U32((char *)buffer + 2, (unsigned long)oldsize);
 
 	 	/*
 	 	** If the sample actually started playing, then flag this
@@ -349,23 +326,12 @@ static int __cdecl Stream_Sample_Vol(void *buffer, long size, BOOL (*callback)(s
 	 	*/
 	 	if (playid != -1) {
 	 		st = &LockedData.SampleTracker[playid];
-
 	 		st->Callback = callback;
 	 		st->Odd = 0;
-//             ServiceSomething = TRUE;
     	}
 	}
-		  return (playid);
+	return (playid);
 }
-
-
-
-#if (0)
-static int __cdecl Stream_Sample(void *buffer, long size, BOOL (*callback)(short id, short *odd, void **buffer, long *size), int handle)
-{
-	return Stream_Sample_Vol(buffer, size, callback, 0xFF, handle);
-}
-#endif
 
 
 /***********************************************************************************************
@@ -391,6 +357,7 @@ int File_Stream_Sample(char const *filename, BOOL real_time_start)
 	return File_Stream_Sample_Vol(filename, 0xFF, real_time_start);
 }
 
+
 /***************************************************************************
  * FILE_STREAM_PRELOAD -- Handles initial proload of streaming samples     *
  *                                                                         *
@@ -405,12 +372,14 @@ int File_Stream_Sample(char const *filename, BOOL real_time_start)
  *                                                                         *
  * OUTPUT:                                                                 *
  *                                                                         *
- * WARNINGS:                                                               *
+ * WARNINGS: (Port) The reads happen without the lock: the tracker isn't   *
+ *           playing yet, so the mixer doesn't look at it. Starting the    *
+ *           sample and setting up its queue is one locked step, so the    *
+ *           mixer can't pull from the first block before the queue exists.*
  *                                                                         *
  * HISTORY:                                                                *
  *   06/05/1995 PWG : Created.                                             *
  *=========================================================================*/
-
 void File_Stream_Preload(int handle)
 {
 	SampleTrackerType	*st		= &LockedData.SampleTracker[handle];
@@ -418,6 +387,7 @@ void File_Stream_Preload(int handle)
 	int					maxnum	= (LockedData.StreamBufferCount >> 1) + STREAM_CUSHION_BLOCKS;
 	void					*buffer	= st->FileBuffer;
 	int					num;
+	int					index;
 
 	/*
     ** Figure just how much we need to load.  If we are doing the load in progress
@@ -430,13 +400,11 @@ void File_Stream_Preload(int handle)
 		num = maxnum;
 	}
 
-	//EnterCriticalSection(&GlobalAudioCriticalSection);
-
     /*
     ** Loop through the blocks and load up the number we need.
     */
-    for (int index = st->FilePending; index < num; index++) {
-		long s = Read_File(fh, Add_Long_To_Pointer(buffer, (long)index * (long)LockedData.StreamBufferSize), LockedData.StreamBufferSize);
+    for (index = st->FilePending; index < num; index++) {
+		long s = Read_File(fh, Audio_Add_Long_To_Pointer(buffer, (long)index * (long)LockedData.StreamBufferSize), LockedData.StreamBufferSize);
        if (s) {
          	st->FilePendingSize = s;
 	  		st->FilePending++;
@@ -444,15 +412,13 @@ void File_Stream_Preload(int handle)
 		if (s < LockedData.StreamBufferSize) break;
     }
 
-	Sound_Timer_Callback(0,0,0,0,0);	//Shouldnt block as we are calling it from the same thread
-
-
 	/*
 	** If the last block was incomplete (ie. it didn't completely fill the buffer) or
 	** we have now filled up as much of the Streaming Buffer as we need to, then now is
 	** the time to kick off the sample.
 	*/
 	if (st->FilePendingSize < LockedData.StreamBufferSize || index == maxnum) {
+		AudioLockClass lock(Mixer);
 
 		/*
 		** Actually start the sample playing, and don't worry about the file callback
@@ -491,6 +457,7 @@ void File_Stream_Preload(int handle)
 			st->FilePendingSize	= 0;
           st->Callback			= NULL;
 			Close_File(fh);
+			st->FileHandle			= WW_ERROR;		// Port: the original left the closed handle here.
 		} else {
 			/*
 			** The QueueBuffer counts as an already played block so remove it from the total.
@@ -517,7 +484,7 @@ void File_Stream_Preload(int handle)
           ** The Queue buffer needs to point at the next block to be processed.  The size
           ** of the queue is dependant on how many more blocks there are.
           */
-			st->QueueBuffer = Add_Long_To_Pointer(buffer, LockedData.StreamBufferSize);
+			st->QueueBuffer = Audio_Add_Long_To_Pointer(buffer, LockedData.StreamBufferSize);
 			if (!st->FilePending) {
           	st->QueueSize = st->FilePendingSize;
           } else {
@@ -525,14 +492,7 @@ void File_Stream_Preload(int handle)
           }
 		}
 	}
-	//LeaveCriticalSection(&GlobalAudioCriticalSection);
-
 }
-
-
-
-
-
 
 
 /***********************************************************************************************
@@ -552,7 +512,6 @@ void File_Stream_Preload(int handle)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *=============================================================================================*/
-
 int File_Stream_Sample_Vol(char const *filename, int volume, BOOL real_time_start)
 {
 	SampleTrackerType       *st;
@@ -562,30 +521,31 @@ int File_Stream_Sample_Vol(char const *filename, int volume, BOOL real_time_star
 
 	if (!AudioDone && LockedData.DigiHandle != -1 && filename && Find_File(filename)) {
 
-	/*
-	**  Make sure all sample tracker structures point to the same
-	**  upper memory buffer.  This allocation only occurs if at
-	**  least one sample gets "streamed".
-	*/
-	if (!FileStreamBuffer) {
-		FileStreamBuffer = Alloc(LockedData.StreamBufferSize * LockedData.StreamBufferCount, (MemoryFlagType)(StreamBufferFlag | MEM_TEMP | MEM_LOCK));
-       for (index = 0; index < MAX_SFX; index++) {
-       	LockedData.SampleTracker[index].FileBuffer = FileStreamBuffer;
+		/*
+		**  Make sure all sample tracker structures point to the same
+		**  upper memory buffer.  This allocation only occurs if at
+		**  least one sample gets "streamed".
+		*/
+		if (!FileStreamBuffer) {
+			FileStreamBuffer = malloc((size_t)(LockedData.StreamBufferSize * LockedData.StreamBufferCount));
+			AudioLockClass lock(Mixer);
+       	for (index = 0; index < MAX_SFX; index++) {
+       		LockedData.SampleTracker[index].FileBuffer = FileStreamBuffer;
+			}
 		}
-	}
-	/*
-	** If after trying to allocate the buffer we still fail then
-	** we can stream this sample.
-	*/
-	if (!FileStreamBuffer) return(-1);
 
+		/*
+		** If after trying to allocate the buffer we still fail then
+		** we can stream this sample.
+		*/
+		if (!FileStreamBuffer) return(-1);
 
     	/*
     	** Lets see if we can sucessfully open up the file.  If we can't,
     	** then there is no point in going any farther.
     	*/
     	if ((fh = Open_File(filename, READ)) == -1) {
- 	 			return (-1);
+ 	 		return (-1);
     	}
 
 		/*
@@ -594,20 +554,24 @@ int File_Stream_Sample_Vol(char const *filename, int volume, BOOL real_time_star
 		** we might as well give up.
 		*/
 		if ((unsigned)(handle = Get_Free_Sample_Handle(0xFF)) >= MAX_SFX) {
- 				return(-1);
+			Close_File(fh);		// Port: the original leaked the handle here.
+ 			return(-1);
 		}
 
 		/*
 		** Now lets get a pointer to the proper sample handler and start
 		** our manipulations.
 		*/
-		st							= &LockedData.SampleTracker[handle];
-		st->IsScore				= TRUE;
-		st->FilePending		= 0;
-		st->FilePendingSize	= 0;
-		st->Loading				= real_time_start;
-		st->Volume				= volume;
-		st->FileHandle			= fh;
+		{
+			AudioLockClass lock(Mixer);
+			st							= &LockedData.SampleTracker[handle];
+			st->IsScore				= TRUE;
+			st->FilePending		= 0;
+			st->FilePendingSize	= 0;
+			st->Loading				= real_time_start;
+			st->Volume				= volume;
+			st->FileHandle			= fh;
+		}
 
 		/*
 		** Now that we have setup our initial data properly, let load up
@@ -619,11 +583,15 @@ int File_Stream_Sample_Vol(char const *filename, int volume, BOOL real_time_star
 	return (handle);
 }
 
+
 /***********************************************************************************************
  * Sound_Callback -- Audio driver callback function.                                           *
  *                                                                                             *
  *    Maintains the audio buffers.  This routine must be called at least                       *
  *    11 times per second or else audio glitches will occur.                                   *
+ *                                                                                             *
+ *    (Port: also lets the backend advance -- the null backend mixes here -- and marks        *
+ *    samples whose voice has finished as stopped.)                                            *
  *                                                                                             *
  * INPUT:   none                                                                               *
  *                                                                                             *
@@ -638,80 +606,78 @@ int File_Stream_Sample_Vol(char const *filename, int volume, BOOL real_time_star
 void __cdecl Sound_Callback(void)
 {
 	int					index;
-    SampleTrackerType	*st;
+	SampleTrackerType	*st;
 
-    if (!AudioDone && LockedData.DigiHandle != -1) {
+	if (!AudioDone && LockedData.DigiHandle != -1) {
 
-		/*
-		** Call the timer callback now as we may block it in this function
-		*/
-		Sound_Timer_Callback(0,0,0,0,0);
+		if (Backend) Backend->Update();
+		Reap_Finished_Samples();
 
 		st = &LockedData.SampleTracker[0];
 		for (index = 0; index < MAX_SFX; index++) {
 			if (st->Loading) {
 				File_Stream_Preload(index);
 			} else {
-          	/*
-          	**  General service routine to handle moving small blocks from the
-          	**  source into the low RAM staging buffers.
-          	*/
 
+				/*
+				**  General service routine to handle moving small blocks from the
+				**  source into the low RAM staging buffers.
+				*/
 				if (st->Active) {
 
 					/*
-          		**  Special check to see if the sample is a fading one AND
-          		**  it has faded to silence, then stop it here.
-          		*/
-          		if (st->Reducer && !st->Volume) {
-						//EnterCriticalSection(&GlobalAudioCriticalSection);
-						Stop_Sample(index);
-						//LeaveCriticalSection(&GlobalAudioCriticalSection);
-					} else {
+					**  Special check to see if the sample is a fading one AND
+					**  it has faded to silence, then stop it here.
+					*/
+					bool faded;
+					bool want_more;
+					{
+						AudioLockClass lock(Mixer);
+						faded = st->Reducer && !st->Volume;
 
-          			/*
-             		**  Fill the queuebuffer if it is currently empty
-             		**  and there is a callback function defined to fill it.
-             		**
-             		** PWG/CDY & CO: We should be down by at least two blocks
+						/*
+						**  Fill the queuebuffer if it is currently empty
+						**  and there is a callback function defined to fill it.
+						**
+						** PWG/CDY & CO: We should be down by at least two blocks
 						**                                        before we bother with this
-             		*/
-
-             		if ((!st->QueueBuffer ||
+						*/
+						want_more = (!st->QueueBuffer ||
 							(st->FileHandle != WW_ERROR && st->FilePending < LockedData.StreamBufferCount-3)) &&
-				 			st->Callback) {
+							st->Callback;
+					}
 
-                		if (!st->Callback((short)index, (short int *)&st->Odd, &st->QueueBuffer, &st->QueueSize)) {
-								st->Callback = NULL;
-                		}
-             		}
-          		}
+					if (faded) {
+						Stop_Sample(index);
+					} else if (want_more) {
+						if (!st->Callback((short)index, (short int *)&st->Odd, &st->QueueBuffer, &st->QueueSize)) {
+							AudioLockClass lock(Mixer);
+							st->Callback = NULL;
+						}
+					}
 
 				} else {
 
-          		/*
-          		** This catches the case where a streaming sample gets
-          		** aborted prematurely because of failure to call the
-          		** callback function frequently enough.  In this case, the
-          		** sample will be flagged as inactive, but the file handle
-          		** will not have been closed.
-          		*/
-          		if (st->FileHandle != WW_ERROR) {
-						//EnterCriticalSection(&GlobalAudioCriticalSection);
-          			Close_File(st->FileHandle);
-             		st->FileHandle = WW_ERROR;
-						//LeaveCriticalSection(&GlobalAudioCriticalSection);
-          		}
+					/*
+					** This catches the case where a streaming sample gets
+					** aborted prematurely because of failure to call the
+					** callback function frequently enough.  In this case, the
+					** sample will be flagged as inactive, but the file handle
+					** will not have been closed.
+					*/
+					if (st->FileHandle != WW_ERROR) {
+						Close_File(st->FileHandle);
+						st->FileHandle = WW_ERROR;
+					}
 				}
 			}
 
-          /*
-          **      Advance to the next sample control structure.
+			/*
+			**      Advance to the next sample control structure.
 			*/
-    		st++;
+			st++;
 		}
-
-    }
+	}
 }
 
 
@@ -744,8 +710,8 @@ void *Load_Sample(char const *filename)
 
 	fh = Open_File(filename, READ);
 	if (fh != WW_ERROR) {
-		size = File_Size(fh)+sizeof(AUDHeaderType);
-		buffer = Alloc(size, MEM_NORMAL);
+		size = (long)File_Size(fh)+AUD_HEADER_SIZE;
+		buffer = malloc((size_t)size);
 
 		if (buffer) {
 			Sample_Read(fh, buffer, size);
@@ -786,13 +752,13 @@ long Load_Sample_Into_Buffer(char const *filename, void *buffer, long size)
 	**      Verify legality of parameters.
 	*/
 	if (!buffer || !size || LockedData.DigiHandle == -1 || !filename || !Find_File(filename)) {
-		return (NULL);
+		return (0);
 	}
 
 	fh = Open_File(filename, READ);
 	if (fh != WW_ERROR) {
 		size = Sample_Read(fh, buffer, size);
-       Close_File(fh);
+		Close_File(fh);
 	} else {
 		return(0);
 	}
@@ -822,25 +788,20 @@ long Load_Sample_Into_Buffer(char const *filename, void *buffer, long size)
  *=============================================================================================*/
 long Sample_Read(int fh, void *buffer, long size)
 {
-
-	AUDHeaderType	RawHeader;
+	unsigned char	RawHeader[AUD_HEADER_SIZE];
 	void    			*outbuffer;				// Pointer to start of raw data.
 	long    			actual_bytes_read;	// Actual bytes read in, including header
 
-/*
-** Conversion formula for TCrate and Hz rate.
-**
-** TC = 256 - 1m/rate
-** rate = 1m / (256-TC)
-*/
+	if (!buffer || fh == WW_ERROR || size <= AUD_HEADER_SIZE) return(0);
 
-	if (!buffer || fh == WW_ERROR || size <= sizeof(RawHeader)) return(NULL);
-
-	size -= sizeof(RawHeader);
-	outbuffer = Add_Long_To_Pointer(buffer, sizeof(RawHeader));
-  	actual_bytes_read = Read_File(fh, &RawHeader, sizeof(RawHeader));
-	actual_bytes_read +=Read_File(fh, outbuffer, MIN(size, RawHeader.Size));
-	Mem_Copy(&RawHeader, buffer, sizeof(RawHeader));
+	size -= AUD_HEADER_SIZE;
+	outbuffer = Audio_Add_Long_To_Pointer(buffer, AUD_HEADER_SIZE);
+	memset(RawHeader, 0, sizeof(RawHeader));
+  	actual_bytes_read = Read_File(fh, RawHeader, AUD_HEADER_SIZE);
+	long datasize = AUD_SIZE(RawHeader);
+	if (datasize < 0) datasize = 0;
+	actual_bytes_read += Read_File(fh, outbuffer, (unsigned long)MIN(size, datasize));
+	memcpy(buffer, RawHeader, AUD_HEADER_SIZE);
 	return(actual_bytes_read);
 }
 
@@ -862,334 +823,100 @@ long Sample_Read(int fh, void *buffer, long size)
  *=============================================================================================*/
 void Free_Sample(void const *sample)
 {
-	if (sample) Free((void *)sample);
+	if (sample) free((void *)sample);
 }
-
-
-
-
-
-
-
-
-
-
-
-/***********************************************************************************************
- * Sound_Timer_Callback -- windows timer callback for sound maintenance                        *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    11/2/95 4:01PM ST : Created                                                              *
- *=============================================================================================*/
-
-void CALLBACK Sound_Timer_Callback ( UINT, UINT, DWORD, DWORD, DWORD )
-{
-	//if (!InTimerCallback){
-		//InTimerCallback++;
-		//Colour_Debug (5);
-		if (!AudioDone){
-			EnterCriticalSection(&GlobalAudioCriticalSection);
-			maintenance_callback();
-			LeaveCriticalSection(&GlobalAudioCriticalSection);
-		}
-		//Colour_Debug (0);
-		//InTimerCallback--;
-	//}
-}
-
-void Sound_Thread (void *)
-{
-	DuplicateHandle (GetCurrentProcess(), GetCurrentThread() , GetCurrentProcess() ,&SoundThreadHandle , THREAD_ALL_ACCESS , TRUE , 0);
-	SetThreadPriority (SoundThreadHandle, THREAD_PRIORITY_TIME_CRITICAL);
-	SoundThreadActive = TRUE;
-
-	while (!AudioDone){
-
-		EnterCriticalSection(&GlobalAudioCriticalSection);
-		maintenance_callback();
-		LeaveCriticalSection(&GlobalAudioCriticalSection);
-		Sleep(1000/40);
-	}
-
-	SoundThreadActive = FALSE;
-}
-
-
-
-
-
 
 
 /***********************************************************************************************
  * Set_Primary_Buffer_Format -- set the format of the primary sound buffer                     *
  *                                                                                             *
+ *    Port: there is no primary buffer; the backend converts formats itself.                   *
  *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   TRUE if successfully set                                                          *
- *                                                                                             *
- * WARNINGS: None                                                                              *
+ * OUTPUT:   TRUE if a device is open                                                          *
  *                                                                                             *
  * HISTORY:                                                                                    *
  *    12/22/95 4:06PM ST : Created                                                             *
  *=============================================================================================*/
-
 BOOL Set_Primary_Buffer_Format(void)
 {
-	if (SoundObject && PrimaryBufferPtr){
-		return (PrimaryBufferPtr->SetFormat ( &PrimaryBuffFormat ) == DS_OK);
-	}
-	return (FALSE);
+	return (Backend != NULL);
 }
-
-
-
-/***********************************************************************************************
- * Print_Sound_Error -- show error messages from failed sound initialisation                   *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    error text                                                                        *
- *           handle to window                                                                  *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    2/7/96 10:17AM ST : Created                                                              *
- *=============================================================================================*/
-
-void Print_Sound_Error(char *sound_error, HWND window)
-{
-	MessageBox(window, sound_error, "Command & Conquer", MB_ICONEXCLAMATION|MB_OK);
-}
-
 
 
 /***********************************************************************************************
  * Audio_Init -- Initialise the sound system                                                   *
  *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    window - window to send callback messages to                                      *
- *           maximum bits_per_sample - 8 or 16                                                 *
- *           stereo - will stereo samples be played                                            *
- *           rate - maximum sample rate required                                               *
+ * INPUT:    window - window to send callback messages to (port: unused)                       *
+ *           maximum bits_per_sample - 8 or 16 (port: unused, the mixer is 16-bit)            *
+ *           stereo - will stereo samples be played (= output channels)                        *
+ *           rate - maximum sample rate required (= output rate)                               *
  *           reverse_channels                                                                  *
  *                                                                                             *
- * OUTPUT:   TRUE if correctly initialised                                                     *
- *                                                                                             *
- * WARNINGS: None                                                                              *
+ * OUTPUT:   TRUE if correctly initialised. FALSE if the backend couldn't open a device;      *
+ *           the game then runs without sound (SampleType stays SAMPLE_NONE), as before.       *
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   Unknown....                                                                               *
  *   08-24-95 10:01am ST : Modified for Windows 95 Direct Sound                                *
+ *   10-14-26 S09 : Backend + mixer instead of DirectSound                                     *
  *=============================================================================================*/
-
-BOOL Audio_Init( HWND window , int bits_per_sample, BOOL stereo , int rate , int reverse_channels)
+BOOL Audio_Init( HWND , int , BOOL stereo , int rate , int reverse_channels)
 {
 	int	index;
 	int	sample=1;
-	short old_bits_per_sample;
-	short old_block_align;
-	long	old_bytes_per_sec;
 
+	/*
+	** Port: a second call is harmless. (The original re-initialised the locked
+	** data and then skipped the device setup, which left sound disabled.)
+	*/
+	if (Backend) return(TRUE);
 
 	Init_Locked_Data();
 	FileStreamBuffer = NULL;
 	memset(&LockedData.SampleTracker[0], 0, sizeof(LockedData.SampleTracker));
 
-	if ( !SoundObject ){
+	if (rate <= 0) rate = 22050;
+	AudioDeviceFormat format;
+	format.Rate = rate;
+	format.Channels = stereo ? 2 : 1;
 
-		/*
-		**	Create the direct sound object
-		*/
-		if ( DirectSoundCreate (NULL,&SoundObject,NULL) !=DS_OK ) {
-			Print_Sound_Error("Warning - Unable to create Direct Sound Object",window);
-			return (FALSE);
-		}
+	Mixer.Configure(format.Rate, format.Channels, reverse_channels != 0);
+	Mixer.Set_Fill_Callback(Audio_Voice_Fill, NULL);
+	Mixer.Set_Tick_Callback(Tick_Callback, NULL, MAINTENANCE_RATE);
+	Mixer.Set_Master_Gain(AudioMixerClass::UNITY_GAIN);
 
-		/*
-		**	Give ourselves exclusive access to it
-		*/
-		if ( SoundObject->SetCooperativeLevel( window, DSSCL_PRIORITY ) != DS_OK){
-			Print_Sound_Error("Warning - Unable to set Direct Sound cooperative level",window);
-			SoundObject->Release();
-			SoundObject = NULL;
-			return (FALSE);
-		}
+	AudioBackendClass *backend = Audio_Get_Backend();
+	if (!backend || !backend->Open(format, Mix_Callback, &Mixer)) {
+		return (FALSE);
+	}
+	Backend = backend;
 
-		/*
-		** Set up the primary buffer structure
-		*/
-		memset (&BufferDesc , 0 , sizeof(DSBUFFERDESC));
-		BufferDesc.dwSize=sizeof(DSBUFFERDESC);
-		BufferDesc.dwFlags=DSBCAPS_PRIMARYBUFFER | DSBCAPS_CTRLVOLUME;
+	/*
+	** Allocate a decompression buffer equal to the size of a SONARC frame
+	** block.
+	*/
+	LockedData.UncompBuffer = calloc(1, UNCOMP_BUFFER_SIZE);
 
-		/*
-		**	Set up the primary buffer format
-		*/
-		memset (&DsBuffFormat , 0 , sizeof(WAVEFORMATEX));
-		DsBuffFormat.wFormatTag		= WAVE_FORMAT_PCM;
-		DsBuffFormat.nChannels		= (unsigned short) (1 + stereo);
-		DsBuffFormat.nSamplesPerSec	= rate;
-		DsBuffFormat.wBitsPerSample	= (short) bits_per_sample;
-		DsBuffFormat.nBlockAlign	= (unsigned short)( (DsBuffFormat.wBitsPerSample/8) * DsBuffFormat.nChannels);
-		DsBuffFormat.nAvgBytesPerSec= DsBuffFormat.nSamplesPerSec * DsBuffFormat.nBlockAlign;
-		DsBuffFormat.cbSize = 0;
-
-
-		/*
-		** Make a copy of the primary buffer description so we can reset its format later
-		*/
-		memcpy (&PrimaryBufferDesc , &BufferDesc , sizeof(DSBUFFERDESC));
-		memcpy (&PrimaryBuffFormat , &DsBuffFormat , sizeof(WAVEFORMATEX));
-
-		/*
-		**	Create the primary buffer object
-		*/
-		if ( SoundObject->CreateSoundBuffer (&PrimaryBufferDesc ,
-														&PrimaryBufferPtr ,
-														NULL ) !=DS_OK ){
-			Print_Sound_Error("Warning - Unable to create Direct Sound primary buffer",window);
-			SoundObject->Release();
-			SoundObject = NULL;
-			return (FALSE);
-		}
-
-		/*
-		** Set the format of the primary sound buffer
-		**
-		*/
-		if (!Set_Primary_Buffer_Format()){
-
-			/*
-			** If we failed to create a 16 bit primary buffer - try for an 8bit one
-			*/
-			if (DsBuffFormat.wBitsPerSample == 16){
-				/*
-				** Save the old values
-				*/
-				old_bits_per_sample	= DsBuffFormat.wBitsPerSample;
-				old_block_align		= DsBuffFormat.nBlockAlign;
-				old_bytes_per_sec		= DsBuffFormat.nAvgBytesPerSec;
-
-				/*
-				** Set up the 8-bit ones
-				*/
-				DsBuffFormat.wBitsPerSample	= 8;
-				DsBuffFormat.nBlockAlign	= (unsigned short)( (DsBuffFormat.wBitsPerSample/8) * DsBuffFormat.nChannels);
-				DsBuffFormat.nAvgBytesPerSec= DsBuffFormat.nSamplesPerSec * DsBuffFormat.nBlockAlign;
-
-				/*
-				** Make a copy of the primary buffer description so we can reset its format later
-				*/
-				memcpy (&PrimaryBufferDesc , &BufferDesc , sizeof(DSBUFFERDESC));
-				memcpy (&PrimaryBuffFormat , &DsBuffFormat , sizeof(WAVEFORMATEX));
-			}
-
-			if (!Set_Primary_Buffer_Format()){
-
-				/*
-				** We failed to set any useful format so print up an error message and give up
-				*/
-				PrimaryBufferPtr->Release();
-				PrimaryBufferPtr = NULL;
-				SoundObject->Release();
-				SoundObject = NULL;
-
-				Print_Sound_Error("Warning - Your sound card does not meet the products audio requirements",window);
-
-				return (FALSE);
-			}else{
-
-				/*
-				** OK, got an 8bit sound buffer. Not perfect but it will do
-				** We still want 16 bit secondary buffers so restore those values
-				*/
-				DsBuffFormat.wBitsPerSample	= old_bits_per_sample;
-				DsBuffFormat.nBlockAlign		= old_block_align;
-				DsBuffFormat.nAvgBytesPerSec	= old_bytes_per_sec;
-			}
-		}
-
-
-		/*
-		** Start the primary sound buffer playing
-		**
-		*/if ( PrimaryBufferPtr->Play(0,0,DSBPLAY_LOOPING) != DS_OK ){
-			Print_Sound_Error("Unable to play Direct Sound primary buffer",window);
-			PrimaryBufferPtr->Release();
-			PrimaryBufferPtr = NULL;
-			SoundObject->Release();
-			SoundObject = NULL;
-			return (FALSE);
-		}
-
-		LockedData.DigiHandle=1;
-
-
-		/*
-		** Initialise the global critical section object for sound thread syncronisation
-		*/
-		InitializeCriticalSection(&GlobalAudioCriticalSection);
-
-		/*
-		** Initialise the Windows timer system to provide us with a callback
-		**
-		*/
-		SoundTimerHandle = timeSetEvent ( 1000/MAINTENANCE_RATE , 1 , Sound_Timer_Callback , 0 , TIME_PERIODIC);
-		AudioDone = FALSE;
-		//_beginthread(&Sound_Thread, NULL, 16*1024, NULL);
-
-		/*
-		**	Define the format for the secondary sound buffers
-		*/
-		BufferDesc.dwFlags=DSBCAPS_CTRLVOLUME;
-		BufferDesc.dwBufferBytes=SECONDARY_BUFFER_SIZE;
-		BufferDesc.lpwfxFormat = (LPWAVEFORMATEX) &DsBuffFormat;
-
-
-
-		/*
-    	** Allocate a decompression buffer equal to the size of a SONARC frame
-		** block.
-    	*/
-    	LockedData.UncompBuffer = Alloc(LARGEST_SONARC_BLOCK + 50, (MemoryFlagType)(MEM_NORMAL|MEM_CLEAR|MEM_LOCK));
-
-    	/*
-    	** Allocate once secondary direct sound buffer for each simultaneous sound effect
-		**
-    	*/
-		for (index = 0; index < MAX_SFX; index++) {
-
-			SoundObject->CreateSoundBuffer (&BufferDesc , &LockedData.SampleTracker[index].PlayBuffer , NULL);
-
-			LockedData.SampleTracker[index].PlaybackRate	= rate;
-			LockedData.SampleTracker[index].Stereo			= (stereo) ? AUD_FLAG_STEREO : 0;
-			LockedData.SampleTracker[index].BitSize 		= (bits_per_sample == 16) ? AUD_FLAG_16BIT : 0;
-			LockedData.SampleTracker[index].FileHandle 	= WW_ERROR;
-			LockedData.SampleTracker[index].QueueBuffer 	= NULL;
-			InitializeCriticalSection (&LockedData.SampleTracker[index].AudioCriticalSection);
-
-		}
-
-		SoundType = (SFX_Type)sample;
-		SampleType = (Sample_Type)sample;
-		ReverseChannels = reverse_channels;
-
+	for (index = 0; index < MAX_SFX; index++) {
+		LockedData.SampleTracker[index].PlaybackRate	= rate;
+		LockedData.SampleTracker[index].Stereo			= (stereo) ? AUD_FLAG_STEREO : 0;
+		LockedData.SampleTracker[index].BitSize 		= AUD_FLAG_16BIT;
+		LockedData.SampleTracker[index].FileHandle 	= WW_ERROR;
+		LockedData.SampleTracker[index].QueueBuffer 	= NULL;
 	}
 
+	SoundType = (SFX_Type)sample;
+	SampleType = (Sample_Type)sample;
+	ReverseChannels = reverse_channels;
+
+	LockedData.DigiHandle = 1;
+	AudioDone = FALSE;
+
+	/*
+	** Start the device playing
+	*/
+	DevicePaused = true;
+	Start_Primary_Sound_Buffer(TRUE);
 	return(TRUE);
 }
 
@@ -1210,79 +937,50 @@ BOOL Audio_Init( HWND window , int bits_per_sample, BOOL stereo , int rate , int
  * HISTORY:                                                                                    *
  *   07/23/1991 JLB : Created.                                                                 *
  *   11/02/1995 ST  : Modified for Direct Sound                                                *
+ *   10/14/2026 S09 : Closes the backend; Audio_Init may be called again afterwards           *
  *=============================================================================================*/
 void Sound_End(void)
 {
-
 	int	index;
 
-	/*
-	** Remove the Windows timer event we installed for the sound callback
-	*/
-	if (SoundTimerHandle){
-		timeKillEvent(SoundTimerHandle);
-		SoundTimerHandle = 0;
-	}
+	if (Backend) {
 
-
-	if (SoundObject && PrimaryBufferPtr){
 		/*
-		** Stop all sounds and release the Direct Sound secondary sound buffers
+		** Stop all sounds, then close the device so no mix callback can run.
 		*/
 		for (index=0 ; index < MAX_SFX; index++){
-			if ( LockedData.SampleTracker[index].PlayBuffer ){
-				Stop_Sample (index);
-				LockedData.SampleTracker[index].PlayBuffer->Stop();
-				LockedData.SampleTracker[index].PlayBuffer->Release();
-				LockedData.SampleTracker[index].PlayBuffer = NULL;
-				DeleteCriticalSection(&LockedData.SampleTracker[index].AudioCriticalSection);
-			}
+			Stop_Sample (index);
 		}
+		Backend->Pause(true);
+		Backend->Close();
+		Backend = NULL;
 	}
 
 	AudioDone = TRUE;
 
+	{
+		AudioLockClass lock(Mixer);
+		for (index = 0; index < MAX_SFX; index++) {
+			Mixer.Stop_Voice(index);
+			LockedData.SampleTracker[index].FileBuffer = NULL;
+		}
+		LockedData.DigiHandle = -1;
+	}
+
 	if (FileStreamBuffer){
-		Free (FileStreamBuffer);
+		free (FileStreamBuffer);
 		FileStreamBuffer = NULL;
 	}
 
-	/*
-	** Stop and release the direct sound primary buffer
-	*/
-	if (PrimaryBufferPtr){
-		PrimaryBufferPtr->Stop();
-		PrimaryBufferPtr->Release();
-		PrimaryBufferPtr = NULL;
-	}
-
-	/*
-	** Release the Direct Sound Object
-	*/
-	if (SoundObject){
-		SoundObject->Release();
-		SoundObject = NULL;
-	}
-
-
 	if (LockedData.UncompBuffer) {
-    	Free(LockedData.UncompBuffer);
+		free(LockedData.UncompBuffer);
 		LockedData.UncompBuffer = 0;
 	}
-
-	/*
-	** Since the timer has stopped, we are finished with our global critical section.
-	*/
-	DeleteCriticalSection(&GlobalAudioCriticalSection);
 }
-
-
 
 
 /***********************************************************************************************
  * Stop_Sample -- Stops any currently playing sampled sound.                                   *
- *                                                                                             *
- *                                                                                             *
  *                                                                                             *
  * INPUT:                                                                                      *
  *                                                                                             *
@@ -1300,7 +998,7 @@ void Stop_Sample(int handle)
 
 		if (AudioDone)	return;
 
-		EnterCriticalSection (&GlobalAudioCriticalSection);
+		AudioLockClass lock(Mixer);
 
 		if (LockedData.SampleTracker[handle].Active || LockedData.SampleTracker[handle].Loading) {
 
@@ -1316,7 +1014,7 @@ void Stop_Sample(int handle)
           **  Stop the sample if it is playing.
           */
 			if (!LockedData.SampleTracker[handle].Loading) {
-				LockedData.SampleTracker[handle].PlayBuffer->Stop();
+				Mixer.Stop_Voice(handle);
           }
 
 			LockedData.SampleTracker[handle].Loading = FALSE;
@@ -1331,15 +1029,12 @@ void Stop_Sample(int handle)
 
 			LockedData.SampleTracker[handle].QueueBuffer = NULL;
 		}
-		LeaveCriticalSection (&GlobalAudioCriticalSection);
 	}
 }
 
 
 /***********************************************************************************************
  * Sample_Status -- Queries the current playing sample status (if any).                        *
- *                                                                                             *
- *                                                                                             *
  *                                                                                             *
  * INPUT:                                                                                      *
  *                                                                                             *
@@ -1352,8 +1047,6 @@ void Stop_Sample(int handle)
  *=============================================================================================*/
 BOOL Sample_Status(int handle)
 {
-	DWORD	status;
-
 	if (AudioDone) return (FALSE);
 
 	/*
@@ -1361,6 +1054,15 @@ BOOL Sample_Status(int handle)
 	** the sample in question is not playing.
 	*/
 	if (LockedData.DigiHandle == -1 || (unsigned)handle >= MAX_SFX) return(FALSE);
+
+	/*
+	** Port: let a thread-less backend (null) advance time here too. The game
+	** busy-waits on speech with "while (Is_Speaking()) {};"
+	** (CODE/SCENARIO.CPP), which never reaches Sound_Callback.
+	*/
+	if (Backend) Backend->Update();
+
+	AudioLockClass lock(Mixer);
 
 	/*
 	** If the sample is loading, then for all intents and purposes the
@@ -1374,23 +1076,19 @@ BOOL Sample_Status(int handle)
 	if (!LockedData.SampleTracker[handle].Active) return(FALSE);
 
 	/*
-	** If we made it this far, then the Sample is still playing if sos says
-	** that it is.
+	** If we made it this far, then the Sample is still playing if the
+	** mixer says that it is.
 	*/
-	DumpBuffer = LockedData.SampleTracker[handle].PlayBuffer;
-	if (LockedData.SampleTracker[handle].PlayBuffer->GetStatus( &status ) == DS_OK){
-		return ( (DSBSTATUS_PLAYING & status) || (DSBSTATUS_LOOPING & status) );
-	}else{
-		return (TRUE);
+	if (!Mixer.Is_Voice_Playing(handle)) {
+		Stop_Sample(handle);
+		return(FALSE);
 	}
+	return(TRUE);
 }
-
 
 
 /***********************************************************************************************
  * Is_Sample_Playing -- returns the play state of a sample                                     *
- *                                                                                             *
- *                                                                                             *
  *                                                                                             *
  * INPUT:    ptr to sample data                                                                *
  *                                                                                             *
@@ -1401,34 +1099,28 @@ BOOL Sample_Status(int handle)
  * HISTORY:                                                                                    *
  *    11/2/95 4:11PM ST : Commented                                                            *
  *=============================================================================================*/
-
 BOOL Is_Sample_Playing(void const * sample)
 {
 	int index;
 
 	if (AudioDone) return (FALSE);
 
-	//EnterCriticalSection(&GlobalAudioCriticalSection);
-
 	if (!sample) {
-		//LeaveCriticalSection(&GlobalAudioCriticalSection);
 		return FALSE;
 	}
+
+	AudioLockClass lock(Mixer);
 	for (index = 0; index < MAX_SFX; index++) {
 		if (LockedData.SampleTracker[index].Original == sample && Sample_Status(index)) {
-			//LeaveCriticalSection(&GlobalAudioCriticalSection);
 			return (TRUE);
 		}
 	}
-	//LeaveCriticalSection(&GlobalAudioCriticalSection);
 	return (FALSE);
 }
 
 
 /***********************************************************************************************
  * Stop_Sample_Playing -- stops a playing sample                                               *
- *                                                                                             *
- *                                                                                             *
  *                                                                                             *
  * INPUT:    ptr to sample data                                                                *
  *                                                                                             *
@@ -1439,12 +1131,12 @@ BOOL Is_Sample_Playing(void const * sample)
  * HISTORY:                                                                                    *
  *    11/2/95 4:13PM ST : Commented                                                            *
  *=============================================================================================*/
-
 void Stop_Sample_Playing(void const * sample)
 {
 	int index;
 
 	if (sample) {
+		AudioLockClass lock(Mixer);
 		for (index = 0; index < MAX_SFX; index++) {
 			if (LockedData.SampleTracker[index].Original == sample) {
 				Stop_Sample(index);
@@ -1455,13 +1147,8 @@ void Stop_Sample_Playing(void const * sample)
 }
 
 
-
-
-
 /***********************************************************************************************
  * Get_Free_Sample_Handle -- finds a free slot in which to play a new sample                   *
- *                                                                                             *
- *                                                                                             *
  *                                                                                             *
  * INPUT:    priority of sample we want to play                                                *
  *                                                                                             *
@@ -1472,10 +1159,12 @@ void Stop_Sample_Playing(void const * sample)
  * HISTORY:                                                                                    *
  *    11/2/95 4:14PM ST : Added function header                                                *
  *=============================================================================================*/
-
 int Get_Free_Sample_Handle(int priority)
 {
 	int     id;
+
+	Reap_Finished_Samples();
+	AudioLockClass lock(Mixer);
 
 	/*
 	**      Find a free SFX holding buffer slot.
@@ -1517,104 +1206,30 @@ int Get_Free_Sample_Handle(int priority)
 	return(id);
 }
 
+
 int Play_Sample(void const *sample, int priority, int volume, signed short panloc)
 {
-		  return(Play_Sample_Handle(sample, priority, volume, panloc, Get_Free_Sample_Handle(priority)));
+	return(Play_Sample_Handle(sample, priority, volume, panloc, Get_Free_Sample_Handle(priority)));
 }
 
 
-
-
-
 /***********************************************************************************************
- * Attempt_Audio_Restore -- tries to restore the direct sound buffers                          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    ptr to direct sound buffer                                                        *
- *                                                                                             *
- * OUTPUT:   TRUE if buffer was successfully restored                                          *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    3/20/96 9:47AM ST : Created                                                              *
- *=============================================================================================*/
-
-BOOL Attempt_Audio_Restore (LPDIRECTSOUNDBUFFER sound_buffer)
-{
-
-	int 	return_code;
-	DWORD	play_status;
-	int	restore_attempts=0;
-
-	if (AudioDone){
-		return (FALSE);
-	}
-
-	/*
-	** Call the audio focus loss function if it has been set up
-	*/
-	if (Audio_Focus_Loss_Function){
-		Audio_Focus_Loss_Function();
-	}
-
-	/*
-	** Try to restore the sound buffer
-	*/
-	do{
-		Restore_Sound_Buffers();
-		return_code = sound_buffer->GetStatus ( &play_status );
-
-	} while (restore_attempts++<2 && return_code == DSERR_BUFFERLOST);
-
-	return ((BOOL) ~(return_code == DSERR_BUFFERLOST));
-}
-
-
-
-/***********************************************************************************************
- * Convert_HMI_To_Direct_Sound_Volume -- Converts a linear volume value into an expotential    *
- *                                        value                                                *
- *                                                                                             *
- * This function converts a linear C&C volume in the range 0-255 (255 loudest) to a direct     *
- *  sound volume in the range 0 to -10000 (with 0 being the loadest)                           *
- *                                                                                             *
- * INPUT:    volume in range 0-255                                                             *
- *                                                                                             *
- * OUTPUT:   volume in range -10000 to 0                                                       *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * Note: The 27.685 value comes from 255 divided by the log of 10001                           *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    9/18/96 11:36AM ST : Created                                                             *
- *=============================================================================================*/
-int Convert_HMI_To_Direct_Sound_Volume(int volume)
-{
-	if (volume == 0) return -10000;
-	if (volume == 255) return 0;
-
-	float vol = (float)volume;
-	float retval = exp ( (255.0-vol)/27.68597374) -1;
-	return ((int)-retval);
-}
-
-
-
-
-
-/***********************************************************************************************
- * Play_Sample_Vol -- Plays a digitized sample.                                                *
+ * Play_Sample_Handle -- Plays a digitized sample.                                             *
  *                                                                                             *
  *    Use this routine to play a previously loaded digitized sample.                           *
  *                                                                                             *
  * INPUT:   sample   -- Sample pointer as returned from Load_Sample.                           *
  *                                                                                             *
+ *          priority -- Priority (0..255); a higher one may take the slot of a lower one.      *
+ *                                                                                             *
  *          volume   -- The volume to play (0..255 with 255=loudest).                          *
  *                                                                                             *
- * OUTPUT:  none                                                                               *
+ *          panloc   -- Ignored, as in the Win95 original (DirectSound buffers weren't         *
+ *                      created with pan control).                                             *
+ *                                                                                             *
+ *          id       -- Tracker to play on (from Get_Free_Sample_Handle).                      *
+ *                                                                                             *
+ * OUTPUT:  The handle, or -1.                                                                 *
  *                                                                                             *
  * WARNINGS:   none                                                                            *
  *                                                                                             *
@@ -1623,368 +1238,141 @@ int Convert_HMI_To_Direct_Sound_Volume(int volume)
  *   05/24/1992 JLB : Volume support -- Soundblaster Pro                                       *
  *   04/22/1994 JLB : Multiple sample playback rates.                                          *
  *   11/02/1995 ST  : Windows Direct Sound support                                             *
+ *   10/14/2026 S09 : Mixer voice instead of a DirectSound buffer. The original first          *
+ *                    returned 0 if any DirectDraw surface was locked (Any_Locked); that       *
+ *                    check is gone.                                                           *
  *=============================================================================================*/
-extern BOOL Any_Locked(void);
 int Play_Sample_Handle(void const *sample, int priority, int volume, signed short , int id)
 {
-	AUDHeaderType                   RawHeader;
 	SampleTrackerType               *st=NULL;       // Working pointer to sample tracker structure.
-
-	LPVOID				play_buffer_ptr;		//pointer to locked direct sound buffer
-	LPVOID				dummy_buffer_ptr;		//dummy pointer to second area of locked direct sound buffer
-	DWORD					lock_length1;
-	DWORD					lock_length2;
-	DWORD					play_status;
-	HRESULT				return_code;
-	int					retries=0;
-
-
-	if (Any_Locked()) return(0);
 
 	if (AudioDone) return (0);
 
-	st = &LockedData.SampleTracker[id];
-	//EnterCriticalSection (&GlobalAudioCriticalSection);
-
 	if (!sample || LockedData.DigiHandle == -1) {
-		//LeaveCriticalSection (&GlobalAudioCriticalSection);
 		return(-1);
 	}
 
-	if (id == -1) {
-		//LeaveCriticalSection (&GlobalAudioCriticalSection);
+	if (id == -1 || (unsigned)id >= MAX_SFX) {
 		return -1;
 	}
+
+	AudioLockClass lock(Mixer);
+	st = &LockedData.SampleTracker[id];
 
 	/*
 	**      Fetch the control bytes from the start of the sample data.
 	*/
-	Mem_Copy((void *)sample, (void *)&RawHeader, sizeof(RawHeader));
+	unsigned rate = AUD_RATE(sample);
+	long data_size = AUD_SIZE(sample);
+	unsigned flags = AUD_FLAGS(sample);
+	unsigned compression = AUD_COMPRESSION(sample);
 
 	/*
 	** Fudge the sample rate to 22k
 	*/
-	if (RawHeader.Rate <24000 && RawHeader.Rate >20000) RawHeader.Rate = 22050;
+	if (rate <24000 && rate >20000) rate = 22050;
+
+	/*
+	** Stop whatever this tracker was playing.
+	*/
+	Mixer.Stop_Voice(id);
 
 	/*
 	**      Prepare the sample tracker structure for processing of this
 	**      sample.  Fill the structure with data that can be determined
 	**      before the sample is started.
 	*/
-	if (!AudioDone){
-		EnterCriticalSection(&GlobalAudioCriticalSection);
-	}
-	st->Compression 			= (SCompressType) ((unsigned char)RawHeader.Compression);
+	st->Active					= FALSE;
+	st->Compression 			= (SCompressType) ((unsigned char)compression);
 	st->Original            = sample;
-	st->OriginalSize        = RawHeader.Size + sizeof(RawHeader);
+	st->OriginalSize        = data_size + AUD_HEADER_SIZE;
 	st->Priority            = (short)priority;
 	st->DontTouch           = TRUE;
 	st->Odd						= 0;
 	st->Reducer             = 0;
-	st->Restart             = FALSE;
 	st->QueueBuffer 			= NULL;
-	st->QueueSize           = NULL;
+	st->QueueSize           = 0;
 	st->TrailerLen  			= 0;
-	st->Remainder           = RawHeader.Size;
-	st->Source              = Add_Long_To_Pointer((void *)sample, sizeof(RawHeader));
-	st->Service             = FALSE;
-	if (!AudioDone){
-		LeaveCriticalSection(&GlobalAudioCriticalSection);
-	}
+	st->Remainder           = data_size;
+	st->Source              = Audio_Add_Long_To_Pointer((void *)sample, AUD_HEADER_SIZE);
 
-    /*
-	 ** If the code in question using HMI based compression then we need
-    ** to set up for uncompressing it.
-	 */
-    if (st->Compression == SCOMP_SOS) {
-		st->sosinfo.wChannels    = (RawHeader.Flags & AUD_FLAG_STEREO) ? 2  : 1;
-		st->sosinfo.wBitSize             = (RawHeader.Flags & AUD_FLAG_16BIT)  ? 16 : 8;
-		st->sosinfo.dwCompSize   = RawHeader.Size;
-		st->sosinfo.dwUnCompSize = RawHeader.Size * ( st->sosinfo.wBitSize / 4 );
+	/*
+	** If the code in question using HMI based compression then we need
+	** to set up for uncompressing it.
+	*/
+	if (st->Compression == SCOMP_SOS) {
+		st->sosinfo.wChannels    = (flags & AUD_FLAG_STEREO) ? 2  : 1;
+		st->sosinfo.wBitSize             = (flags & AUD_FLAG_16BIT)  ? 16 : 8;
+		st->sosinfo.dwCompSize   = data_size;
+		st->sosinfo.dwUnCompSize = data_size * ( st->sosinfo.wBitSize / 4 );
 		sosCODECInitStream(&st->sosinfo);
 	}
 
 	/*
-	** If the sample rate , bits per sample or stereo capabilities of the buffer do not
-	** match the sample then reallocate the direct sound buffer with the required capabilities
+	** Remember the format of the sample.
 	*/
-	if (  ( RawHeader.Rate != st->PlaybackRate ) ||
-			( ( RawHeader.Flags & AUD_FLAG_16BIT ) != ( st->BitSize & AUD_FLAG_16BIT ) ) ||
-			( ( RawHeader.Flags & AUD_FLAG_STEREO) != ( st->Stereo & AUD_FLAG_STEREO ) ) ) {
-
-		st->Active=0;
-		st->Service=0;
-		st->MoreSource=0;
-
-		/*
-		** Stop the sound buffer playing
-		*/
-		DumpBuffer = st->PlayBuffer;
-		do {
-			return_code = st->PlayBuffer->GetStatus ( &play_status );
-			if (return_code==DSERR_BUFFERLOST){
-				if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-			}
-		}while (return_code == DSERR_BUFFERLOST);
-
-		if (play_status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING) ){
-			st->PlayBuffer->Stop();
-			if (return_code==DSERR_BUFFERLOST){
-				if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-			}
-		}
-
-		st->PlayBuffer->Release();
-		st->PlayBuffer=NULL;
-
-		DsBuffFormat.nSamplesPerSec	= (unsigned short int) RawHeader.Rate;
-		DsBuffFormat.nChannels			= (RawHeader.Flags & AUD_FLAG_STEREO) ? 2 : 1 ;
-		DsBuffFormat.wBitsPerSample	= (RawHeader.Flags & AUD_FLAG_16BIT) ? 16 : 8 ;
-		DsBuffFormat.nBlockAlign	= (short) ((DsBuffFormat.wBitsPerSample/8) * DsBuffFormat.nChannels);
-		DsBuffFormat.nAvgBytesPerSec= DsBuffFormat.nSamplesPerSec * DsBuffFormat.nBlockAlign;
-
-		/*
-		** Create the new sound buffer
-		*/
-		return_code= SoundObject->CreateSoundBuffer (&BufferDesc , &st->PlayBuffer , NULL);
-		if (return_code==DSERR_BUFFERLOST){
-			if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-		}
-		/*
-		** Just return if the create failed unexpectedly
-		**
-		** If we failed then flag the buffer as having an impossible format so it wont match
-		** any sample. This will ensure that we try and create the buffer again next time its used.
-		*/
-		if (return_code!=DS_OK && return_code!=DSERR_BUFFERLOST){
-			st->PlaybackRate = 0;
-			st->Stereo = 0;
-			st->BitSize = 0;
-			return(-1);
-		}
-
-		/*
-		** Remember the format of the new buffer
-		*/
-		st->PlaybackRate 	= RawHeader.Rate;
-		st->Stereo			= RawHeader.Flags & AUD_FLAG_STEREO;
-		st->BitSize 		= RawHeader.Flags & AUD_FLAG_16BIT;
-	}
+	st->PlaybackRate 	= rate;
+	st->Stereo			= flags & AUD_FLAG_STEREO;
+	st->BitSize 		= flags & AUD_FLAG_16BIT;
 
 	/*
-	**      Fill in 3/4 of the play buffer.
+	**  Set the volume of the sample.
 	*/
-
-	//
-	// Stop the sound buffer playing before we lock it
-	//
-	do {
-		DumpBuffer = st->PlayBuffer;
-		return_code = st->PlayBuffer->GetStatus ( &play_status );
-		if (return_code==DSERR_BUFFERLOST){
-			if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-		}
-	} while (return_code==DSERR_BUFFERLOST);
-
-	if (play_status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING) ){
-		st->Active=0;
-		st->Service=0;
-		st->MoreSource=0;
-		st->PlayBuffer->Stop();
-	}
-	//
-	// Lock the direct sound buffer so we can write to it
-	//
-	do {
-		return_code = st->PlayBuffer->Lock (	0 ,
-										SECONDARY_BUFFER_SIZE,
-										&play_buffer_ptr,
-										&lock_length1,
-										&dummy_buffer_ptr,
-										&lock_length2,
-										0 );
-		if (return_code==DSERR_BUFFERLOST){
-			if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-		}
-	} while (return_code==DSERR_BUFFERLOST);
-
-	if (return_code != DS_OK) {
-		//LeaveCriticalSection (&GlobalAudioCriticalSection);
-		return (-1);
-	}
-
-	//
-	// Decompress the sample into the direct sound buffer
-	//
-	st->DestPtr=(void*)Sample_Copy ( 	st,
-								&st->Source,
-								&st->Remainder,
-								&st->QueueBuffer,
-								&st->QueueSize,
-								play_buffer_ptr,
-								SECONDARY_BUFFER_SIZE*1/4,
-								st->Compression,
-								&st->Trailer[0],
-								&st->TrailerLen);
-
-	if ( st->DestPtr==(void*) (SECONDARY_BUFFER_SIZE*1/4) ){
-
-		// Must be more data to copy so we dont need to zero the buffer
-		st->MoreSource=TRUE;
-		st->Service=TRUE;
-		st->OneShot=FALSE;
-	} else {
-
-		// Whole sample is in the buffer so flag that we dont need to
-		// copy more. Clear out the end of the buffer so that it
-		// goes quiet if we play past the end
-		st->MoreSource=FALSE;
-		st->OneShot=TRUE;
-		st->Service=TRUE;				//We still need to service it so that we can stop it when
-											// it plays past the end of the sample data
-		//memset ( (char*)( (unsigned)play_buffer_ptr + (unsigned)st->DestPtr ), 0 , SECONDARY_BUFFER_SIZE - (unsigned)st->DestPtr );
-		memset ( (char*)( (unsigned)play_buffer_ptr + (unsigned)st->DestPtr ), 0 , SECONDARY_BUFFER_SIZE/4);
-	}
-
-	st->PlayBuffer->Unlock(	play_buffer_ptr,
-							lock_length1,
-							dummy_buffer_ptr,
-							lock_length2);
-
-
-	/*
-    **
-    **  Set the volume of the sample.
-    **
-    */
 	st->Volume = (volume << 7);
-	do {
-
-		//return_code = st->PlayBuffer->SetVolume ( Convert_HMI_To_Direct_Sound_Volume(volume));
-		st->PlayBuffer->SetVolume ( Convert_HMI_To_Direct_Sound_Volume( ( LockedData.SoundVolume*volume)/256) );
-		//return_code = st->PlayBuffer->SetVolume (- ( ( (32768- ( (st->Volume >> 8) *LockedData.SoundVolume) )
-		//															*1000) >>15 ) );
-		if (return_code==DSERR_BUFFERLOST){
-			if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-		}
-	} while (return_code==DSERR_BUFFERLOST);
-
+	int gain = Audio_Volume_To_Gain((int)((LockedData.SoundVolume*(unsigned)volume)/256));
 
 	/*
-	** Make sure the primary sound buffer is playing
+	** Make sure the device is playing
 	*/
 	if (!Start_Primary_Sound_Buffer(FALSE)){
-		//LeaveCriticalSection (&GlobalAudioCriticalSection);
+		st->DontTouch = FALSE;
 		return(-1);
 	}
 
-
 	/*
-	** Set the buffers play pointer to the beginning of the buffer
+	** Start the sample playing now. The mixer pulls the data through
+	** Audio_Voice_Fill as it needs it.
 	*/
-	do {
-		return_code = st->PlayBuffer->SetCurrentPosition (0);
-		if (return_code==DSERR_BUFFERLOST){
-			if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-		}
-	} while (return_code==DSERR_BUFFERLOST);
+	if (!Mixer.Start_Voice(id, (int)rate, (flags & AUD_FLAG_STEREO) ? 2 : 1, (flags & AUD_FLAG_16BIT) ? 16 : 8, gain)) {
+		st->DontTouch = FALSE;
+		return(-1);
+	}
 
-
-	/*
-    ** Start the sample playing now.
-	*/
-	do
-	{
-		return_code = st->PlayBuffer->Play (0,0,DSBPLAY_LOOPING);
-
-		switch (return_code){
-
-			case DS_OK :
-				if (!AudioDone){
-					EnterCriticalSection (&GlobalAudioCriticalSection);
-				}
-				st->Active=TRUE;
-				st->Handle=(short)id;
-				st->DontTouch = FALSE;
-				if (!AudioDone){
-					LeaveCriticalSection (&GlobalAudioCriticalSection);
-				}
-				return (st->Handle);
-
-			case DSERR_BUFFERLOST :
-				if (!Attempt_Audio_Restore(st->PlayBuffer)) return(-1);
-				break;
-
-			default:
-				st->Active=FALSE;
-				//LeaveCriticalSection (&GlobalAudioCriticalSection);
-				return (st->Handle);
-		}
-
-	} while (return_code==DSERR_BUFFERLOST);
-
-	//LeaveCriticalSection (&GlobalAudioCriticalSection);
+	st->Active=TRUE;
+	st->Handle=(short)id;
+	st->DontTouch = FALSE;
 	return (st->Handle);
 }
-
-
-
 
 
 /***********************************************************************************************
  * Restore_Sound_Buffers -- restore the sound buffers                                          *
  *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
+ *    Port: nothing to restore; DirectSound could lose buffers, SDL can't.                     *
  *                                                                                             *
  * HISTORY:                                                                                    *
  *    11/3/95 3:53PM ST : Created                                                              *
  *=============================================================================================*/
-
 void Restore_Sound_Buffers ( void )
 {
-
-	if (PrimaryBufferPtr){
-		PrimaryBufferPtr->Restore();
-	}
-
-
-	for ( int index = 0; index < MAX_SFX; index++) {
-		if (LockedData.SampleTracker[index].PlayBuffer){
-			LockedData.SampleTracker[index].PlayBuffer->Restore();
-		}
-	}
 }
-
-
-
-
-
-
 
 
 /***********************************************************************************************
  * Set_Sound_Vol -- sets the overall volume for sampled sounds                                 *
  *                                                                                             *
- *                                                                                             *
+ *    Like the original, this only affects samples started afterwards.                        *
  *                                                                                             *
  * INPUT:    volume                                                                            *
  *                                                                                             *
  * OUTPUT:   the previous volume setting                                                       *
  *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
  * HISTORY:                                                                                    *
  *    11/2/95 4:19PM ST : Added function header                                                *
  *=============================================================================================*/
-
 int Set_Sound_Vol(int volume)
 {
+	AudioLockClass lock(Mixer);
 	int old;
  	old = LockedData.SoundVolume;
  	LockedData.SoundVolume = volume & 0xFF;
@@ -1995,19 +1383,18 @@ int Set_Sound_Vol(int volume)
 /***********************************************************************************************
  * Set_Score_Vol -- sets the overall volume for music scores                                   *
  *                                                                                             *
- *                                                                                             *
+ *    Also changes the volume of the score that is playing.                                    *
  *                                                                                             *
  * INPUT:    volume                                                                            *
  *                                                                                             *
  * OUTPUT:   the previous volume setting                                                       *
- *                                                                                             *
- * WARNINGS: None                                                                              *
  *                                                                                             *
  * HISTORY:                                                                                    *
  *    11/2/95 4:19PM ST : Added function header                                                *
  *=============================================================================================*/
 int Set_Score_Vol(int volume)
 {
+	AudioLockClass lock(Mixer);
 	int old;
 	SampleTrackerType	*st;					//ptr to SampleTracker structure
 
@@ -2018,54 +1405,46 @@ int Set_Score_Vol(int volume)
 		st = &LockedData.SampleTracker[index];
 
 		if (st->IsScore && st->Active){
-			//st->PlayBuffer->SetVolume (- ( ( (32768- ( (st->Volume >> 8) *LockedData.ScoreVolume) )
-			//														*1000) >>15 ) );
-
-			//st->PlayBuffer->SetVolume ( Convert_HMI_To_Direct_Sound_Volume ( st->Volume >>7 ) );
-			st->PlayBuffer->SetVolume ( Convert_HMI_To_Direct_Sound_Volume( ( LockedData.ScoreVolume*(st->Volume >>7))/256) );
+			Audio_Update_Voice_Volume(index);
 		}
 	}
 	return(old);
 }
 
 
-
 /***********************************************************************************************
  * Fade_Sample -- Start a sample fading                                                        *
  *                                                                                             *
- *                                                                                             *
+ *    The volume drops by 1/ticks of its start value on every maintenance tick (40 a second); *
+ *    Sound_Callback stops the sample once it is silent.                                       *
  *                                                                                             *
  * INPUT:    Sample handle                                                                     *
  *           fade rate                                                                         *
  *                                                                                             *
  * OUTPUT:   Nothing                                                                           *
  *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
  * HISTORY:                                                                                    *
  *    11/2/95 4:21PM ST : Added function header                                                *
  *=============================================================================================*/
-
 void Fade_Sample(int handle, int ticks)
 {
 	if (Sample_Status(handle)) {
-    	if (!ticks || LockedData.SampleTracker[handle].Loading) {
-       	Stop_Sample(handle);
-			} else {
-				SampleTrackerType * st;
-				st = &LockedData.SampleTracker[handle];
-				st->Reducer = (short) ((st->Volume / ticks)+1);
-			}
+		if (!ticks || LockedData.SampleTracker[handle].Loading) {
+			Stop_Sample(handle);
+		} else {
+			AudioLockClass lock(Mixer);
+			SampleTrackerType * st;
+			st = &LockedData.SampleTracker[handle];
+			st->Reducer = (short) ((st->Volume / ticks)+1);
+		}
 	}
 }
 
 
-
 int Get_Digi_Handle(void)
 {
-        return(LockedData.DigiHandle);
+	return(LockedData.DigiHandle);
 }
-
 
 
 /***************************************************************************
@@ -2080,19 +1459,17 @@ int Get_Digi_Handle(void)
  *=========================================================================*/
 long Sample_Length(void const *sample)
 {
-	AUDHeaderType	RawHeader;
-
 	if (!sample) return(0);
 
-	Mem_Copy((void *)sample, (void *)&RawHeader, sizeof(RawHeader));
-
-	long time = RawHeader.UncompSize;
+	long time = AUD_UNCOMP_SIZE(sample);
+	unsigned flags = AUD_FLAGS(sample);
+	unsigned rate = AUD_RATE(sample);
 
 	/*
 	** If the sample is a 16 bit sample, then it will take only half
 	** as long to play.
 	*/
-	if (RawHeader.Flags & AUD_FLAG_16BIT) {
+	if (flags & AUD_FLAG_16BIT) {
 		time >>= 1;
 	}
 
@@ -2100,61 +1477,46 @@ long Sample_Length(void const *sample)
 	** If the sample is a stereo sample, then it will take only half
 	** as long to play.
 	*/
-	if (RawHeader.Flags & AUD_FLAG_STEREO) {
+	if (flags & AUD_FLAG_STEREO) {
 		time >>= 1;
 	}
 
-	if (RawHeader.Rate/60) {
-		time /= (RawHeader.Rate/60);
+	if (rate/60) {
+		time /= (long)(rate/60);
 	}
 	return(time);
 }
 
 
-
 /***********************************************************************************************
  * Start_Primary_Sound_Buffer -- start the primary sound buffer playing                        *
  *                                                                                             *
+ *    Port: resumes the backend. The original only started the buffer while the game had     *
+ *    focus (GameInFocus); the port tracks that through Stop_Primary_Sound_Buffer, which the  *
+ *    game calls on focus loss: until a forced start, a non-forced call fails, as it did      *
+ *    out of focus.                                                                            *
  *                                                                                             *
+ * INPUT:    forced -- start even if stopped by Stop_Primary_Sound_Buffer                      *
  *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
+ * OUTPUT:   TRUE if the device is playing                                                     *
  *                                                                                             *
  * HISTORY:                                                                                    *
  *    2/1/96 12:28PM ST : Created                                                              *
  *=============================================================================================*/
-extern BOOL GameInFocus;
 BOOL Start_Primary_Sound_Buffer (BOOL forced)
 {
-	DWORD status;
-
-	if (PrimaryBufferPtr && GameInFocus){
-		if (forced){
-			PrimaryBufferPtr->Play(0,0,DSBPLAY_LOOPING);
-			return (TRUE);
-		} else {
-
-			if (PrimaryBufferPtr->GetStatus (&status) == DS_OK){
-				if (! ((status & DSBSTATUS_PLAYING) || (status & DSBSTATUS_LOOPING))){
-					PrimaryBufferPtr->Play(0,0,DSBPLAY_LOOPING);
-					return (TRUE);
-				}else{
-					return (TRUE);
-				}
-			}
-		}
+	if (!Backend) return (FALSE);
+	if (DevicePaused && !forced) return (FALSE);
+	if (DevicePaused) {
+		Backend->Pause(false);
+		DevicePaused = false;
 	}
-	return (FALSE);
+	return (TRUE);
 }
 
 
 /***********************************************************************************************
  * Stop_Primary_Sound_Buffer -- stops the primary sound buffer from playing.                   *
- *                                                                                             *
- *                                                                                             *
  *                                                                                             *
  * INPUT:    Nothing                                                                           *
  *                                                                                             *
@@ -2165,43 +1527,28 @@ BOOL Start_Primary_Sound_Buffer (BOOL forced)
  * HISTORY:                                                                                    *
  *    2/1/96 12:28PM ST : Created                                                              *
  *=============================================================================================*/
-
 void Stop_Primary_Sound_Buffer (void)
 {
-	if (PrimaryBufferPtr){
-		PrimaryBufferPtr->Stop();
-		PrimaryBufferPtr->Stop();	      // Oh I
-		PrimaryBufferPtr->Stop();			// Hate Direct Sound
-		PrimaryBufferPtr->Stop();			// So much.....
+	if (Backend){
+		Backend->Pause(true);
+		DevicePaused = true;
 	}
 
 	for ( int index = 0; index < MAX_SFX; index++) {
 		Stop_Sample(index);
 	}
-
 }
 
 
+/*
+** Port: the original stopped and restarted the Windows timer that drove
+** maintenance_callback. The mixer drives it now. The game's only calls are
+** commented out (CODE/CONQUER.CPP), but it still declares them.
+*/
 void Suspend_Audio_Thread(void)
 {
-	if (SoundThreadActive){
-		//SuspendThread(SoundThreadHandle);
-		timeKillEvent(SoundTimerHandle);
-		SoundTimerHandle = NULL;
-		SoundThreadActive = FALSE;
-	}
 }
-
-
-
 
 void Resume_Audio_Thread(void)
 {
-	if (!SoundThreadActive){
-		//ResumeThread(SoundThreadHandle);
-		SoundTimerHandle = timeSetEvent ( 1000/MAINTENANCE_RATE , 1 , Sound_Timer_Callback , 0 , TIME_PERIODIC);
-		SoundThreadActive = TRUE;
-	}
 }
-
-
