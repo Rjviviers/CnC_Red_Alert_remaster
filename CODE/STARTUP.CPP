@@ -42,7 +42,6 @@
 #include	<io.h>
 
 #include  "ccdde.h"
-#include	"ipx95.h"
 
 #ifdef MCIMPEG // Denzil 6/15/98
 #include "mcimovie.h"
@@ -900,26 +899,7 @@ void Read_Setup_Options( RawFileClass *config_file )
 	}
 }
 
-void Get_OS_Version (void)
-{
 
-	WindowsNT = ((GetVersion() & 0x80000000) == 0) ? true : false;
-
-#if (0)
-	OSVERSIONINFO	osversion;
-	if ( GetVersionEx (&osversion) ){
-		WindowsNT = (osversion.dwPlatformId == VER_PLATFORM_WIN32_NT) ? true : false;
-		OutputDebugString ("RA95 - Got OS version\n");
-	}else{
-		OutputDebugString ("RA95 - Failed to get OS version\n");
-		char fuck [128];
-		sprintf (fuck,"RA95 - Error code is %d\n", GetLastError());
-		OutputDebugString (fuck);
-
-	}
-#endif	//(0)
-
-}
 
 
 

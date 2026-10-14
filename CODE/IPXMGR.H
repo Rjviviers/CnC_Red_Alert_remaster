@@ -139,14 +139,6 @@ value to support more.
 ---------------------------------------------------------------------------*/
 #define	CONNECT_MAX			7
 
-/*---------------------------------------------------------------------------
-These routines report the location & length of the real-mode routine, as
-it's stored in protected-mode memory.
----------------------------------------------------------------------------*/
-extern "C" {
-	void * __cdecl Get_RM_IPX_Address(void);
-	long __cdecl Get_RM_IPX_Size(void);
-}
 
 /*
 ***************************** Class Declaration *****************************

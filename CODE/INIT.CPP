@@ -63,7 +63,6 @@
 #include	"loaddlg.h"
 #include	"WSProto.h"
 #include	"WSPUDP.h"
-#include	"WSPIPX.h"
 #include	"internet.h"
 
 #include	<conio.h>
@@ -1156,7 +1155,8 @@ bool Select_Game(bool fade)
 							*/
 							if (PacketTransport ) delete PacketTransport;
 //							if (WWMessageBox().Process("Select a protocol to use for network play.", "UDP", "IPX")) {
-								PacketTransport = new IPXInterfaceClass;
+								// S05: native IPX (WSPIPX.CPP) is removed; the LAN game uses the UDP transport (ADR-0007).
+								PacketTransport = new UDPInterfaceClass;
 								assert ( PacketTransport != NULL);
 //							}else{
 //								PacketTransport = new UDPInterfaceClass;	//IPXInterfaceClass;

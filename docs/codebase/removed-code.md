@@ -68,3 +68,27 @@ guards such as `#ifndef WIN32 / #define WIN32 1` in `WIN32LIB` headers. `#if 0` 
 (unifdef was run without `-k`). Two files could not be parsed and were left unchanged: `CODE/RAWOLAPI.H`
 (an apostrophe inside `#error`; deleted later with WOL) and `WIN32LIB/INCLUDE/VIDEO.H` (unterminated comment;
 it has none of these symbols).
+
+## 3. Native IPX
+
+**Last commit with this code: `98d4fee`.** Evidence: [networking.md](networking.md#what-s05-can-remove-and-what-must-stay),
+[libraries.md](libraries.md) §4. Decision: ADR-0005, ADR-0007 (LAN over UDP).
+
+| Removed | What it was | Why it could go |
+|---------|-------------|-----------------|
+| `IPX/` (52 files) | Sources of the Win95 IPX thunk DLLs `THIPX32.DLL`/`THIPX16.DLL` and the import library `wwipx32.lib` | Native IPX is dropped. The Win32 link line named `ipx\wwipx32.lib` (`CODE/MAKEFILE:561`); CMake never linked it, and the comment in `CMakeLists.txt` now says it is gone |
+| `CODE/IPX95.CPP`, `CODE/IPX95.H` | Loads `THIPX32.DLL` with `LoadLibrary` and holds the function pointers into it | DLL loading code for native IPX; its only callers were in `#ifndef WINSOCK_IPX` branches (collapsed in section 2) |
+| `CODE/IPX.CPP` | Real-mode IPX through DPMI interrupts | Linked but unreachable; no callers left |
+| `CODE/IPXPROT.ASM`, `CODE/IPXREAL.ASM` | Real-mode IPX callback blob (`Get_RM_IPX_Address`/`Size`) | Only caller was in a DOS branch of `IPXMGR.CPP` |
+| `CODE/WSPIPX.CPP`, `CODE/WSPIPX.H` | `IPXInterfaceClass`: IPX over Winsock (`AF_IPX`, `wsipx.h`, `wsnwlink.h`) | Native IPX transport. **Replaced at its only use**: `CODE/INIT.CPP` (`GAME_IPX`, was line 1255) now creates `UDPInterfaceClass`, in the same commit |
+| `CODE/FAKESOCK.H` | Fake Winsock declarations for the DOS build | Only included from DOS branches |
+| Prototypes in `CODE/IPX.H` for `IPX.CPP` functions; `Get_RM_IPX_*` prototypes in `CODE/IPXMGR.H`; `_IPX_Initialise` externs in `CODE/WINASM.ASM`; `Get_OS_Version()` in `CODE/STARTUP.CPP` (it only set `WindowsNT` for `IPX95.CPP`) | | Only used by the removed files |
+
+**Kept on purpose** (the LAN game uses them, despite the "IPX" names): `IPXMGR`, `IPXCONN`, `IPXGCONN`,
+`IPXADDR`, `CONNECT`, `COMQUEUE`, `COMBUF`, `CONNMGR.H`, the typedefs in `IPX.H` (`NetNumType`, `NetNodeType`,
+`IPXHeaderType`, `ECBType`), `WSPROTO`, `WSPUDP`, `_WSPROTO`, `UDPADDR`, and `GAME_IPX` itself.
+`IPXManagerClass` still has the now-empty `Alloc_RealMode_Mem`/`Free_RealMode_Mem` stubs and the
+`RealModeDataType` members; they are harmless and left for S12 to clean up with the socket rewrite.
+
+**Behaviour change:** the LAN menu entry now creates the UDP transport instead of IPX. Over UDP it does not
+work yet (no real broadcast, fixed port, own-address filter; see [networking.md](networking.md)). S12/S13 fix that.

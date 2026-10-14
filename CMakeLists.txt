@@ -107,8 +107,9 @@ ra_target_includes(redalert ${RA_WIN32LIB_INCLUDE} ${RA_WINVQ_INCLUDE})
 ra_apply_build_settings(redalert)
 target_compile_definitions(redalert PRIVATE ${RA_GAME_DEFINES})
 target_link_libraries(redalert PRIVATE win32lib vqa32wp vqm32wp)
-# The original also linked ipx\wwipx32.lib, mpgdll.lib, DirectX (ddraw, dsound,
-# dxguid), DirectShow (amstrmid, strmbasd) and uuid. Linking is session S10.
+# The original also linked ipx\wwipx32.lib (native IPX, removed in S05), mpgdll.lib,
+# DirectX (ddraw, dsound, dxguid), DirectShow (amstrmid, strmbasd) and uuid.
+# Linking is session S10.
 
 # Assembly sources are listed (RA_*_ASM_SOURCES) but not compiled: they are
 # TASM syntax and are being rewritten in C++ in session S07.

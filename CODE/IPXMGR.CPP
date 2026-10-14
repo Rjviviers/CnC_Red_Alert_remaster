@@ -76,7 +76,6 @@
 
 
 #include "WSProto.h"
-#include "WSPIPX.h"
 
 
 // Turn off "expression is not meaningful".

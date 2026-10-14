@@ -63,18 +63,7 @@ global	HMSendString_		:near
 global	C Stop_Execution	:near
 
 
-global	_IPX_Initialise:near
-global	_ASM_IPX_Initialise:near
-
-
 		codeseg
-
-;proc _ASM_IPX_Initialise near
-;
-;		int	3
-;		jmp	_IPX_Initialise
-;
-;endp
 
 
 
