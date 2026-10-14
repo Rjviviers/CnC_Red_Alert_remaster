@@ -6,11 +6,17 @@
 ## Goal
 Players on the same network can see each other's games, join a lobby, choose settings, and start.
 
+## Design
+Implement [docs/design/lan-multiplayer.md](../design/lan-multiplayer.md) (work split: the S13 row). Tests 4–9 come from its test plan.
+
 ## Tasks
-- [ ] Rename the LAN menu entry (it currently says "IPX") and make sure it uses the UDP transport.
+- [ ] Switch the LAN game (`GAME_IPX`) from `IPXInterfaceClass` to `UDPInterfaceClass` (`INIT.CPP:1255`), and rename the menu entry from "IPX" to "LAN".
 - [ ] Game discovery via broadcast; the lobby shows players, colours, countries and map.
 - [ ] Allow two instances on one machine (different ports) for testing.
-- [ ] Handle the edge cases: a player leaves the lobby, the host leaves, version mismatch.
+- [ ] Handle the edge cases: a player leaves the lobby, the host leaves, version mismatch (our own `NET_PROTOCOL_VERSION`).
+- [ ] Two instances that share one INI also share a player name: add `-NAME=` and handle duplicate names.
+- [ ] Keep simulating when the window loses focus (otherwise the other player stalls).
+- [ ] Join by IP: a text field in the join dialog (see the design doc).
 - [ ] Document the lobby flow in `docs/codebase/networking.md`.
 
 ## Done when

@@ -21,6 +21,13 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
   Global packing needs `WINDOWS_IGNORE_PACKING_MISMATCH` on MSVC. Record the decision as an ADR.
 - `CODE/PASSEDIT.CPP`, `CODE/PALETTE.CPP` and `PassEdit.h` are referenced but missing from the repo. Remove the references or stub them.
 
+## Inputs from S04
+- S06 owns the **wire layout** of network structs. Packets are raw structs, and their layout depends on Watcom's enum
+  sizes, bitfield layout and `/zp1` packing. With modern defaults, `EventClass` grows from 20 to 32 bytes, and GCC
+  and MSVC disagree on other structs. Pin enum underlying types, packing and bitfields to the original Watcom layout,
+  and add `static_assert`s (see [lan-multiplayer.md § Keeping network structs layout-stable](../design/lan-multiplayer.md#keeping-network-structs-layout-stable)).
+  This is required for Windows and Linux builds to play together.
+
 ## Tasks
 - [ ] Replace Watcom-specific syntax: `#pragma aux`, `_far`/`__near`, Watcom intrinsics, `bool` workarounds, old-style `for` scoping.
 - [ ] Fix headers: `<mem.h>`, `<dos.h>`, `<i86.h>` → standard equivalents or our own shims in `CODE/compat/`.

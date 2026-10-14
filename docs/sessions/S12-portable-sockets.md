@@ -6,11 +6,16 @@
 ## Goal
 Make the UDP transport work without Windows window messages, on Windows and Linux.
 
+## Design
+Implement [docs/design/lan-multiplayer.md § Transport design](../design/lan-multiplayer.md#transport-design-s12) (ADR-0007).
+Today `UDPInterfaceClass` is only used by Westwood Online, and it can't do LAN as written: it has no real broadcast,
+one fixed port for every peer, and it drops packets from local IPs.
+
 ## Tasks
 - [ ] A small socket wrapper (Winsock / BSD sockets) for non-blocking UDP, broadcast, and address helpers.
-- [ ] Replace `WSAAsyncSelect` notifications with polling once per frame from the main loop (hook from S08).
+- [ ] Replace `WSAAsyncSelect` notifications with a `Poll()` called from `IPXManagerClass::Service()`, plus harmlessly from the main loop. Polling from the main loop alone is not enough: the game blocks in nested wait loops that never return to it (S04 finding).
 - [ ] Keep the packet interface `UDPInterfaceClass` presents to the connection layer unchanged.
-- [ ] Make the port configurable, defaulting to the port chosen in the S04 design.
+- [ ] Port configuration: default 19960/udp, falling back through 19960–19963 so several instances can run on one machine; `REDALERT.INI [Network]` and `-PORT=` (see the design doc).
 - [ ] Unit tests: two sockets on localhost exchange packets and broadcasts.
 
 ## Done when

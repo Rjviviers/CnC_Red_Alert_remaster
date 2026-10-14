@@ -6,10 +6,15 @@
 ## Goal
 Shrink the codebase to what we will actually port, so later sessions don't waste time on dead code.
 
+## Inputs from S04
+- Before deleting `INTERNET.CPP` and `RAWOLAPI.H`, move `PlanetWestwoodPortNumber` and `GAME_VERSION` out of them. The LAN code still uses both.
+- `SENDFILE.CPP` calls into the TCP/WOL layer at one point. Stub that call; don't delete the file.
+- The skirmish dialog lives in `NULLDLG.CPP` (the modem dialog file). Extract it into its own file before removing the modem code.
+
 ## Tasks
 - [ ] Delete DOS-only trees confirmed by S02 (expected: `WWFLAT32/`, `VQ/`, `IPX/`, `LAUNCH/`).
 - [ ] Remove modem/serial play and Greenleaf usage (`GAME_MODEM`, `GAME_NULL_MODEM`, `NULLCONN`, `SEQCONN` if only modem uses it).
-- [ ] Remove native IPX (`IPX*.CPP`, `IPXPROT.ASM`, `IPXREAL.ASM`, `WSPIPX`). **Keep** the UDP path, even though the game still calls it the "IPX game".
+- [ ] Remove native IPX (`IPX.CPP`, `IPX95.CPP`, `IPXPROT.ASM`, `IPXREAL.ASM`, `WSPIPX`). **Keep** the UDP transport (`WSPROTO`, `WSPUDP`) and the whole connection layer, even though it is named "IPX" (`IPXMGR`, `IPXCONN`, `IPXGCONN`, `IPXADDR`). The LAN game uses it. Follow the keep/remove list in [networking.md](../codebase/networking.md#what-s05-can-remove-and-what-must-stay).
 - [ ] Remove Westwood Online (`WOL_*.CPP`, `WOLAPI*`, `RAWOLAPI`) and TEN/MPath code.
 - [ ] Collapse `#ifdef WIN32` / DOS branches so only the Win32 branch remains.
 - [ ] Record each removal and why in `docs/codebase/removed-code.md`, plus ADR-0005 status.

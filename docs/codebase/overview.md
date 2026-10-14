@@ -43,9 +43,11 @@ add detailed pages next to this one.
   on every machine, and checks sync. Only commands go over the network, not game state.
 - **Game types** (`CODE/SESSION.H`): `GAME_NORMAL`, `GAME_MODEM`, `GAME_NULL_MODEM`, `GAME_IPX` (LAN),
   `GAME_INTERNET`, `GAME_SKIRMISH`, `GAME_TEN`, …
-- **LAN over UDP already exists:** `CODE/INIT.CPP` (around line 1022) creates `UDPInterfaceClass` (`WSPUDP.CPP`)
-  as the packet transport for the network game. It's driven by Windows messages (`WSAAsyncSelect`),
-  which has to be replaced with polling to be portable (S12).
+- **A UDP transport exists, but LAN doesn't use it yet** (corrected in S04). The LAN game (`GAME_IPX`)
+  creates the native-IPX `IPXInterfaceClass` (`INIT.CPP:1255`). `UDPInterfaceClass` (`WSPUDP.CPP`) is only
+  used by Westwood Online (`INIT.CPP:1202`; line 1022 is compiled out). It's driven by Windows messages
+  (`WSAAsyncSelect`), which has to be replaced with polling to be portable (S12).
+  See [networking.md](networking.md).
 - **Lobby UI:** `CODE/NETDLG.CPP`. **Internet/WOL:** `TCPIP.CPP`, `WOL_*.CPP`, `WOLAPI/`.
 
 S04 takes this further and documents the whole stack.

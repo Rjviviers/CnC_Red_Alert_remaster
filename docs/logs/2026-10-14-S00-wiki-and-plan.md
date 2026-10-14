@@ -15,6 +15,8 @@ that several agents can work on in parallel.
 2. Surveyed the source tree: file counts per directory, the `CODE/MAKEFILE` Win32 vs DOS configuration,
    and the usage of DirectX, Winsock, IPX, Greenleaf and Watcom pragmas.
 3. Found that LAN over UDP already exists (`UDPInterfaceClass`, created in `CODE/INIT.CPP`) and that
+   *(**Correction from S04:** this was wrong. `INIT.CPP:1022` is compiled out, because the build defines `WOLAPI_INTEGRATION`. The LAN game uses native IPX (`INIT.CPP:1255`), and the UDP transport is only used by Westwood Online. See `docs/codebase/networking.md`.)*
+  
    multiplayer is lockstep (`CODE/QUEUE.CPP`).
 4. Wrote the wiki: home, vision, roadmap with Mermaid diagrams, codebase overview, session board,
    briefs S00–S15, ADRs 0001–0006, templates.
