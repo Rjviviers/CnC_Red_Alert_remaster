@@ -151,7 +151,7 @@ All architecture, standard and flag choices live in one file:
 | `RA_TARGET_ARCH` | `x86` | `x86` = 32-bit (`-m32` on GCC/Clang; the x86 MSVC environment on Windows). `native` = compiler default. Needs a fresh build directory to change. |
 | `RA_CXX_STANDARD` | `14` | C++ standard (GNU extensions on). |
 | `RA_LANGUAGE` | `ENGLISH` | Language define (`ENGLISH`/`GERMAN`/`FRENCH`), as in `CODE/MAKEFILE`. |
-| `RA_PACK_STRUCTS` | `ON` | 1-byte struct packing everywhere, like Watcom `/zp1` (`/Zp1`, `-fpack-struct=1`). S06 decides the final policy. |
+| `RA_PACK_STRUCTS` | `ON` | 1-byte struct packing everywhere, like Watcom `/zp1` (`/Zp1`, `-fpack-struct=1`). Kept by [ADR-0014](decisions/0014-compiler-compat-layer-and-packing.md); system and SDL headers are shielded from it. |
 | `RA_CASE_SHIM` | `ON` except on Windows | Generate the case-insensitive include shim ([ADR-0008](decisions/0008-case-insensitive-include-shim.md)). |
 
 ## Targets and where the source lists come from
@@ -173,14 +173,19 @@ when it started deleting files. When you add, delete or rename a source file, ed
 
 Assembly (`.ASM`, TASM syntax) files are kept in `RA_*_ASM_SOURCES` but not compiled; S07
 replaces them. Objects named in the original makefile without a source file in the repository are listed
-in `RA_*_MISSING_OBJECTS` (currently `CODE/PALETTE`; `CODE/PASSEDIT` went with Westwood Online in S05).
+in `RA_*_MISSING_OBJECTS` (none left: S06a reconstructed `CODE/PALETTE.CPP`; `CODE/PASSEDIT` went with Westwood Online in S05).
 
 ### Defines and include paths
 
 Mirrored from the original makefiles, minus the Watcom-specific options (full mapping in the
 header of `cmake/RABuildConfig.cmake`):
 
-- All targets: `WIN32=1`, `_WIN32`.
+- All targets: `WIN32=1` and `_WIN32` on Windows hosts only (since S06a: on other hosts they made system
+  and SDL headers take their Windows paths; no source tests them).
+- All targets: the compatibility layer of [ADR-0014](decisions/0014-compiler-compat-layer-and-packing.md):
+  `CODE/compat/ra_compat.h` is force-included, `CODE/compat/dos` is on the include path, and on non-Windows
+  hosts `CODE/compat/posix` and `CODE/compat/win32` are searched after the system headers. Details:
+  [compat-notes.md](codebase/compat-notes.md).
 - Game: `ENGLISH=1`; includes `WIN32LIB/INCLUDE`, `WINVQ/INCLUDE`. (The original also defined
   `WOLAPI_INTEGRATION` and `WINSOCK_IPX`; S05 collapsed the sources as if they were defined and
   dropped them, see [removed-code.md](codebase/removed-code.md).)
