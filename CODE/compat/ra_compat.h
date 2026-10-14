@@ -128,6 +128,17 @@
 #    include <direct.h>
 #    include <malloc.h>
 #  endif
+/*
+**	SDL3 (S08/S09) has the same problem: its headers assert their natural struct
+**	layout (SDL_alignment_test) and fail under -fpack-struct=1. On MSVC SDL pushes its
+**	own packing (SDL_begin_code.h), on GCC it does not. So when the SDL3 backend is
+**	enabled, SDL is pre-included here too, under natural packing.
+*/
+#  if defined(RA_HAVE_SDL3) && defined(__has_include)
+#    if __has_include(<SDL3/SDL.h>)
+#      include <SDL3/SDL.h>
+#    endif
+#  endif
 #  if defined(RA_PACK_STRUCTS)
 #    pragma pack(pop)
 #  endif

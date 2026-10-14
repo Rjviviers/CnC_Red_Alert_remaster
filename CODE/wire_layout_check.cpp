@@ -33,6 +33,7 @@
 #include	"function.h"
 
 #include	<stddef.h>
+#include	"../WIN32LIB/DRAWBUFF/GVPORT.H"		// S07-A's mirror of GraphicViewPortClass
 
 /*
 **	glibc defines BIG_ENDIAN even on little-endian machines; CODE/compat/ra_compat.h removes
@@ -115,5 +116,26 @@ struct GraphicViewPortLayoutProbe : GraphicViewPortClass {
 	}
 };
 static_assert(sizeof(GraphicViewPortClass) == 40, "GraphicViewPortClass size");
+
+/*
+**	S07-A's C++ ports read the class through a mirror struct (WIN32LIB/DRAWBUFF/GVPORT.H,
+**	GVPLayout) because GBUFFER.H did not compile with GCC when they were written. The mirror
+**	must stay identical to the real class.
+*/
+static_assert(sizeof(GVPLayout) == sizeof(GraphicViewPortClass), "GVPLayout size must match GraphicViewPortClass");
+struct GVPLayoutProbe : GraphicViewPortClass {
+	static void Check(void) {
+		static_assert(offsetof(GVPLayoutProbe, Offset) == offsetof(GVPLayout, Offset), "GVPLayout.Offset");
+		static_assert(offsetof(GVPLayoutProbe, Width) == offsetof(GVPLayout, Width), "GVPLayout.Width");
+		static_assert(offsetof(GVPLayoutProbe, Height) == offsetof(GVPLayout, Height), "GVPLayout.Height");
+		static_assert(offsetof(GVPLayoutProbe, XAdd) == offsetof(GVPLayout, XAdd), "GVPLayout.XAdd");
+		static_assert(offsetof(GVPLayoutProbe, XPos) == offsetof(GVPLayout, XPos), "GVPLayout.XPos");
+		static_assert(offsetof(GVPLayoutProbe, YPos) == offsetof(GVPLayout, YPos), "GVPLayout.YPos");
+		static_assert(offsetof(GVPLayoutProbe, Pitch) == offsetof(GVPLayout, Pitch), "GVPLayout.Pitch");
+		static_assert(offsetof(GVPLayoutProbe, GraphicBuff) == offsetof(GVPLayout, GraphicBuff), "GVPLayout.GraphicBuff");
+		static_assert(offsetof(GVPLayoutProbe, IsDirectDraw) == offsetof(GVPLayout, IsDirectDraw), "GVPLayout.IsDirectDraw");
+		static_assert(offsetof(GVPLayoutProbe, LockCount) == offsetof(GVPLayout, LockCount), "GVPLayout.LockCount");
+	}
+};
 
 #endif	// 32-bit x86
