@@ -33,6 +33,14 @@ ra_add_test(NAME smoke_test SOURCES tests/smoke_test.cpp)
 # --- S07-A ---
 # --- S07-B ---
 # --- S07-C ---
+ra_add_test(NAME s07c_text_test
+            SOURCES tests/s07c_text_test.cpp CODE/2TXTPRNT.CPP WIN32LIB/FONT/SETFPAL.CPP)
+ra_add_test(NAME s07c_palette_test
+            SOURCES tests/s07c_palette_test.cpp WIN32LIB/PALETTE/PAL.CPP WIN32LIB/MISC/FADING.CPP)
+ra_add_test(NAME s07c_mouse_test
+            SOURCES tests/s07c_mouse_test.cpp WIN32LIB/KEYBOARD/WWMOUSE.CPP)
+ra_add_test(NAME s07c_interp_test
+            SOURCES tests/s07c_interp_test.cpp CODE/WINASM.CPP)
 # --- S07-D ---
 # --- S08 ---
 # --- S09 ---

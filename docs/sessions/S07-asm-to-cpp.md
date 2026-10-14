@@ -26,9 +26,13 @@ text printing, keyboard buffer, misc (CPUID, coordinates).
 
 ## Tasks
 - [ ] For each routine, write the C++ version with the same signature the callers expect.
+  - [x] S07-C: `2TXTPRNT`, `SETFPAL`, `PAL`, `FADING`, `WWMOUSE`, `WINASM` (interpolation + leftovers) ported ([log](../logs/2026-10-14-S07C-text-palette-cursor.md)).
 - [ ] Write a unit test for each routine, using inputs and expected outputs worked out from the assembly (compression round-trips, known blit results).
+  - [x] S07-C: `tests/s07c_text_test.cpp`, `s07c_palette_test.cpp`, `s07c_mouse_test.cpp`, `s07c_interp_test.cpp` (synthetic font, palettes, cursors).
 - [ ] Routines used by the simulation (e.g. `COORDA.ASM`) must be bit-exact. Flag them in the log.
+  - [x] S07-C: none of its routines feed the simulation (see the log's "Determinism impact").
 - [ ] Update the inventory: mark each file *ported*, with a link to its replacement and test.
+  - [x] S07-C: rows 2, 4, 26, 31, 39, 45 marked ported.
 
 ## Done when
 The build no longer needs an assembler, and every ported routine has a passing test in CI.
