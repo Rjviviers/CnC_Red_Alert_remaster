@@ -1,0 +1,5 @@
+# Agent worktrees (local only)
+.claude/worktrees/
+
+# Build output
+build/
