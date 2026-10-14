@@ -1,6 +1,6 @@
 # ADR-0004: SDL3 as the platform layer; drop DirectX
 
-- **Status:** Proposed (awaiting project owner)
+- **Status:** Accepted (approved by project owner 2026-10-14)
 - **Date:** 2026-10-14
 - **Session:** S00
 

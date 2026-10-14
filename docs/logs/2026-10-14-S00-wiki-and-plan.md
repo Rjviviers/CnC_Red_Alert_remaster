@@ -3,7 +3,7 @@
 - **Date:** 2026-10-14
 - **Session brief:** [S00](../sessions/S00-wiki-and-plan.md)
 - **Branch / PR:** `claude/cool-bohr-9vg7ac` / not opened yet
-- **Status at end:** Done (waiting for the owner to review the proposed ADRs)
+- **Status at end:** Done
 
 ## Goal
 Set up a project wiki with tasks and a visual plan for the first steps, broken into sessions
@@ -22,7 +22,7 @@ that several agents can work on in parallel.
 
 ## Decisions
 - Accepted: ADR-0001 (port this repo), ADR-0002 (docs in `docs/`), ADR-0006 (no assets).
-- Proposed, waiting for the owner: ADR-0003 (toolchain), ADR-0004 (SDL3), ADR-0005 (scope cuts).
+- Proposed in this session, then accepted by the owner the same day: ADR-0003 (toolchain), ADR-0004 (SDL3), ADR-0005 (scope cuts).
 
 ## Files changed
 | File / folder | Change |
@@ -38,7 +38,7 @@ Documentation only. Checked that every link on the session board points to an ex
 None.
 
 ## Problems & open questions
-- The owner needs to accept or change ADR-0003/0004/0005 before Wave 2 starts. Wave 1 is unaffected.
+- None. ADR-0003/0004/0005 were accepted on 2026-10-14, which unblocks Wave 2.
 
 ## Next steps
 Start Wave 1: S01, S02, S03 and S04 in parallel, one agent each.

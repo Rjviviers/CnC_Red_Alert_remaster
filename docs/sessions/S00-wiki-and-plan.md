@@ -12,7 +12,7 @@ Set up the documentation system and the visual plan for the first milestones.
 - [x] Write session briefs S01–S15 and the session board
 - [x] Write the initial ADRs (0001–0006) and templates
 - [x] Add `CLAUDE.md` with the documentation rules
-- [ ] Project owner reviews the plan and accepts or changes the *Proposed* ADRs
+- [x] Project owner reviews the plan and accepts or changes the *Proposed* ADRs (all three accepted 2026-10-14)
 
 ## Done when
 The project owner has approved the plan and the proposed ADRs.

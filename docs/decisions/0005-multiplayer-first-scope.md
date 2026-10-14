@@ -1,6 +1,6 @@
 # ADR-0005: Multiplayer-first scope: drop DOS, IPX, modem, WOL, movies
 
-- **Status:** Proposed (awaiting project owner)
+- **Status:** Accepted (approved by project owner 2026-10-14)
 - **Date:** 2026-10-14
 - **Session:** S00
 
