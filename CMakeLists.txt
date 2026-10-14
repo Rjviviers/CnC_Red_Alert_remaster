@@ -84,6 +84,14 @@ ra_target_sources(win32lib ${RA_WIN32LIB_CXX_SOURCES})
 ra_target_includes(win32lib ${RA_WIN32LIB_INCLUDE})   # PROJECT.CFG: /i=$(WIN32LIB)\include
 ra_apply_build_settings(win32lib)
 
+# SDL3 audio backend (S09, WIN32LIB/AUDIO/audio_sdl3.cpp). OFF until S08 has added
+# SDL3 to the build: then turn it on (or default it to ON) and link SDL3::SDL3.
+option(RA_HAVE_SDL3 "Build the SDL3 audio backend (requires the SDL3::SDL3 target)" OFF)
+if(RA_HAVE_SDL3)
+  target_compile_definitions(win32lib PUBLIC RA_HAVE_SDL3=1)
+  target_link_libraries(win32lib PUBLIC SDL3::SDL3)
+endif()
+
 # -----------------------------------------------------------------------------
 # vqa32wp / vqm32wp - WINVQ/VQA32/MAKEFILE and WINVQ/VQM32/MAKEFILE
 # -----------------------------------------------------------------------------

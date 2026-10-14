@@ -82,7 +82,7 @@ Line counts are physical lines. "live" means non-blank, non-comment lines that a
 |------------|----------------------|-------|------|
 | DirectDraw (direct API) | 4 | `CONQUER` (MPEG movie mode), `STARTUP` (`InitDDraw`), `STATS` (caps for stats), `WOLAPIOB` (palette read) | S08 |
 | DirectDraw via WIN32LIB features | 34 | Mostly dialogs checking `AllSurfaces.SurfacesRestored`; `STARTUP`/`INIT` set up surfaces | S08 (WIN32LIB) |
-| DirectSound | 1 | `INIT.CPP:1683` hands `SoundObject`/`PrimaryBufferPtr` to the VQA player; everything else uses WIN32LIB audio | S09 |
+| DirectSound | 1 | `INIT.CPP:1683` hands `SoundObject`/`PrimaryBufferPtr` to the VQA player; everything else uses WIN32LIB audio || S09 (done: WIN32LIB no longer defines these objects, see [audio.md](audio.md#6-whats-left); the `INIT.CPP` hand-off goes with the movie stub) |
 | Win32 API | 38 | Boot/window (`STARTUP`, `WINSTUB`, `KEY`), files (`RAWFILE`, `SESSION`), registry/DDE, all WOL and Winsock files | S08, S12 |
 | Winsock | 21 (mostly through `PacketTransport`) | `WSPROTO`/`WSPUDP`/`WSPIPX`/`_WSPROTO` transports, `TCPIP` (pre-WOL), stats (`PACKET`, `FIELD`, `UTRACKER`, `STATS`), WOL | S12 |
 | IPX (names/classes) | 20 | Network layer is named after IPX; real IPX only in `WSPIPX` (Winsock), `IPX`, `IPX95`, `IPXPROT` | S04 / S05 |

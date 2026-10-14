@@ -36,7 +36,7 @@ about 1,500 if movies stay.
 | **S07-B** | Shape renderer | `CODE/2KEYFBUF.ASM`, `SHAPE/SHAPE.ASM` | 2,602 | 1 L + 1 S | The biggest single file: `Buffer_Frame_To_Page` with 36 line-drawing variants (ghost, fading, predator, translucent). Needs golden-image tests |
 | **S07-C** | Text, palette, cursor, upscaler | `CODE/2TXTPRNT.ASM`, `FONT/SETFPAL`, `PALETTE/PAL`, `MISC/FADING`, `KEYBOARD/WWMOUSE`, `CODE/WINASM.ASM` (interpolation + data only) | 1,621 | 6 files, S/M | `WWMOUSE` can be dropped instead if S08 uses an OS cursor |
 | **S07-D** | Data codecs | `IFF/LCWUNCMP` (adopt `CODE/LCW.CPP`), `CODE/LCWCOMP.ASM`, `WSA/XORDELTA`, `MEM/MEM_COPY`, `MISC/REVERSE`, `MISC/RANDOM` (keep only `RandNumb`) | 750 | 6 files | Pure functions: unit-test with round trips and golden vectors. Lossless formats, so output must be exact |
-| **S07-E** | Audio decoders | `AUDIO/SOSCODEC` (adopt `CODE/ADPCM.CPP`), `AUDIO/OLSOSDEC`, `AUDIO/AUDUNCMP` | 1,100 | 3 files | Could move to S09. Test by decoding game `.AUD` files and comparing PCM |
+| **S07-E** | Audio decoders | `AUDIO/SOSCODEC` (adopt `CODE/ADPCM.CPP`), `AUDIO/OLSOSDEC`, `AUDIO/AUDUNCMP` | 1,100 | 3 files | **Done in S09** (moved there): all three ported to C++ and tested with hand-built vectors (`tests/s09_decoder_test.cpp`); see [audio.md](audio.md) |
 | (S07-F) | Movies, only if kept | `VQA32/UNVQBUFF` (`UnVQ_4x2` only), `VQM32/AUDUNZAP`, `VQM32/SOSCODEC` | 1,521 | 3 files | Defer until ADR 0005 is decided |
 
 Stubs and deletions (`CPUID`, `VMPAGEIN`, `APROFILE`, `IPXPROT`/`IPXREAL`, `MCGABUF`, the dead parts of
@@ -81,9 +81,9 @@ P3 = optional / movies / replace with a stub, X = delete. "Lines" = code lines w
 
 | # | File | Exports (Conv) | Purpose | Example callers | Status | Sim? | Lines | Diff | Prio |
 |---|------|----------------|---------|-----------------|--------|------|------:|------|------|
-| 7 | `AUDIO/SOSCODEC.ASM` | `sosCODECInitStream`, `sosCODECDecompressData`, `sosCODEC_Lock`, `sosCODEC_Unlock` (C) | HMI SOS IMA-ADPCM decoder, mono 16-bit. **C++ port exists**: `CODE/ADPCM.CPP` (not built) | `WIN32LIB/AUDIO/SOUNDINT.CPP:239`, `SOUNDIO.CPP:1704`, `SOUNDLCK.CPP:116` | Used | No | 446 | S | P1 (S09) |
-| 8 | `AUDIO/OLSOSDEC.ASM` | `General_sosCODECDecompressData` (C); also defines `sosCODECInitStream`, `sosCODEC_Lock`, `sosCODEC_Unlock` again | ADPCM decoder for the other channel/bit-size combinations | `WIN32LIB/AUDIO/SOUNDINT.CPP:241` | Used. Which duplicate the librarian keeps is **unverified** | No | 437 | M | P1 (S09) |
-| 9 | `AUDIO/AUDUNCMP.ASM` | `Decompress_Frame` (C) | Westwood ADPCM (`SCOMP_WESTWOOD`) frame decoder | `WIN32LIB/AUDIO/SOUNDINT.CPP:234` | Used | No | 217 | M | P1 (S09) |
+| 7 | `AUDIO/SOSCODEC.ASM` | `sosCODECInitStream`, `sosCODECDecompressData`, `sosCODEC_Lock`, `sosCODEC_Unlock` (C) | HMI SOS IMA-ADPCM decoder, mono 16-bit. **C++ port exists**: `CODE/ADPCM.CPP` (not built) | `WIN32LIB/AUDIO/SOUNDINT.CPP:239`, `SOUNDIO.CPP:1704`, `SOUNDLCK.CPP:116` | **Ported (S09)** to `WIN32LIB/AUDIO/SOSCODEC.CPP`; was Used | No | 446 | S | P1 (S09) |
+| 8 | `AUDIO/OLSOSDEC.ASM` | `General_sosCODECDecompressData` (C); also defines `sosCODECInitStream`, `sosCODEC_Lock`, `sosCODEC_Unlock` again | ADPCM decoder for the other channel/bit-size combinations | `WIN32LIB/AUDIO/SOUNDINT.CPP:241` | **Ported (S09)** to `WIN32LIB/AUDIO/OLSOSDEC.CPP`; was Used. Which duplicate the librarian keeps is **unverified** | No | 437 | M | P1 (S09) |
+| 9 | `AUDIO/AUDUNCMP.ASM` | `Decompress_Frame` (C) | Westwood ADPCM (`SCOMP_WESTWOOD`) frame decoder | `WIN32LIB/AUDIO/SOUNDINT.CPP:234` | **Ported (S09)** to `WIN32LIB/AUDIO/AUDUNCMP.CPP`; was Used | No | 217 | M | P1 (S09) |
 | 10 | `DRAWBUFF/BITBLIT.ASM` | `Linear_Blit_To_Linear` (C, this) | Viewport-to-viewport copy, optional transparency, overlap-safe | `GBUFFER.H:776` (`Blit` when either side is not a DirectDraw surface), e.g. `CODE/CONQUER.CPP:2424` | Used | No | 332 | M | P1 |
 | 11 | `DRAWBUFF/CLEAR.ASM` | `Buffer_Clear` (C, this) | Fill a viewport with one colour | `GBUFFER.H:679`; `CODE/CONQUER.CPP:432` | Used | No | 55 | S | P1 |
 | 12 | `DRAWBUFF/DRAWLINE.ASM` | `Buffer_Draw_Line` (C, this) | Clipped Bresenham line | `GBUFFER.H:1145`; `CODE/BAR.CPP:155` | Used | No | 294 | M | P1 |

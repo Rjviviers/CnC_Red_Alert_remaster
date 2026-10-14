@@ -33,6 +33,11 @@
 #ifndef  _SOS_COMPRESS
 #define  _SOS_COMPRESS
 
+/* Port (S09): __cdecl is a Microsoft keyword. GCC/Clang on non-Windows use cdecl by default. */
+#if !defined(_MSC_VER) && !defined(__MINGW32__) && !defined(__CYGWIN__) && !defined(__cdecl)
+#define __cdecl
+#endif
+
 /* compression types */
 enum {
 	_ADPCM_TYPE_1,
