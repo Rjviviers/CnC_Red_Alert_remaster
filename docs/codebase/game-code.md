@@ -295,5 +295,5 @@ so the numbers are the same on 64-bit. But the type is 8 bytes on LP64 (Linux/ma
   repositories? (Other open-source ports of this code had to recreate them. That is unverified here.)
 - Should the port keep **wire compatibility** with original Red Alert 3.03 clients? If not (likely), the event format can
   be redesigned freely in S12/S13. That needs a decision (ADR) before S06 freezes struct layouts.
-- Is Counterstrike/Aftermath content (`FIXIT_CSII`, …) in scope for multiplayer? It is compiled in and switched at runtime
+- *(Answered: yes, when all players have the data; see [ADR-0011](../decisions/0011-expansions-in-multiplayer.md).)* Is Counterstrike/Aftermath content (`FIXIT_CSII`, …) in scope for multiplayer? It is compiled in and switched at runtime
   (`bAftermathMultiplayer`), but needs the expansion MIX files.

@@ -11,6 +11,13 @@ Shrink the codebase to what we will actually port, so later sessions don't waste
 - `SENDFILE.CPP` calls into the TCP/WOL layer at one point. Stub that call; don't delete the file.
 - The skirmish dialog lives in `NULLDLG.CPP` (the modem dialog file). Extract it into its own file before removing the modem code.
 
+## Inputs from S02
+- Use the delete lists in [assembly-inventory.md § Delete list](../codebase/assembly-inventory.md#2-delete-list) and
+  [libraries.md](../codebase/libraries.md).
+- `IPX/` is **not** DOS-only: the Win32 build links `wwipx32.lib` and loads `THIPX32.DLL` at runtime. It still goes,
+  because native IPX is removed, but remove the link and the DLL loading code too.
+- Unused HMI SOS binary libraries are committed in the repo. Delete them.
+
 ## Inputs from S01
 - When you delete `WSPIPX`, change `INIT.CPP:1255` in the same commit to create `UDPInterfaceClass` instead of
   `IPXInterfaceClass`, so the LAN path never points at deleted code. S12/S13 make it actually work over UDP.

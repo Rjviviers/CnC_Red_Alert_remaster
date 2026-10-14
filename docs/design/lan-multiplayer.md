@@ -328,7 +328,7 @@ What is checked today, and what we keep:
 |---|---|---|
 | Version range overlap → `REJECT_VERSION_TOO_OLD` / `TOO_NEW` | Host on `NET_QUERY_JOIN` (`NETDLG.CPP:5340-5371`) using `VerNum.Min/Max_Version()` = `GAME_VERSION` | **Keep the mechanism.** Replace the value with our own `NET_PROTOCOL_VERSION` in `VERSION.H` (S05 moves it out of `RAWOLAPI.H`). Min = Max (exact match) |
 | `rules.ini` identity (`CheatCheck` = `RuleINI.Get_Unique_ID()`) → `REJECT_MISMATCH` | `NETDLG.CPP:5305-5311` | Keep. Players with different rules desync |
-| Aftermath flag in bit 31 of `MinVersion` / `Version` | `NETDLG.CPP:3082-3091,5322-5339` | Keep as is (asset-dependent) |
+| Aftermath flag in bit 31 of `MinVersion` / `Version` | `NETDLG.CPP:3082-3091,5322-5339` | Keep as is (asset-dependent). Owner confirmed: [ADR-0011](../decisions/0011-expansions-in-multiplayer.md) |
 | Scenario CRC in `FRAMESYNC` → `RC_SCENARIO_MISMATCH` | `QUEUE.CPP:1914-1916` | Keep |
 | Game-state CRC every frame | `QUEUE.CPP:3444-3509` | Keep. S14 improves the reporting |
 

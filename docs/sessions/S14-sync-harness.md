@@ -5,6 +5,10 @@
 ## Goal
 Automatically detect simulation divergence, so we catch desyncs before players do.
 
+## Inputs from Wave 1
+- S02: the Win32 screen shake calls `Sim_Random_Pick`. If it runs on only one machine, it desyncs. Check it with the harness.
+- S01: three inline-asm helpers (`calcx`/`calcy`, `Fixed_To_Cardinal`) feed unit movement. Verify their C++ replacements here.
+
 ## Tasks
 - [ ] Record and replay a game's events (the original `Queue_Record`/playback can be a starting point).
 - [ ] Log a per-frame CRC of the game state; a tool compares two logs and reports the first frame that differs.

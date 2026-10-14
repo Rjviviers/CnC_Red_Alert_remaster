@@ -30,6 +30,11 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
   **not** required ([ADR-0009](../decisions/0009-own-network-protocol.md)): the layout must match between our own
   builds, and may differ from Watcom where that's simpler.
 
+## Inputs from S02
+- Also missing: the game's own `PALETTE.H` (defines `PaletteClass`). `mpgdll.lib` is on the link line, but nothing builds it.
+- **Don't change the layout or packing of `GraphicViewPortClass` or `WWMouseClass`** until S07-A/S07-C have ported the
+  asm that reads them at hard-coded offsets.
+
 ## Inputs from S01
 - The release is missing `PALETTE.CPP`, `PASSEDIT.CPP`, `phone.h`, `pcx.h`, and Greenleaf's `modem.h`/`fast.h`.
   Recreate them or remove the references first (S05 drops the Greenleaf ones). Nothing builds until this is done.

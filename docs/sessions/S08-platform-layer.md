@@ -7,6 +7,10 @@
 Replace DirectDraw, the Win32 window/message loop and the Windows timers with a thin SDL3 layer.
 The game keeps drawing into its 8-bit paletted buffers as before.
 
+## Inputs from S02
+- Don't change the layout of `GraphicViewPortClass`/`WWMouseClass` before S07-A/S07-C. Remove the video-memory icon
+  cache (`STMPCACH`) together with S07-A. If S08 uses the OS cursor, `WWMOUSE` asm can be dropped instead of ported.
+
 ## Inputs from S01
 - The Windows message pump is inside the keyboard code (`KEY.CPP:521`), not just the main loop.
 - Sockets are serviced through window messages (`WINSTUB.CPP:184`). S12 replaces this with polling.

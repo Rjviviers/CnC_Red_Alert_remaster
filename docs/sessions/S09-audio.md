@@ -6,6 +6,10 @@
 ## Goal
 Replace HMI SOS and DirectSound with SDL audio. Sound effects and music must play.
 
+## Inputs from S02
+- The HMI SOS driver is compiled out on Win32; only its ADPCM codec is used (C++ version exists: `CODE/ADPCM.CPP`).
+- DirectSound is used only in `WIN32LIB/AUDIO` and `WINVQ/VQA32/AUDIO.CPP` (movies, which are stubbed).
+
 ## Tasks
 - [ ] Step 1: a no-op audio backend, so S10 isn't blocked on audio.
 - [ ] Step 2: decode Westwood AUD (IMA ADPCM / Westwood ADPCM) in C++, with tests.

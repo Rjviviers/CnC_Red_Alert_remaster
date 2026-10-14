@@ -17,6 +17,7 @@ Implement [docs/design/lan-multiplayer.md](../design/lan-multiplayer.md) (work s
 - [ ] Two instances that share one INI also share a player name: add `-NAME=` and handle duplicate names.
 - [ ] Keep simulating when the window loses focus (otherwise the other player stalls).
 - [ ] Join by IP: a text field in the join dialog (see the design doc).
+- [ ] Expansion content (ADR-0011): show the Aftermath setting in the lobby, and only enable it when every player has the data. Test a mixed game.
 - [ ] Document the lobby flow in `docs/codebase/networking.md`.
 
 ## Done when
