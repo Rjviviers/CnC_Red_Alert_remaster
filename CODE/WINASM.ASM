@@ -40,41 +40,14 @@ IDEAL
 P386
 MODEL USE32 FLAT
 
-global	C _AbortModemFunctionPtr:dword
 global	C Memory_Error_Exit	:dword
 global	C MouseQX		:dword
 global	C MouseQY		:dword
 
-global	FastGetPortHardware_	:near
-global	FastSetPortHardware_	:near
-global	PortOpenGreenleafFast_	:near
-global	HMWaitForOK_		:near
-global	HMSetDialingMethod_	:near
-global	HMDial_			:near
-global	HMInputLine_		:near
-global	HMAnswer_		:near
-global	PortKillTime_		:near
-global	HMSendStringNoWait_	:near
-global	HMSetUpEchoRoutine_	:near
-global	HMSetUpAbortKey_	:near
-global	SetAbortModemFunctionPtr_:near
-global	Change8259Priority_	:near
-global	HMSendString_		:near
 global	C Stop_Execution	:near
 
 
-global	_IPX_Initialise:near
-global	_ASM_IPX_Initialise:near
-
-
 		codeseg
-
-;proc _ASM_IPX_Initialise near
-;
-;		int	3
-;		jmp	_IPX_Initialise
-;
-;endp
 
 
 
@@ -249,53 +222,6 @@ endif
 
 
 
-
-proc FastGetPortHardware_ NEAR
-endp
-
-proc FastSetPortHardware_ NEAR
-endp
-
-proc PortOpenGreenleafFast_ NEAR
-endp
-
-proc HMWaitForOK_ NEAR
-endp
-
-proc HMSetDialingMethod_ NEAR
-endp
-
-proc HMDial_ NEAR
-endp
-
-proc HMInputLine_ NEAR
-endp
-
-proc HMAnswer_ NEAR
-endp
-
-proc PortKillTime_ NEAR
-endp
-
-proc HMSendStringNoWait_ NEAR
-endp
-
-proc HMSetUpEchoRoutine_ NEAR
-endp
-
-proc HMSetUpAbortKey_ NEAR
-endp
-
-proc SetAbortModemFunctionPtr_ NEAR
-endp
-
-proc Change8259Priority_ NEAR
-endp
-
-proc HMSendString_ NEAR
-endp
-
-		ret
 
 
 
@@ -882,7 +808,6 @@ endp		Asm_Create_Palette_Interpolation_Table
 
 	DATASEG
 
-_AbortModemFunctionPtr	dd	0
 Memory_Error_Exit	dd	0
 MouseQX			dd	0
 MouseQY			dd	0

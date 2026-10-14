@@ -248,23 +248,19 @@ long VQA_Play(VQAHandle *vqa, long mode)
 	long      i;
 	long      key;
 
-#ifdef WIN32
 	unsigned char *pal;
 	long          palsize;
 	long          slowpal;
 	VQAFrameNode *curframe;
 	int			setpalette;
-#endif	//WIN32
 
 
 
-#ifdef WIN32
 	/*
 	** Save the process priority level then bump it up
 	*/
 	DWORD process_priority = GetPriorityClass(GetCurrentProcess());
 	SetPriorityClass (GetCurrentProcess() , HIGH_PRIORITY_CLASS);
-#endif //WIN32
 
 	/* Dereference commonly used data members for quick access. */
 	vqabuf = ((VQAHandleP *)vqa)->VQABuf;
@@ -335,12 +331,10 @@ long VQA_Play(VQAHandle *vqa, long mode)
 
 						/* Stop audio, if it's playing. */
 						VQA_StopAudio((VQAHandleP *)vqa);
-					#ifdef WIN32
 						/*
 						** Restore the process priority level
 						*/
 						SetPriorityClass (GetCurrentProcess() , process_priority);
-					#endif //WIN32
 						return (VQAERR_EOF);
 					}
 				}
@@ -470,12 +464,10 @@ long VQA_Play(VQAHandle *vqa, long mode)
 	#endif
 
 
-#ifdef WIN32
 	/*
 	** Restore the process priority level
 	*/
 	SetPriorityClass (GetCurrentProcess() , process_priority);
-#endif //WIN32
 
 	return (rc);
 }

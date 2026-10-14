@@ -6,6 +6,17 @@ The target LAN design built on top of this is in [`../design/lan-multiplayer.md`
 
 ## Summary (read this first)
 
+> **Update from S05 (2026-10-14).** This page describes the code at commit `0ebf96c`, before S05. Since S05:
+> native IPX (`WSPIPX`, `IPX95`, `IPX.CPP`, `IPX/`), modem play (`NULL*`, `GAME_MODEM`), Westwood Online,
+> the WChat/DDE path (`TCPIP`, `INTERNET`, `DDE`, `CCDDE`), `STATS` and TEN/MPath are gone, and the
+> `WINSOCK_IPX`/`WOLAPI_INTEGRATION` `#ifdef`s were collapsed. **`GAME_IPX` now creates `UDPInterfaceClass`**
+> (`INIT.CPP`, the old line 1255). `PlanetWestwoodPortNumber` lives in `GLOBALS.CPP`, `GAME_VERSION` in
+> `VERSION.CPP`, `bSpecialAftermathScenario` in `SESSION.CPP`, and the skirmish dialog
+> `Com_Scenario_Dialog` in `SKIRMDLG.CPP`. Correction: the `Winsock.Get_Connected()` calls listed below for
+> `SENDFILE.CPP:156,441` were in `#ifndef WINSOCK_IPX` branches (never compiled); the one compiled call was in
+> `NETDLG.CPP` (`Shutdown_Network`). Line numbers on this page are pre-S05. Full list:
+> [removed-code.md](removed-code.md).
+
 - **The LAN menu entry does not use UDP today.** `GAME_IPX` creates an `IPXInterfaceClass`, which is
   native IPX through Winsock (`INIT.CPP:1252-1256`). The UDP option is commented out right next to it
   (`INIT.CPP:1254-1268`). `UDPInterfaceClass` is only created for Westwood Online internet games

@@ -56,9 +56,7 @@ bool Debug_Check_Map = false;			// true = validate the map each frame
 bool Debug_Playtest = false;
 
 bool Debug_Heap_Dump = false;			// true = print the Heap Dump
-bool Debug_Smart_Print = false;		// true = print everything that calls Smart_Printf
 bool Debug_Trap_Check_Heap = false;	// true = check the Heap
-bool Debug_Modem_Dump = false;		// true = print the Modem Stuff
 bool Debug_Print_Events = false;		// true = print event & packet processing
 
 TFixedIHeapClass<AircraftClass>		Aircraft;
@@ -178,7 +176,6 @@ fixed EngineerCaptureLevel=0x40;	// Building damage level before engineer can ca
 #endif
 #endif
 
-#ifdef WIN32
 unsigned short			Hard_Error_Occured = 0;
 WWMouseClass *			WWMouse = NULL;
 GraphicBufferClass	SysMemPage(DEFAULT_SCREEN_WIDTH, 200, (void*)NULL);
@@ -197,7 +194,6 @@ int						AllDone;
 */
 bool GameInFocus = false;
 
-#endif
 
 
 /***************************************************************************
@@ -622,18 +618,6 @@ unsigned long 	PlayingAgainstVersion;		// Negotiated version number
 bool				Version107InMix;				// Is there a v1.07 in the game
 #endif
 
-/***************************************************************************
-**	This is the null modem manager class.  Declaring this class doesn't
-** perform any allocations;
-*/
-NullModemClass NullModem (
-   16,											// number of send entries
-	16,											// number of receive entries
-	(MAX_SERIAL_PACKET_SIZE / sizeof(EventClass) ) * sizeof(EventClass) + sizeof( CommHeaderType ),
-	0x1234);										// Magic number must have each digit unique
-													// and different from the queue magic number
-
-
 
 /***************************************************************************
 **	This is the network IPX manager class.  It handles multiple remote
@@ -656,29 +640,16 @@ IPXManagerClass Ipx (
 	VIRGIN_SOCKET, 									// Socket ID #
 	IPXGlobalConnClass::COMMAND_AND_CONQUER0);// Product ID #
 
-
-#if(TEN)
 /***************************************************************************
-** This is the connection manager for Ten.  Special Ten notes:
-** - TEN connection ID's are equal to the HousesType for that player.
-** - The TEN internal player ID is used to determine the player's color.
-** - Ten's broadcast destination address -1
+**	Moved here from INTERNET.CPP in session S05, when the Westwood Online /
+** WChat internet code was removed. The UDP transport (WSPUDP.CPP) binds to
+** and sends to this port; the window code (WINSTUB.CPP) uses ShowCommand.
 */
-TenConnManClass *Ten = NULL;
+long PlanetWestwoodPortNumber = 1234;					//Port number to send to
+int		ShowCommand;
 
-#endif
 
 
-#if(MPATH)
-/***************************************************************************
-** This is the connection manager for Ten.  Special Ten notes:
-** - MPATH connection ID's are equal to the HousesType for that player.
-** - The player's color is read from the OPTIONS.INI file
-** - MPath's broadcast destination address is 0
-*/
-MPlayerManClass *MPath = NULL;
-
-#endif
 
 
 /***************************************************************************
@@ -725,22 +696,12 @@ int MenuList[][8]={
 };
 
 
-#ifdef WIN32
 GraphicBufferClass	VisiblePage;
 GraphicBufferClass	HiddenPage;
 GraphicViewPortClass	SeenBuff(&VisiblePage, 0, 0, 640, 480);
 GraphicViewPortClass	HidPage(&HiddenPage, 0, 0, 640, 480);
-#else
-GraphicBufferClass	HidPage(DEFAULT_SCREEN_WIDTH, 201, (void*)NULL);
-GraphicBufferClass	SeenBuff(320, 200, (void *)0xA0000L);
-VideoBufferClass		SeenPage;
-GraphicBufferClass & VisiblePage = SeenBuff;
-#endif
 
 
-#ifdef WIN32
-#else
-#endif
 
 int 						SoundOn;
 CDTimerClass<SystemTimerClass> FrameTimer;
@@ -778,14 +739,10 @@ TTimerClass<SystemTimerClass> TickCount = 0;
 /***************************************************************************
 **  Win32 specific globals
 */
-#ifdef WIN32
 
 bool InDebugger = false;
 bool ReadyToQuit = false;
 
-#else
-bool IsTheaterShape = false;	// must be defined only if not Win32
-#endif	//WIN32
 
 GetCDClass		CDList;
 int UnitBuildPenalty = 100;

@@ -3,9 +3,10 @@
 # The code does not compile yet (Watcom C++ 10.6 era). These jobs therefore do
 # not build the game; they configure CMake and run scripts/compile_progress.py,
 # which compiles every source file on its own and reports how many succeed.
-# A job fails only when the build system itself is broken (stale generated
-# source lists, CMake configure error, compiler cannot be started) - never
-# because game sources fail to compile.
+# A job fails only when the build system itself is broken (CMake configure
+# error, compiler cannot be started) - never because game sources fail to
+# compile. The source lists in cmake/RASources.cmake are hand-maintained
+# (ADR-0012), so there is no generated-file check any more.
 
 name: build
 
@@ -33,8 +34,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends gcc-multilib g++-multilib ninja-build
 
-      - name: Check generated source lists are up to date
-        run: python3 scripts/gen_cmake_sources.py --check
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86
@@ -65,8 +64,6 @@ jobs:
         with:
           arch: x86
 
-      - name: Check generated source lists are up to date
-        run: python scripts/gen_cmake_sources.py --check
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86

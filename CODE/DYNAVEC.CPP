@@ -43,10 +43,8 @@
 
 #include	"function.h"
 #include "vector.h"
-#ifdef WINSOCK_IPX
 #include	"WSProto.h"
 #include	"WSPUDP.h"
-#endif	//WINSOCK_IPX
 #include	<mem.h>
 #include	<stdio.h>
 

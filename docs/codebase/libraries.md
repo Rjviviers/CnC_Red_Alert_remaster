@@ -3,6 +3,11 @@
 Written in session S02 (2026-10-14). Read-only audit; no source was changed.
 Companion page: [assembly-inventory.md](assembly-inventory.md) (one row per assembly file).
 
+> **Update from S05 (2026-10-14).** `WWFLAT32/`, `VQ/`, `IPX/`, `LAUNCH/`, `LAUNCHER/`, the `TOOLS/` binaries,
+> `WIN32LIB/SRCDEBUG/`, `EXAMPLE/`, `MOVIE/`, `WINCOMM/`, the `OLD/`/`TEST/` folders, `WINVQ/VPLAY32/`, `WINVQ/VQAVIEW/`
+> and the prebuilt HMI SOS libraries were deleted in S05. `PROFILE`, `MONO` and `PLAYCD` were kept for now
+> (outside the S05 brief; `PROFILE` and `PLAYCD` are still referenced by compiled game code). See [removed-code.md](removed-code.md).
+
 **Terms used on this page**
 
 - **Member**: an object file that the library makefile puts into a `.lib`.

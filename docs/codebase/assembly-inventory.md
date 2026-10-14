@@ -3,6 +3,12 @@
 Written in session S02 (2026-10-14). Read-only audit; no source was changed.
 Companion page: [libraries.md](libraries.md) (what the libraries are and how the game is linked).
 
+> **Update from S05 (2026-10-14).** The delete list in section 2 was carried out in S05, except
+> `WIN32LIB/PROFILE/APROFILE.ASM` (row 48, still pulled by `Stop_Profiler`), `WINVQ/VQM32/MCGABUF.ASM` (row 58,
+> still referenced by `DRAWER.CPP`) and the dead parts of `CODE/WINASM.ASM` other than the modem stubs
+> (`ModeX_Blit`, `Set_Palette_Register`). Row numbers still refer to the table below. See
+> [removed-code.md](removed-code.md).
+
 This page answers one question for S05 and S07: **which assembly files does the Win32 game really need,
 and what does it take to replace each one?**
 

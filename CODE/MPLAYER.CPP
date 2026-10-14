@@ -33,7 +33,7 @@
  *                                                                                             *
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
- *   Select_MPlayer_Game -- prompts user for NULL-Modem, Modem, or Network game                *
+ *   Select_MPlayer_Game -- prompts user for Skirmish or Network game                            *
  *   Clear_Listbox -- clears the given list box                                                *
  *   Clear_Vector -- clears the given NodeNameType vector                                      *
  *   Computer_Message -- "sends" a message from the computer                                   *
@@ -46,18 +46,15 @@
 
 extern bool Is_Mission_Counterstrike (char *file_name);
 
-#ifdef WOLAPI_INTEGRATION
-#include "WolStrng.h"
-#endif
 
 /***********************************************************************************************
- * Select_MPlayer_Game -- prompts user for NULL-Modem, Modem, or Network game                  *
+ * Select_MPlayer_Game -- prompts user for Skirmish or Network game                              *
  *                                                                                             *
  * INPUT:                                                                                      *
  *      none.                                                                                  *
  *                                                                                             *
  * OUTPUT:                                                                                     *
- *      GAME_NORMAL, GAME_MODEM, etc.                                                          *
+ *      GAME_NORMAL, GAME_IPX, etc.                                                            *
  *                                                                                             *
  * WARNINGS:                                                                                   *
  *      none.                                                                                  *
@@ -71,72 +68,41 @@ GameType Select_MPlayer_Game (void)
 	//	Dialog & button dimensions
 	//------------------------------------------------------------------------
 	int d_dialog_w = 190 *RESFACTOR;
-#ifdef WOLAPI_INTEGRATION
-	int d_dialog_h = 89 * RESFACTOR;			//	ajw
+	int d_dialog_h = (89 - 11 - 11) * RESFACTOR;			//	ajw; S05: minus the removed modem/serial and WOL buttons (9 + 2 each)
 	int	d_dialog_y = (((255 * RESFACTOR) - d_dialog_h) / 2);
-#else
-	int d_dialog_h = 78 *RESFACTOR;
-	int d_dialog_y = 90 * RESFACTOR;
-#endif
 	int d_dialog_x = (((320*RESFACTOR) - d_dialog_w) / 2);
 	int d_dialog_cx = d_dialog_x + (d_dialog_w / 2);
 
 	int d_txt6_h = 7 *RESFACTOR;
 	int d_margin = 7 *RESFACTOR;
 
-	int d_modemserial_w = 80 *RESFACTOR;
-	int d_modemserial_h = 9 *RESFACTOR;
-	int d_modemserial_x = d_dialog_cx - d_modemserial_w / 2;
-	int d_modemserial_y = d_dialog_y + d_margin + d_txt6_h + d_margin;
-
 	int d_skirmish_w = 80 *RESFACTOR;
 	int d_skirmish_h = 9 *RESFACTOR;
 	int d_skirmish_x = d_dialog_cx - d_skirmish_w / 2;
-	int d_skirmish_y = d_modemserial_y + d_modemserial_h + 2*RESFACTOR;
+	int d_skirmish_y = d_dialog_y + d_margin + d_txt6_h + d_margin;
 
 	int d_ipx_w = 80 *RESFACTOR;
 	int d_ipx_h = 9 *RESFACTOR;
 	int d_ipx_x = d_dialog_cx - d_ipx_w / 2;
 	int d_ipx_y = d_skirmish_y + d_skirmish_h + 2*RESFACTOR;
 
-#ifdef WOLAPI_INTEGRATION
-	//	ajw 7/2/98 - added button
-	int d_wol_w = 80 * RESFACTOR;
-	int d_wol_h = 9 * RESFACTOR;
-	int d_wol_x = d_dialog_cx - d_wol_w / 2;
-	int d_wol_y = d_ipx_y + d_ipx_h + 2*RESFACTOR;
-#endif
 
 	int d_cancel_w = 60 *RESFACTOR;
 	int d_cancel_h = 9 *RESFACTOR;
 	int d_cancel_x = d_dialog_cx - d_cancel_w / 2;
-#ifdef WOLAPI_INTEGRATION
-	int d_cancel_y = d_wol_y + d_wol_h + d_margin;
-#else
 	int d_cancel_y = d_ipx_y + d_ipx_h + d_margin;
-#endif
 
-	#ifdef WIN32
 	GraphicBufferClass seen_buff_save(VisiblePage.Get_Width(), VisiblePage.Get_Height(), (void*)NULL);
-	#endif
 
 	//------------------------------------------------------------------------
 	//	Button enumerations:
 	//------------------------------------------------------------------------
 	enum {
-		BUTTON_MODEMSERIAL = 100,
-		BUTTON_SKIRMISH,
+		BUTTON_SKIRMISH = 100,
 		BUTTON_IPX,
-#ifdef WOLAPI_INTEGRATION
-		BUTTON_WOL,				//	ajw
-#endif
 		BUTTON_CANCEL,
 
-#ifdef WOLAPI_INTEGRATION
-		NUM_OF_BUTTONS = 5,		//	ajw
-#else
-		NUM_OF_BUTTONS = 4,
-#endif
+		NUM_OF_BUTTONS = 3,
 	};
 
 	int num_of_buttons = NUM_OF_BUTTONS - (Ipx.Is_IPX() ? 0 : 1);
@@ -168,28 +134,12 @@ GameType Select_MPlayer_Game (void)
 	ControlClass * commands = NULL;				// the button list
 
 
-	//------------------------------------------------------------------------
-	// If IPX not active then do only the modem serial dialog
-	//------------------------------------------------------------------------
-//	if ( !Ipx.Is_IPX() ) {
-//		return( Select_Serial_Dialog() );
-//	}
-
-
-	TextButtonClass modemserialbtn (BUTTON_MODEMSERIAL, TXT_MODEM_SERIAL, TPF_BUTTON,
-		d_modemserial_x, d_modemserial_y, d_modemserial_w, d_modemserial_h);
-
 	TextButtonClass skirmishbtn (BUTTON_SKIRMISH, TXT_SKIRMISH, TPF_BUTTON,
 		d_skirmish_x, d_skirmish_y, d_skirmish_w, d_skirmish_h);
 
 	TextButtonClass ipxbtn (BUTTON_IPX, TXT_NETWORK, TPF_BUTTON,
 		d_ipx_x, d_ipx_y, d_ipx_w, d_ipx_h);
 
-#ifdef WOLAPI_INTEGRATION
-	//	ajw
-	TextButtonClass wolbtn(BUTTON_WOL, TXT_WOL_INTERNETBUTTON, TPF_BUTTON,
-		d_wol_x, d_wol_y, d_wol_w, d_wol_h);
-#endif
 
 	if(!Ipx.Is_IPX()) {
 		d_cancel_y = d_ipx_y;
@@ -203,43 +153,26 @@ GameType Select_MPlayer_Game (void)
 	//	Initialize
 	//------------------------------------------------------------------------
 	Set_Logic_Page(SeenBuff);
-#ifdef WIN32
 	VisiblePage.Blit(seen_buff_save);
-#endif
 	//------------------------------------------------------------------------
 	//	Create the list
 	//------------------------------------------------------------------------
-	commands = &modemserialbtn;
-	skirmishbtn.Add_Tail(*commands);
+	commands = &skirmishbtn;
 	if(Ipx.Is_IPX()) {
 		ipxbtn.Add_Tail(*commands);
 	}
-#ifdef WOLAPI_INTEGRATION
-	wolbtn.Add_Tail(*commands);			//	ajw
-#endif
 	cancelbtn.Add_Tail(*commands);
 
 	//------------------------------------------------------------------------
 	//	Fill array of button ptrs
 	//------------------------------------------------------------------------
 	curbutton = 0;
-	buttons[0] = &modemserialbtn;
-	buttons[1] = &skirmishbtn;
+	buttons[0] = &skirmishbtn;
 	if(Ipx.Is_IPX()) {
-		buttons[2] = &ipxbtn;
-#ifdef WOLAPI_INTEGRATION
-		buttons[3] = &wolbtn;			//	ajw
-		buttons[4] = &cancelbtn;
-#else
-		buttons[3] = &cancelbtn;
-#endif
-	} else {
-#ifdef WOLAPI_INTEGRATION
-		buttons[2] = &wolbtn;			//	ajw
-		buttons[3] = &cancelbtn;
-#else
+		buttons[1] = &ipxbtn;
 		buttons[2] = &cancelbtn;
-#endif
+	} else {
+		buttons[1] = &cancelbtn;
 	}
 	buttons[curbutton]->Turn_On();
 
@@ -255,7 +188,6 @@ GameType Select_MPlayer_Game (void)
 	process = true;
 	pressed = false;
 	while (process) {
-			#ifdef WIN32
 			/*
 			** If we have just received input focus again after running in the background then
 			** we need to redraw.
@@ -265,7 +197,6 @@ GameType Select_MPlayer_Game (void)
 				seen_buff_save.Blit(VisiblePage);
 				display = REDRAW_ALL;
 			}
-			#endif
 
 		//.....................................................................
 		//	Invoke game callback
@@ -311,11 +242,6 @@ GameType Select_MPlayer_Game (void)
 		//	Process input
 		//.....................................................................
 		switch (input) {
-			case (BUTTON_MODEMSERIAL | KN_BUTTON):
-				selection = BUTTON_MODEMSERIAL;
-				pressed = true;
-				break;
-
 			case (BUTTON_SKIRMISH | KN_BUTTON):
 				selection = BUTTON_SKIRMISH;
 				pressed = true;
@@ -326,12 +252,6 @@ GameType Select_MPlayer_Game (void)
 				pressed = true;
 				break;
 
-#ifdef WOLAPI_INTEGRATION
-			case (BUTTON_WOL | KN_BUTTON):			//	ajw
-				selection = BUTTON_WOL;
-				pressed = true;
-				break;
-#endif
 
 			case (KN_ESC):
 			case (BUTTON_CANCEL | KN_BUTTON):
@@ -360,7 +280,7 @@ GameType Select_MPlayer_Game (void)
 				break;
 
 			case KN_RETURN:
-				selection = curbutton + BUTTON_MODEMSERIAL;
+				selection = curbutton + BUTTON_SKIRMISH;
 				pressed = true;
 				break;
 
@@ -375,28 +295,13 @@ GameType Select_MPlayer_Game (void)
 			//..................................................................
 			buttons[curbutton]->Turn_Off();
 			buttons[curbutton]->Flag_To_Redraw();
-			curbutton = selection - BUTTON_MODEMSERIAL;
+			curbutton = selection - BUTTON_SKIRMISH;
 			if(selection == BUTTON_CANCEL && !Ipx.Is_IPX()) curbutton--;
 			buttons[curbutton]->Turn_On();
 			buttons[curbutton]->IsPressed = true;
 			buttons[curbutton]->Draw_Me(true);
 
 			switch (selection) {
-				case (BUTTON_MODEMSERIAL):
-
-					//............................................................
-					// Pop up the modem/serial/com port dialog
-					//............................................................
-					retval = Select_Serial_Dialog();
-
-					if (retval != GAME_NORMAL) {
-						process = false;
-					} else {
-						buttons[curbutton]->IsPressed = false;
-						display = REDRAW_ALL;
-					}
-					break;
-
 				case (BUTTON_SKIRMISH):
 					Session.Type = GAME_SKIRMISH;
 					if (Com_Scenario_Dialog(true)) {
@@ -419,12 +324,6 @@ GameType Select_MPlayer_Game (void)
 					process = false;
 					break;
 
-#ifdef WOLAPI_INTEGRATION
-				case (BUTTON_WOL):				//	ajw
-					retval = GAME_INTERNET;
-					process = false;
-					break;
-#endif
 
 				case (BUTTON_CANCEL):
 					retval = GAME_NORMAL;
@@ -1065,185 +964,7 @@ int Abort_Dialog(void)
 }
 
 
-#if(TEN)
-/***************************************************************************
- * Read_TEN_Game_Options -- reads multiplayer game options from disk       *
- *                                                                         *
- * This routine is used for multiplayer games which read the game options	*
- * from disk, rather than through a connection dialog.							*
- *                                                                         *
- * INPUT:                                                                  *
- *		none.																						*
- *                                                                         *
- * OUTPUT:                                                                 *
- *		1 = OK, 0 = error																		*
- *                                                                         *
- * WARNINGS:                                                               *
- *		none.																						*
- *                                                                         *
- * HISTORY:                                                                *
- *   01/11/1996 BRR : Created.                                             *
- *=========================================================================*/
-int Read_TEN_Game_Options(void)
-{
-	INIClass ini;
-	if (!ini.Load(RawFileClass(Session.OptionsFile))) {
-		return (0);
-	}
-
-	ini.Get_String("Options", "Handle", "Noname",  Session.Handle,
-		sizeof(Session.Handle));
-	if (Session.TenPlayerID == -1) {
-		return (0);
-	}
-	Session.ColorIdx = (PlayerColorType)Session.TenPlayerID;
-	Session.House = (HousesType)
-		((int)HOUSE_USSR + ini.Get_Int("Options", "Side", 0));
-	Session.Options.Credits = ini.Get_Int("Options", "Credits", 3000);
-	Session.Options.Bases = ini.Get_Int("Options", "Bases", 1);
-	Session.Options.Tiberium = ini.Get_Int("Options", "Tiberium", 1);
-	Session.Options.Goodies = ini.Get_Int("Options", "Crates", 1);
-	Special.IsShadowGrow = ini.Get_Int ("Options", "Shadow", 0);
-	BuildLevel = ini.Get_Int("Options", "BuildLevel", 3);
-	Session.Options.UnitCount = ini.Get_Int("Options", "UnitCount", 5);
-	Seed = ini.Get_Int("Options", "Seed", 0);
-	Special.IsCaptureTheFlag = ini.Get_Int("Options", "CapFlag", 0);
-	Session.Options.AIPlayers = ini.Get_Int("Options", "AI", 0);
-	Session.NumPlayers = ini.Get_Int("Options", "Players", 2);
-
-	if (Session.Options.AIPlayers){
-		Session.Options.Ghosts = 1;
-	}
-
-	if (Session.Options.Tiberium) {
-		Special.IsTGrowth = 1;
-		Special.IsTSpread = 1;
-	} else {
-		Special.IsTGrowth = 0;
-		Special.IsTSpread = 0;
-	}
-
-	/*
-	** Read the scenario name from the .INI and try to match it with a scenario file in our list.
-	*/
-	ini.Get_String("Options", "Scenario", "Black Acres",
-										Session.Options.ScenarioDescription,
-										sizeof (Session.Options.ScenarioDescription));
-
-	Session.Options.ScenarioIndex = -1;
-	for (int i = 0; i < Session.Scenarios.Count(); i++) {
-		if (!strcmp (Session.Scenarios[i]->Description(),
-			Session.Options.ScenarioDescription) ) {
-			Session.Options.ScenarioIndex = i;
-			strcpy(Session.ScenarioFileName, Session.Scenarios[i]->Get_Filename());
-			strcpy(Scen.ScenarioName, Session.Scenarios[i]->Get_Filename());
-			break;
-		}
-	}
-
-	if (Session.Options.ScenarioIndex == -1) {
-		WWMessageBox().Process("Scenario not found!");
-		//Prog_End();
-		Emergency_Exit(0);
-	}
-
-	Options.GameSpeed = 0;
-
-	Session.MaxAhead = ini.Get_Int("Timing", "MaxAhead", 9);
-	Session.FrameSendRate = ini.Get_Int("Timing", "SendRate", 3);
-	Session.NetResponseTime = ini.Get_Int("Timing","Latency",600);
-
-	return (1);
-}
-#endif	// TEN
 
 
-#if(MPATH)
-/***************************************************************************
- * Read_MPATH_Game_Options -- reads multiplayer game options from disk     *
- *                                                                         *
- * This routine is used for multiplayer games which read the game options	*
- * from disk, rather than through a connection dialog.							*
- *                                                                         *
- * INPUT:                                                                  *
- *		none.																						*
- *                                                                         *
- * OUTPUT:                                                                 *
- *		1 = OK, 0 = error																		*
- *                                                                         *
- * WARNINGS:                                                               *
- *		none.																						*
- *                                                                         *
- * HISTORY:                                                                *
- *   01/11/1996 BRR : Created.                                             *
- *=========================================================================*/
-int Read_MPATH_Game_Options(void)
-{
-	INIClass ini;
-	if (!ini.Load(RawFileClass(Session.OptionsFile))) {
-		return (0);
-	}
-
-	ini.Get_String("Options", "Handle", "Noname",  Session.Handle,
-		sizeof(Session.Handle));
-	Session.ColorIdx = (PlayerColorType)ini.Get_Int("Options", "Color", 0);
-	Session.House = (HousesType)
-		((int)HOUSE_USSR + ini.Get_Int("Options", "Side", 0));
-	Session.Options.Credits = ini.Get_Int("Options", "Credits", 3000);
-	Session.Options.Bases = ini.Get_Int("Options", "Bases", 1);
-	Session.Options.Tiberium = ini.Get_Int("Options", "Tiberium", 1);
-	Session.Options.Goodies = ini.Get_Int("Options", "Crates", 1);
-	Special.IsShadowGrow = ini.Get_Int ("Options", "Shadow", 0);
-	BuildLevel = ini.Get_Int("Options", "BuildLevel", 3);
-	Session.Options.UnitCount = ini.Get_Int("Options", "UnitCount", 5);
-	Seed = ini.Get_Int("Options", "Seed", 0);
-	Special.IsCaptureTheFlag = ini.Get_Int("Options", "CapFlag", 0);
-	Session.Options.AIPlayers = ini.Get_Int("Options", "AI", 0);
-
-	if (Session.Options.AIPlayers){
-		Session.Options.Ghosts = 1;
-	}
-
-	if (Session.Options.Tiberium) {
-		Special.IsTGrowth = 1;
-		Special.IsTSpread = 1;
-	} else {
-		Special.IsTGrowth = 0;
-		Special.IsTSpread = 0;
-	}
-
-	/*
-	** Read the scenario name from the .INI and try to match it with a scenario file in our list.
-	*/
-	ini.Get_String("Options", "Scenario", "Black Acres",
-										Session.Options.ScenarioDescription,
-										sizeof (Session.Options.ScenarioDescription));
-
-	Session.Options.ScenarioIndex = -1;
-	for (int i = 0; i < Session.Scenarios.Count(); i++) {
-		if (!strcmp (Session.Scenarios[i]->Description(),
-			Session.Options.ScenarioDescription) ) {
-			Session.Options.ScenarioIndex = i;
-			strcpy(Session.ScenarioFileName, Session.Scenarios[i]->Get_Filename());
-			strcpy(Scen.ScenarioName, Session.Scenarios[i]->Get_Filename());
-			break;
-		}
-	}
-
-	if (Session.Options.ScenarioIndex == -1) {
-		WWMessageBox().Process("Scenario not found!");
-		//Prog_End();
-		Emergency_Exit(0);
-	}
-
-	Options.GameSpeed = 0;
-
-	Session.MaxAhead = ini.Get_Int("Timing", "MaxAhead", 9);
-	Session.FrameSendRate = ini.Get_Int("Timing", "SendRate", 3);
-	Session.NetResponseTime = ini.Get_Int("Timing","Latency",600);
-
-	return (1);
-}
-#endif	// MPATH
 
 /************************** end of mplayer.cpp *****************************/

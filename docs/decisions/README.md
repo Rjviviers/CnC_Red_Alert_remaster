@@ -16,4 +16,5 @@ Numbers are never reused. To change an accepted decision, write a new ADR that s
 | [0009](0009-own-network-protocol.md) | Our own network protocol, no compatibility with original clients | Accepted (amended by 0013) |
 | [0010](0010-asm-porting-policy.md) | Port only the assembly the game needs; prefer existing C++ | Accepted |
 | [0011](0011-expansions-in-multiplayer.md) | Counterstrike and Aftermath content in multiplayer | Accepted |
+| [0012](0012-hand-maintained-source-lists.md) | Hand-maintained CMake source lists | Proposed |
 | [0013](0013-lan-scope-port-crossplay-naming.md) | LAN: port 19960, no cross-play for M3, rename "IPX" only when needed | Accepted |

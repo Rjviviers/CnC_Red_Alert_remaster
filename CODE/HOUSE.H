@@ -881,11 +881,9 @@ class HouseClass {
 		*/
 		char IniName[HOUSE_NAME_MAX];
 
-#ifdef WOLAPI_INTEGRATION
 		//	For Internet games only, unchanging name of player when game began.
 		//	This name does not get changed to "Computer" if computer takes over for player.
 		char InitialName[HOUSE_NAME_MAX];
-#endif
 
 		int QuantityB(int index) {return(BQuantity[index]);}
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98

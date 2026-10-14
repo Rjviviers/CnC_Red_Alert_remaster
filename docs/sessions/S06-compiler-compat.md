@@ -33,6 +33,14 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
   **not** required ([ADR-0009](../decisions/0009-own-network-protocol.md)): the layout must match between our own
   builds, and may differ from Watcom where that's simpler.
 
+## Inputs from S05
+- `phone.h` and `PASSEDIT.CPP` are no longer needed: their users were removed. Still to rewrite: `PALETTE.CPP`,
+  `PALETTE.H` (`PaletteClass`) and `pcx.h`.
+- No source tests `WIN32`, `WINSOCK_IPX`, `WOLAPI_INTEGRATION`, `TEN` or `MPATH` any more, so you may stop
+  defining them in `cmake/RABuildConfig.cmake`.
+- Source lists are hand-maintained in `cmake/RASources.cmake` (ADR-0012). Add any rewritten files there.
+- Baseline after S05: 10 of 284 files compile.
+
 ## Inputs from S02
 - Also missing: the game's own `PALETTE.H` (defines `PaletteClass`). `mpgdll.lib` is on the link line, but nothing builds it.
 - **Don't change the layout or packing of `GraphicViewPortClass` or `WWMouseClass`** until S07-A/S07-C have ported the

@@ -48,7 +48,8 @@
 #include "function.h"
 
 #ifdef FIXIT_VERSION_3
-#include "rawolapi.h"		//	For version number.
+//	Version number; moved here from RAWOLAPI.H in session S05 (Westwood Online removed).
+#define GAME_VERSION	0x00030003
 #endif
 
 /****************************** Globals ************************************/
@@ -834,13 +835,7 @@ char const * Version_Name(void)
 		strcat (buffer, "AM");
 	}
 
-#if(TEN)
-	strcat(buffer, "Ten");		// Ten version
-#endif
 
-#if(MPATH)
-	strcat(buffer, "MPath");	// MPath version
-#endif
 
 	RawFileClass file("VERSION.TXT");
 	if (file.Is_Available()) {

@@ -81,9 +81,6 @@
 #include <stddef.h>			/* ptrdiff_t, size_t */
 #include <string.h>			/* memcpy, memmove, memcmp, memset */
 
-#if 0 && !defined(assert)
-#  error <assert.h> not included
-#endif
 
 #if defined(__BOUNDS_CHECKING_ON)
 #  include <unchecked.h>

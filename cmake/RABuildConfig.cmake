@@ -12,7 +12,9 @@
 #
 #  Mapping from the original Watcom flags (CODE/MAKEFILE, WIN32LIB/PROJECT.CFG,
 #  WINVQ/*/MAKEFILE) to what we do here:
-#    /DWIN32=1 /D_WIN32 /DWOLAPI_INTEGRATION /DWINSOCK_IPX /D<LANG>=1  -> kept (defines below)
+#    /DWIN32=1 /D_WIN32 /D<LANG>=1  -> kept (defines below)
+#    /DWOLAPI_INTEGRATION /DWINSOCK_IPX  -> dropped in S05: the sources were collapsed
+#                                          with unifdef as if they were defined
 #    /zp1   pack structs on 1 byte  -> RA_PACK_STRUCTS (/Zp1, -fpack-struct=1)
 #    /j     char is signed          -> -fsigned-char (MSVC char is already signed)
 #    /5r /4 /otxan /oaeilrt /of+ /s /d0 /d1 /ri /bt=NT /mf  -> dropped (Watcom codegen/ABI options)
@@ -100,7 +102,9 @@ option(RA_PACK_STRUCTS
 set(RA_PLATFORM_DEFINES WIN32=1 _WIN32)
 
 # Game-only defines, straight from CODE/MAKEFILE (!ifdef WIN32 branch).
-set(RA_GAME_DEFINES WOLAPI_INTEGRATION WINSOCK_IPX ${RA_LANGUAGE}=1)
+# WOLAPI_INTEGRATION and WINSOCK_IPX were dropped in S05: no source tests them
+# any more (see docs/codebase/removed-code.md).
+set(RA_GAME_DEFINES ${RA_LANGUAGE}=1)
 
 function(ra_apply_build_settings target)
   set_target_properties(${target} PROPERTIES

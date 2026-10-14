@@ -11,6 +11,12 @@ Implement [docs/design/lan-multiplayer.md § Transport design](../design/lan-mul
 Today `UDPInterfaceClass` is only used by Westwood Online, and it can't do LAN as written: it has no real broadcast,
 one fixed port for every peer, and it drops packets from local IPs.
 
+## Inputs from S05
+- `GAME_INTERNET` and the unit trackers (`UTRACKER`) were left in, because removing them touches simulation files
+  and `HouseClass`. Decide here whether to remove them or reuse `GAME_INTERNET` for internet play later.
+- `INIT.CPP` already creates `UDPInterfaceClass` for the LAN game (S05). The second instance on one machine is no
+  longer blocked: the DDE single-instance check is gone.
+
 ## Tasks
 - [ ] A small socket wrapper (Winsock / BSD sockets) for non-blocking UDP, broadcast, and address helpers.
 - [ ] Replace `WSAAsyncSelect` notifications with a `Poll()` called from `IPXManagerClass::Service()`, plus harmlessly from the main loop. Polling from the main loop alone is not enough: the game blocks in nested wait loops that never return to it (S04 finding).
