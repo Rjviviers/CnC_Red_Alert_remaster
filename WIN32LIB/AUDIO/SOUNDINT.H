@@ -37,6 +37,18 @@
  * Functions:                                                              *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+/*
+** Port (S09): this header no longer depends on DirectSound or Win32 types.
+** The DirectSound secondary buffer of each sample tracker was replaced by a
+** voice of the portable software mixer (audio_mixer.h); voice N belongs to
+** SampleTracker[N]. Fields that only made sense for DirectSound (PlayBuffer,
+** DestPtr, MoreSource, OneShot, Service, Restart, Pitch, Flags and the
+** per-tracker critical section) were removed. See docs/codebase/audio.md.
+** Nothing in the game includes this header; it is internal to WIN32LIB/AUDIO.
+*/
+#ifndef SOUNDINT_H
+#define SOUNDINT_H
+
 #include "sound.h"
 
 /*
@@ -45,8 +57,12 @@
 ** did, there might be too much temptation to call another library function.
 ** this would be bad, because then that function would not be locked.
 */
+#ifndef FALSE
 #define	FALSE		0
+#endif
+#ifndef TRUE
 #define	TRUE		1
+#endif
 
 /*
 ** Define the different type of sound compression avaliable to the westwood
@@ -67,31 +83,57 @@ typedef enum {
 */
 #define	SONARC_MARGIN				32
 
+/*
+** Port (S09): size in bytes of the AUD file header (AUDHeaderType in audio.h):
+** rate (2), compressed size (4), uncompressed size (4), flags (1), compression (1).
+** The port reads and writes these fields byte by byte (AUD_* below), so it
+** doesn't depend on the size of 'long' or on struct packing.
+*/
+#define	AUD_HEADER_SIZE			12
+
+/*
+** Port (S09): every compressed frame starts with this 8-byte header:
+** compressed size (2), uncompressed size (2), magic number 0x0000DEAF (4).
+*/
+#define	AUD_FRAME_HEADER_SIZE	8
+#define	AUD_FRAME_MAGIC			0x0000DEAFL
+
+/*
+** This is the maximum size that a sonarc block can be (moved here from
+** SOUNDIO.CPP). The decompression staging buffer (LockedData.UncompBuffer)
+** holds one compressed frame and is UNCOMP_BUFFER_SIZE bytes long.
+*/
+#define	LARGEST_SONARC_BLOCK		2048
+#define	UNCOMP_BUFFER_SIZE		(LARGEST_SONARC_BLOCK + 50)
+
+/*
+** Port (S09): number of times per second maintenance_callback runs. It now
+** runs from the mixer, in output time, instead of from a Windows timer.
+*/
+#define	MAINTENANCE_RATE			40
+
 
 /*
 ** Define the sample control structure which helps us to handle feeding
 ** data to the sound interrupt.
 */
-#pragma pack(1);
 typedef struct {
 	/*
 	**	This flags whether this sample structure is active or not.
 	*/
 	unsigned Active;
-	//unsigned Active:1;
 
 	/*
 	**	This flags whether the sample is loading or has been started.
 	*/
-	//unsigned Loading:1;
 	unsigned Loading;
 
 	/*
 	**	This semaphore ensures that simultaneous update of this structure won't
 	**	occur.  This is necessary since both interrupt and regular code can modify
-	**	this structure.
+	**	this structure.  (Port: the audio lock does this job now; the flag is
+	** kept because the streaming code still sets it.)
 	*/
-	//unsigned DontTouch:1;
 	unsigned DontTouch;
 
 	/*
@@ -99,7 +141,6 @@ typedef struct {
 	**	a sound effect, then special rules apply.  These largely fall into
 	**	the area of volume control.
 	*/
-	//unsigned IsScore:1;
 	unsigned IsScore;
 
 	/*
@@ -107,85 +148,30 @@ typedef struct {
 	**	pointer rather than handle. The handle method is necessary when more than one
 	**	sample could be playing simultaneously. The pointer method is necessary when
 	**	the dealing with a sample that may have stopped behind the programmer's back and
-	**	this occurance is not otherwise determinable.  It is also used in
-	** conjunction with original size to unlock a sample which has been DPMI
-	** locked.
+	**	this occurance is not otherwise determinable.
 	*/
 	void const *Original;
 	long OriginalSize;
 
 	/*
-	**	These are pointers to the double buffers.
-	*/
-	LPDIRECTSOUNDBUFFER PlayBuffer;
-
-	/*
-	** Variable to keep track of the playback rate of this buffer
+	** Format of the sample last started on this tracker: rate in Hz,
+	** AUD_FLAG_16BIT, AUD_FLAG_STEREO.
 	*/
 	int	PlaybackRate;
-
-	/*
-	** Variable to keep track of the sample type ( 8 or 16 bit ) of this buffer
-	*/
 	int	BitSize;
-
-	/*
-	** Variable to keep track of the stereo ability of this buffer
-	*/
 	int	Stereo;
 
 	/*
-	**	The number of bytes in the buffer that has been filled but is not
-	**	yet playing.  This value is normally the size of the buffer,
-	**	except for the case of the last bit of the sample.
-	*/
-	LONG DataLength;
-
-	/*
-	**	This is the buffer index for the low buffer that
-	**	has been filled with data but not yet being
-	**	played.
-	*/
-//	short int Index;
-
-	/*
-	**	Pointer into the play buffer for writing the next
-	**  chunk of sample to
-	**
-	*/
-	VOID *DestPtr;
-
-	/*
-	**	This flag indicates that there is more source data
-	**  to copy to the play buffer
-	**
-	*/
-	BOOL MoreSource;
-
-	/*
-	**	This flag indicates that the entire sample fitted inside the
-	** direct sound secondary buffer
-	**
-	*/
-	BOOL OneShot;
-
-	/*
 	**	Pointer to the sound data that has not yet been copied
-	**	to the playback buffers.
+	**	to the mixer.
 	*/
-	VOID *Source;
+	void *Source;
 
 	/*
 	**	This is the number of bytes remaining in the source data as
 	**	pointed to by the "Source" element.
 	*/
-	LONG Remainder;
-
-	/*
-	**	Object to use with Enter/LeaveCriticalSection
-	**
-	*/
-	CRITICAL_SECTION AudioCriticalSection;
+	long Remainder;
 
 	/*
 	**	Samples maintain a priority which is used to determine
@@ -195,12 +181,13 @@ typedef struct {
 	int Priority;
 
 	/*
-	**	This is the handle as returned by sosDIGIStartSample function.
+	**	This is the handle as returned by Play_Sample.
 	*/
 	short int Handle;
 
 	/*
-	**	This is the current volume of the sample as it is being played.
+	**	This is the current volume of the sample as it is being played
+	** (0..255 shifted left by 7, as in the original).
 	*/
 	int Volume;
 	int Reducer;		// Amount to reduce volume per tick.
@@ -210,31 +197,14 @@ typedef struct {
 	*/
 	SCompressType Compression;
 	short int TrailerLen;						// Number of trailer bytes in buffer.
-	BYTE Trailer[SONARC_MARGIN];		// Maximum number of 'order' samples needed.
-
-
-	DWORD Pitch;
-	WORD Flags;
-
-	/*
-	**	This flag indicates whether this sample needs servicing.
-	**	Servicing entails filling one of the empty low buffers.
-	*/
-	short int Service;
-
-	/*
-	**	This flag is TRUE when the sample has stopped playing,
-	**	BUT there is more data available.  The sample must be
-	**	restarted upon filling the low buffer.
-	*/
-	BOOL Restart;
+	unsigned char Trailer[SONARC_MARGIN];		// Maximum number of 'order' samples needed.
 
 	/*
 	**	Streaming control handlers.
 	*/
-	BOOL (*Callback)(short int id, short int *odd, VOID **buffer, LONG *size);
-	VOID	*QueueBuffer;	// Pointer to continued sample data.
-	LONG	QueueSize;		// Size of queue buffer attached.
+	int (*Callback)(short int id, short int *odd, void **buffer, long *size);
+	void	*QueueBuffer;	// Pointer to continued sample data.
+	long	QueueSize;		// Size of queue buffer attached.
 	short int	Odd;				// Block number tracker (0..StreamBufferCount-1).
 	int	FilePending;	// Number of buffers already filled ahead.
 	long	FilePendingSize;	// Number of bytes in last filled buffer.
@@ -244,49 +214,85 @@ typedef struct {
 	**	hard drive.
 	*/
 	int	FileHandle;		// Streaming file handle (ERROR = not in use).
-	VOID	*FileBuffer;	// Temporary streaming buffer (allowed to be freed).
+	void	*FileBuffer;	// Temporary streaming buffer (allowed to be freed).
+
 	/*
 	** The following structure is used if the sample if compressed using
 	** the sos 16 bit compression Codec.
 	*/
-
 	_SOS_COMPRESS_INFO sosinfo;
-
 
 } SampleTrackerType;
 
 
 typedef struct LockedData {
-	unsigned int 		DigiHandle; 			// = -1;
-	BOOL 					ServiceSomething;		// = FALSE;
+	int			 		DigiHandle; 			// = -1;
+	int 					ServiceSomething;		// = FALSE;
 	long 					MagicNumber; 			// = 0xDEAF;
-	VOID 					*UncompBuffer;			// = NULL;
-	long 					StreamBufferSize; 	// = (2*SECONDARY_BUFFER_SIZE)+128;
-	short 				StreamBufferCount; 	// = 32;
+	void 					*UncompBuffer;			// = NULL;
+	long 					StreamBufferSize; 	// = (SECONDARY_BUFFER_SIZE/4)+128;
+	short 				StreamBufferCount; 	// = 16;
 	SampleTrackerType SampleTracker[MAX_SFX];
 	unsigned int		SoundVolume;
 	unsigned int		ScoreVolume;
-	BOOL					_int;
+	int					_int;
 } LockedDataType;
 
 extern LockedDataType LockedData;
-#pragma pack(4);
 
 void Init_Locked_Data(void);
 long Simple_Copy(void ** source, long * ssize, void ** alternate, long * altsize, void **dest, long size);
 long Sample_Copy(SampleTrackerType *st, void ** source, long * ssize, void ** alternate, long * altsize, void * dest, long size, SCompressType scomp, void * trailer, short int *trailersize);
-VOID far __cdecl maintenance_callback(VOID);
-VOID __cdecl far DigiCallback(unsigned int driverhandle, unsigned int callsource, unsigned int sampleid);
-void far HMI_TimerCallback(void);
+void maintenance_callback(void);
+void Audio_Promote_Stream_Queue(SampleTrackerType *st);
+long Audio_Voice_Fill(void *user, int voice, void *dest, long size);
+void Audio_Update_Voice_Volume(int index);
+int Audio_Volume_To_Gain(int volume);
+int Convert_HMI_To_Direct_Sound_Volume(int volume);
 void *Audio_Add_Long_To_Pointer(void const *ptr, long size);
-void	DPMI_Unlock(VOID const *ptr, long const size);
+
+class AudioMixerClass;
+AudioMixerClass &Audio_Mixer(void);		// SOUNDIO.CPP: voice N = SampleTracker[N].
+
+/*
+** Port (S09): IMA ADPCM tables shared by OLSOSDEC.CPP (general decoder) and
+** SOSCODEC.CPP (fast 16-bit mono decoder), and the fast decoder's generated
+** lookup tables (exposed for tests).
+*/
+extern short const SOS_Index_Adjust[16];
+extern unsigned short const SOS_Step_Table[89];
+long const *SOS_Fast_Diff_Table(void);
+unsigned short const *SOS_Fast_Index_Table(void);
+
+/*
+** Port (S09): little-endian field access for AUD file and frame headers.
+*/
+inline unsigned Aud_Get_U16(void const *ptr) {
+	unsigned char const *p = (unsigned char const *)ptr;
+	return (unsigned)p[0] | ((unsigned)p[1] << 8);
+}
+inline unsigned long Aud_Get_U32(void const *ptr) {
+	unsigned char const *p = (unsigned char const *)ptr;
+	return (unsigned long)p[0] | ((unsigned long)p[1] << 8) | ((unsigned long)p[2] << 16) | ((unsigned long)p[3] << 24);
+}
+inline void Aud_Put_U32(void *ptr, unsigned long value) {
+	unsigned char *p = (unsigned char *)ptr;
+	p[0] = (unsigned char)value;
+	p[1] = (unsigned char)(value >> 8);
+	p[2] = (unsigned char)(value >> 16);
+	p[3] = (unsigned char)(value >> 24);
+}
+#define AUD_RATE(hdr)			((unsigned)Aud_Get_U16((char const *)(hdr) + 0))
+#define AUD_SIZE(hdr)			((long)Aud_Get_U32((char const *)(hdr) + 2))
+#define AUD_UNCOMP_SIZE(hdr)	((long)Aud_Get_U32((char const *)(hdr) + 6))
+#define AUD_FLAGS(hdr)			(((unsigned char const *)(hdr))[10])
+#define AUD_COMPRESSION(hdr)	(((unsigned char const *)(hdr))[11])
+
 extern "C" {
 	void __cdecl Audio_Mem_Set(void const *ptr, unsigned char value, long size);
-//	void	Mem_Copy(void *source, void *dest, unsigned long bytes_to_copy);
 	long  __cdecl Decompress_Frame(void * source, void * dest, long size);
-	int	__cdecl Decompress_Frame_Lock(void);
-	int	__cdecl Decompress_Frame_Unlock(void);
 	int	__cdecl sosCODEC_Lock(void);
 	int	__cdecl sosCODEC_Unlock(void);
-	void	__GETDS(void);
 }
+
+#endif

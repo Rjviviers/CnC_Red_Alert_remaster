@@ -5,6 +5,13 @@
 ## Goal
 Link the executable, load the player's MIX files, and reach the main menu.
 
+## Inputs from S09
+- Audio boots with the **null backend** by default. To get real sound, enable `-DRA_HAVE_SDL3=ON` (S09's `audio_sdl3.cpp`, linked to
+  `SDL3::SDL3`). On 2026-10-14 it did **not** compile on Linux, because the build still defined `_WIN32` there, so SDL took its Windows
+  path (`process.h`). S06a was asked to stop defining `WIN32`/`_WIN32` off Windows. Once that lands, turn the option on by default and
+  test playback, then mark S09 Done.
+- `CODE/EXTERNS.H:127-128` / `CODE/INIT.CPP:1202-1203` reference the removed `SoundObject`/`PrimaryBufferPtr` (sent to S06a).
+
 ## Inputs from S08
 - Work through the "Remaining integration for S10" list in [platform-layer.md](../codebase/platform-layer.md): replace `WinMain`
   with `main`, remove the old window code, wire the focus callback (the cursor won't draw until `GameInFocus` is set), handle quit/shutdown,

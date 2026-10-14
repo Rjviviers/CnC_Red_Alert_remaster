@@ -90,3 +90,16 @@ add_test(NAME platform_demo_offscreen COMMAND platform_demo --frames 120)
 set_tests_properties(platform_demo_offscreen PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 add_dependencies(ra_tests platform_demo)
 # --- S09 ---
+ra_add_test(NAME s09_decoder_test
+            SOURCES tests/s09_decoder_test.cpp
+                    WIN32LIB/AUDIO/SOSCODEC.CPP WIN32LIB/AUDIO/OLSOSDEC.CPP WIN32LIB/AUDIO/AUDUNCMP.CPP
+            INCLUDES WIN32LIB/AUDIO CODE)
+ra_add_test(NAME s09_mixer_test
+            SOURCES tests/s09_mixer_test.cpp WIN32LIB/AUDIO/audio_mixer.cpp
+            INCLUDES WIN32LIB/AUDIO)
+ra_add_test(NAME s09_sound_api_test
+            SOURCES tests/s09_sound_api_test.cpp
+                    WIN32LIB/AUDIO/SOUNDIO.CPP WIN32LIB/AUDIO/SOUNDINT.CPP WIN32LIB/AUDIO/SOUNDLCK.CPP
+                    WIN32LIB/AUDIO/SOSCODEC.CPP WIN32LIB/AUDIO/OLSOSDEC.CPP WIN32LIB/AUDIO/AUDUNCMP.CPP
+                    WIN32LIB/AUDIO/audio_mixer.cpp WIN32LIB/AUDIO/audio_null.cpp
+            INCLUDES WIN32LIB/AUDIO WIN32LIB/INCLUDE)

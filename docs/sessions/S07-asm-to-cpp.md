@@ -48,7 +48,7 @@ text printing, keyboard buffer, misc (CPUID, coordinates).
 
 ## Status after packages A–D (orchestrator, 2026-10-14)
 All four packages are merged, with 23 test executables passing. Assembly still listed in `cmake/RASources.cmake`:
-- `WIN32LIB/AUDIO/SOSCODEC`, `OLSOSDEC`, `AUDUNCMP`: being ported by **S09** (old package S07-E).
+- `WIN32LIB/AUDIO/SOSCODEC`, `OLSOSDEC`, `AUDUNCMP`: **ported by S09** (old package S07-E), merged.
 - `CODE/CPUID.ASM`, `WIN32LIB/MEM/VMPAGEIN.ASM`, `WIN32LIB/PROFILE/APROFILE.ASM`: not in any package. The inventory marks
   them dead or trivial; remove or stub them in S10 when linking.
 - `WINVQ` asm: movies only, not ported (ADR-0005, ADR-0010).
