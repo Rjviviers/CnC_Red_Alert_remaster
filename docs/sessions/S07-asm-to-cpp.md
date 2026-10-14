@@ -26,9 +26,13 @@ text printing, keyboard buffer, misc (CPUID, coordinates).
 
 ## Tasks
 - [ ] For each routine, write the C++ version with the same signature the callers expect.
+  - [x] S07-B: `Buffer_Frame_To_Page` (`CODE/2KEYFBUF.CPP` + `CODE/SHAPEDRW.CPP`); `Set_Shape_Buffer` and the shape-buffer globals (`WIN32LIB/SHAPE/SHAPE.CPP`).
 - [ ] Write a unit test for each routine, using inputs and expected outputs worked out from the assembly (compression round-trips, known blit results).
+  - [x] S07-B: `tests/s07b_shape_renderer_test.cpp` (47 golden tests: every `BF_*` and `Single_Line_*` variant, clipping at every edge) and `tests/s07b_shape_buffer_test.cpp`.
 - [ ] Routines used by the simulation (e.g. `COORDA.ASM`) must be bit-exact. Flag them in the log.
+  - [x] S07-B: none; rendering only (see the S07-B log).
 - [ ] Update the inventory: mark each file *ported*, with a link to its replacement and test.
+  - [x] S07-B: rows 1 and 46 and the S07-B package row.
 
 ## Done when
 The build no longer needs an assembler, and every ported routine has a passing test in CI.
