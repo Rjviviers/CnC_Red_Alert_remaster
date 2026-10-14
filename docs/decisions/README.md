@@ -13,3 +13,4 @@ Numbers are never reused. To change an accepted decision, write a new ADR that s
 | [0006](0006-no-game-assets.md) | Never ship game assets | Accepted |
 | [0007](0007-lan-udp-transport.md) | LAN: keep the connection layer, rewrite the UDP transport | Proposed |
 | [0008](0008-case-insensitive-include-shim.md) | Case-insensitive include shim for Linux builds | Proposed |
+| [0009](0009-own-network-protocol.md) | Our own network protocol, no compatibility with original clients | Accepted |

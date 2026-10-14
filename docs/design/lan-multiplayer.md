@@ -43,7 +43,7 @@ Out of scope for M3 (only touched on in [Later: internet play](#later-internet-p
 | Same-machine play | Port fallback plus loopback targets. Packets from any local IP are normalised to `127.0.0.1:port`. Only packets from **our own port** on a local IP are dropped |
 | Join by IP | A text field in the join dialog fills `Session.BridgeNet` and sets `Session.IsBridge`. The existing code then unicasts every query there too (`NETDLG.CPP:3274-3277`) |
 | Version check | Our own `NET_PROTOCOL_VERSION`, replacing `GAME_VERSION` from `RAWOLAPI.H`. Exact match required. Uses the existing `REJECT_VERSION_TOO_OLD/NEW` path |
-| Wire layout | Every struct that goes on the wire gets `static_assert`s on size and key offsets. They must hold on MSVC and GCC/Clang, and the target values are the original Watcom ones |
+| Wire layout | Every struct that goes on the wire gets `static_assert`s on size and key offsets. They must hold on MSVC and GCC/Clang. The original Watcom sizes are the starting point; we may change them ([ADR-0009](../decisions/0009-own-network-protocol.md)) |
 
 ## Architecture: keep versus replace
 
@@ -358,7 +358,8 @@ Modern compilers change it silently:
 Requirements:
 1. **Hard requirement:** identical layout on every compiler and OS we ship (MSVC x86, GCC/Clang x86
    Linux). A Linux player must be able to join a Windows host.
-2. **Target values:** the original Watcom sizes. They're proven: 26 events per 520-byte packet, under the
+2. **Target values:** start from the original Watcom sizes. We don't need compatibility with original clients
+   ([ADR-0009](../decisions/0009-own-network-protocol.md)), so these may change when that's simpler, as long as rule 1 holds. They're proven: 26 events per 520-byte packet, under the
    historic 546-byte limit, and far below any MTU.
 3. **Mechanism (S06/S12):**
    - wrap network headers in `#pragma pack(push, 1)` / `pop`;
