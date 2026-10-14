@@ -42,5 +42,14 @@ ra_add_test(NAME s07c_mouse_test
 ra_add_test(NAME s07c_interp_test
             SOURCES tests/s07c_interp_test.cpp CODE/WINASM.CPP)
 # --- S07-D ---
+# s07d_asm_oracle.cpp holds the original asm (GNU syntax) as a reference; it is empty except on 32-bit x86 GCC/Clang.
+ra_add_test(NAME s07d_lcw_test
+            SOURCES tests/s07d_lcw_test.cpp tests/s07d_asm_oracle.cpp CODE/LCW.CPP CODE/LCWCOMP.CPP
+            INCLUDES CODE)
+ra_add_test(NAME s07d_xordelta_test
+            SOURCES tests/s07d_xordelta_test.cpp tests/s07d_asm_oracle.cpp WIN32LIB/WSA/XORDELTA.CPP)
+ra_add_test(NAME s07d_misc_test
+            SOURCES tests/s07d_misc_test.cpp tests/s07d_asm_oracle.cpp
+                    WIN32LIB/MEM/MEM_COPY.CPP WIN32LIB/MISC/REVERSE.CPP WIN32LIB/MISC/RANDOM.CPP)
 # --- S08 ---
 # --- S09 ---

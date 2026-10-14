@@ -5,6 +5,7 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-14 | S07-D — Assembly → C++: data codecs | [log](2026-10-14-S07D-data-codecs.md) |
 | 2026-10-14 | S07-C — Assembly → C++: text, palette, cursor | [log](2026-10-14-S07C-text-palette-cursor.md) |
 | 2026-10-14 | Wave 3 prep: unit-test harness | [log](2026-10-14-wave3-prep.md) |
 | 2026-10-14 | S05 — Strip dead platforms | [log](2026-10-14-S05-strip-dead-platforms.md) |
