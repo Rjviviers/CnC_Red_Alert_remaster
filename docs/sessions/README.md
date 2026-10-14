@@ -7,10 +7,10 @@ The dependency graph is in the [roadmap](../roadmap.md).
 | ID | Session | Wave | Depends on | Parallel-safe with | Status | Log |
 |----|---------|------|------------|--------------------|--------|-----|
 | S00 | [Project wiki & plan](S00-wiki-and-plan.md) | 0 | — | — | Done | [log](../logs/2026-10-14-S00-wiki-and-plan.md) |
-| S01 | [Audit: game code](S01-audit-game-code.md) | 1 | S00 | S02, S03, S04 | Not started | |
-| S02 | [Audit: support libraries & assembly](S02-audit-libraries.md) | 1 | S00 | S01, S03, S04 | Not started | |
-| S03 | [CMake + CI skeleton](S03-build-system-ci.md) | 1 | S00 | S01, S02, S04 | Not started | |
-| S04 | [Audit: networking → LAN design](S04-audit-networking.md) | 1 | S00 | S01, S02, S03 | Not started | |
+| S01 | [Audit: game code](S01-audit-game-code.md) | 1 | S00 | S02, S03, S04 | In progress | |
+| S02 | [Audit: support libraries & assembly](S02-audit-libraries.md) | 1 | S00 | S01, S03, S04 | In progress | |
+| S03 | [CMake + CI skeleton](S03-build-system-ci.md) | 1 | S00 | S01, S02, S04 | In progress | |
+| S04 | [Audit: networking → LAN design](S04-audit-networking.md) | 1 | S00 | S01, S02, S03 | In progress | |
 | S05 | [Strip dead platforms](S05-strip-dead-platforms.md) | 2 | S01, S02, S03 | S04 | Not started | |
 | S06 | [Compiler compatibility](S06-compiler-compat.md) | 3 | S05 | S07, S08, S09 | Not started | |
 | S07 | [Assembly → C++](S07-asm-to-cpp.md) | 3 | S02, S03 | S06, S08, S09 | Not started | |
