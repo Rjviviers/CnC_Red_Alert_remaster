@@ -90,9 +90,11 @@ flowchart TB
     S14 --> S15
 
     classDef ms fill:#f9a825,color:#000,stroke:#f57f17
+    classDef done fill:#2e7d32,color:#fff,stroke:#1b5e20
+    class S01,S02,S03,S04 done
 ```
 
-Highlighted sessions end in a milestone: **S10 → M1**, **S11 → M2**, **S15 → M3**.
+Green sessions are done. Highlighted sessions end in a milestone: **S10 → M1**, **S11 → M2**, **S15 → M3**.
 
 ## Waves and how many agents can work at once
 
