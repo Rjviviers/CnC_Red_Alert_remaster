@@ -32,6 +32,11 @@ ra_add_test(NAME smoke_test SOURCES tests/smoke_test.cpp)
 # Session-specific tests are listed below, one block per session or package, to keep merges simple.
 # --- S07-A ---
 # --- S07-B ---
+ra_add_test(NAME s07b_shape_renderer_test
+            SOURCES tests/s07b_shape_renderer_test.cpp CODE/SHAPEDRW.CPP
+            INCLUDES CODE)
+ra_add_test(NAME s07b_shape_buffer_test
+            SOURCES tests/s07b_shape_buffer_test.cpp WIN32LIB/SHAPE/SHAPE.CPP)
 # --- S07-C ---
 ra_add_test(NAME s07c_text_test
             SOURCES tests/s07c_text_test.cpp CODE/2TXTPRNT.CPP WIN32LIB/FONT/SETFPAL.CPP)

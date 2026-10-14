@@ -10,6 +10,7 @@ Link the executable, load the player's MIX files, and reach the main menu.
 - [ ] Asset path configuration: the player points the game at their Red Alert data folder (CLI flag + INI). Document it in `docs/playing.md`.
 - [ ] Skip or stub the intro movies (ADR-0005). S05 did **not** stub movie playback; it is still to do here.
 - [ ] Detect whether the Counterstrike/Aftermath MIX files are present (ADR-0011).
+- [ ] Visually check the ported shape renderer against the original game (S07-B): stealth tank, aircraft shadows, fading, remapped house colours.
 - [ ] Fix startup crashes until the main menu shows and responds to the mouse.
 - [ ] CI produces downloadable builds for Windows and Linux.
 
