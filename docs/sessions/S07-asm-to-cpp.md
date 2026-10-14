@@ -26,9 +26,13 @@ text printing, keyboard buffer, misc (CPUID, coordinates).
 
 ## Tasks
 - [ ] For each routine, write the C++ version with the same signature the callers expect.
+  - [x] S07-D: `CODE/LCWCOMP.CPP`, `WIN32LIB/WSA/XORDELTA.CPP`, `WIN32LIB/MEM/MEM_COPY.CPP`, `WIN32LIB/MISC/REVERSE.CPP`, `WIN32LIB/MISC/RANDOM.CPP` (`RandNumb` only); `LCW_Uncompress` adopted into `CODE/LCW.CPP` ([log](../logs/2026-10-14-S07D-data-codecs.md))
 - [ ] Write a unit test for each routine, using inputs and expected outputs worked out from the assembly (compression round-trips, known blit results).
+  - [x] S07-D: `tests/s07d_lcw_test.cpp`, `tests/s07d_xordelta_test.cpp`, `tests/s07d_misc_test.cpp`; on 32-bit GCC also compared with the original instructions (`tests/s07d_asm_oracle.cpp`, ADR-0019)
 - [ ] Routines used by the simulation (e.g. `COORDA.ASM`) must be bit-exact. Flag them in the log.
+  - [x] S07-D: none of its routines is simulation code; map data is decoded by `LCW_Uncomp`, whose output is unchanged (log, "Determinism impact")
 - [ ] Update the inventory: mark each file *ported*, with a link to its replacement and test.
+  - [x] S07-D: rows 3, 29, 32, 41, 42, 47
 
 ## Done when
 The build no longer needs an assembler, and every ported routine has a passing test in CI.
