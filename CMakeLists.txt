@@ -36,18 +36,15 @@ else()
 endif()
 
 # -----------------------------------------------------------------------------
-# Platform dependency (SDL3) - NOT ADDED YET.
-# ADR-0004 (SDL3 as the platform layer) is accepted. SDL integration is done
-# in session S08. Expected shape (record the final choice of
-# FetchContent vs vcpkg in an ADR when doing it):
-#
-#   include(FetchContent)
-#   FetchContent_Declare(SDL3
-#     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-#     GIT_TAG        release-3.x.y)        # pin an exact release
-#   FetchContent_MakeAvailable(SDL3)
-#   target_link_libraries(redalert PRIVATE SDL3::SDL3)
+# Platform dependency (SDL3) and the platform layer (session S08).
+# ADR-0004: SDL3 behind a thin platform/ layer; ADR-0020: SDL3 is built from the
+# pinned release tarball with FetchContent (cmake/RASDL3.cmake).
+#   SDL3::SDL3     static SDL3 (also used by audio, S09)
+#   raplatform     platform/ library (window, palette, input, timer, poll hooks)
+#   platform_demo  test program for the platform layer
 # -----------------------------------------------------------------------------
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/RASDL3.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/platform/platform.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/RACaseShim.cmake)
 
@@ -83,6 +80,15 @@ add_library(win32lib STATIC)
 ra_target_sources(win32lib ${RA_WIN32LIB_CXX_SOURCES})
 ra_target_includes(win32lib ${RA_WIN32LIB_INCLUDE})   # PROJECT.CFG: /i=$(WIN32LIB)\include
 ra_apply_build_settings(win32lib)
+target_link_libraries(win32lib PUBLIC raplatform)     # S08: video/input/timer back end (platform/platform.h)
+
+# SDL3 audio backend (S09, WIN32LIB/AUDIO/audio_sdl3.cpp). OFF until S08 has added
+# SDL3 to the build: then turn it on (or default it to ON) and link SDL3::SDL3.
+option(RA_HAVE_SDL3 "Build the SDL3 audio backend (requires the SDL3::SDL3 target)" OFF)
+if(RA_HAVE_SDL3)
+  target_compile_definitions(win32lib PUBLIC RA_HAVE_SDL3=1)
+  target_link_libraries(win32lib PUBLIC SDL3::SDL3)
+endif()
 
 # -----------------------------------------------------------------------------
 # vqa32wp / vqm32wp - WINVQ/VQA32/MAKEFILE and WINVQ/VQM32/MAKEFILE

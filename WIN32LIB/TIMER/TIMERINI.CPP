@@ -36,29 +36,24 @@
  *   Remove_Timer_System -- Removes the timer system.                      *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+/*
+** S08 (2026-10-14): the Windows multimedia timer (timeSetEvent + a callback thread
+** incrementing SysTicks/UserTicks) is replaced by the platform layer's steady clock
+** (platform/platform.h). Nothing runs on another thread any more: the tick count
+** is brought up to date whenever it is read. The tick period is still
+** 1000/freq milliseconds in integer arithmetic, exactly what timeSetEvent was
+** given, so WinTimerClass(60) ticks every 16 ms (62.5 ticks per second) like the
+** original. See docs/codebase/platform-layer.md, "Timer".
+**
+** The class layout (TIMER.H) is unchanged. Two members that the old code never
+** used get a new job:
+**    TrueRate  - platform millisecond count at the last update
+**    UserRate  - milliseconds since then that did not yet make a whole tick
+*/
+
 #include <wwstd.h>
-#include <mmsystem.h>
 #include "timer.H"
-#include <profile.h>
-
-/////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// Defines /////////////////////////////////////
-
-#define COPY_FROM_MEM	TRUE
-
-/////////////////////////////////////////////////////////////////////////////////
-////////////////////////////// timera.asm functions//////////////////////////////
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern BOOL Install_Timer_Interrupt(VOID *bin_ptr, UINT rm_size, UINT freq, BOOL partial);
-extern BOOL Remove_Timer_Interrupt(VOID);
-
-#ifdef __cplusplus
-}
-#endif
+#include "platform.h"
 
 /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// Global Data /////////////////////////////////////
@@ -69,240 +64,92 @@ BOOL	TimerSystemOn	= FALSE;
 TimerClass					TickCount(BT_SYSTEM);
 CountDownTimerClass		CountDown(BT_SYSTEM, 0);
 
-
-// Prototype for timer callback
-void CALLBACK Timer_Callback ( UINT event_id, UINT res1 , DWORD user, DWORD  res2, DWORD  res3 );
-
-HANDLE	TimerThreadHandle = 0;		//Handle of timer thread
-int		InTimerCallback	= 0;		//Flag to say if we are in a timer callback
+HANDLE	TimerThreadHandle = 0;		//No timer thread any more; kept for TIMER.H
+int		InTimerCallback	= 0;		//Never set any more; kept for TIMER.H
 
 /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// Code ////////////////////////////////////////
 
 
-
-
-
 /***************************************************************************
  * WinTimerClass::WinTimerClass -- Initialize the WW timer system.         *
  *                                                                         *
- *                                                                         *
  * INPUT: UINT : user timer frequency.												  *
- *                                                                         *
- * OUTPUT:                                                                 *
- *                                                                         *
- * WARNINGS:                                                               *
+ *        BOOL : partial - if TRUE, do not become the global WindowsTimer.  *
  *                                                                         *
  * HISTORY:                                                                *
  *   10/5/95 3:47PM : ST Created.                                          *
+ *   2026-10-14 S08: platform clock instead of timeSetEvent.               *
  *=========================================================================*/
 WinTimerClass::WinTimerClass (UINT freq, BOOL partial)
 {
-	BOOL		success;
+	Frequency	= freq ? freq : 60;
+	SysTicks		= 0;
+	UserTicks	= 0;
+	TrueRate		= Platform_Milliseconds();
+	UserRate		= 0;
+	TimerHandle	= 1;					// "running"; there is no OS handle any more
+	TimerSystemOn = TRUE;
 
-	//
-	// Inform windows that we want a higher than normal
-	// timer resolution
-	//
-#ifdef __SW_EP
-	timeBeginPeriod(1000/PROFILE_RATE);
-	Frequency = PROFILE_RATE;
-#else
-	timeBeginPeriod ( 1000/freq );
-	Frequency = freq;
-#endif
-
-
-	//
-	// Install the timer callback event handler
-	//
-	TimerHandle = timeSetEvent ( 1000/freq , 1 , Timer_Callback , 0 , TIME_PERIODIC);
-	TimerSystemOn = success = ( TimerHandle !=0 );
-
-	if (success)  {
-		if (!partial) {
-			WindowsTimer=this;
-			TickCount.Start();
-		}
-	}else{
-		char error_str [128];
-		sprintf (error_str, "Error - timer system failed to start. Error code %d\n", GetLastError());
-		OutputDebugString(error_str);
+	if (!partial) {
+		WindowsTimer=this;
+		TickCount.Start();
 	}
 }
-
 
 
 /***************************************************************************
  * WinTimerClass::~WinTimerClass -- Removes the timer system.              *
- *                                                                         *
- *                                                                         *
- * INPUT:   NONE.                                                          *
- *                                                                         *
- * OUTPUT:  BOOL was it removed successfuly                                *
- *                                                                         *
- * WARNINGS:                                                               *
- *                                                                         *
- * HISTORY:                                                                *
- *   10/5/95 3:47PM : ST Created.                                          *
  *=========================================================================*/
 WinTimerClass::~WinTimerClass( void )
 {
-
-	if ( TimerHandle ){
-		timeKillEvent ( TimerHandle );
-	}
-
+	TimerHandle = 0;
 	TimerSystemOn = FALSE;
-	timeEndPeriod ( 1000/Frequency );
-}
-
-
-
-
-
-/***********************************************************************************************
- * Timer_Callback -- Main timer callback. Equivalent to a timer interrupt handler              *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    uint timer ID                                                                     *
- *           uint reserved                                                                     *
- *           long 0 (application defined)                                                      *
- *           long reserved                                                                     *
- *           long reserved                                                                     *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    10/5/95 3:19PM ST : Created                                                              *
- *=============================================================================================*/
-
-
-void CALLBACK Timer_Callback (UINT , UINT , DWORD , DWORD , DWORD)
-{
-	//CONTEXT	context;
-
-	InTimerCallback++;
-	if (!TimerThreadHandle){
-		DuplicateHandle (GetCurrentProcess(), GetCurrentThread() , GetCurrentProcess() ,&TimerThreadHandle , 0 , TRUE , DUPLICATE_SAME_ACCESS);
+	if (WindowsTimer == this) {
+		WindowsTimer = NULL;
 	}
-
-
-	if (WindowsTimer) {
-		WindowsTimer->Update_Tick_Count();
-	}
-	InTimerCallback--;
 }
-
-
-
-
 
 
 /***********************************************************************************************
  * WinTimerClass::Update_Tick_Count -- update westwood timers                                  *
  *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
+ *    Adds the whole tick periods that have passed since the last update. The original was    *
+ *    called once per tick from the multimedia-timer callback; now it is called on every read.*
  *                                                                                             *
  * HISTORY:                                                                                    *
  *    10/5/95 3:58PM ST : Created                                                              *
+ *    2026-10-14 S08: catch up from the platform clock.                                        *
  *=============================================================================================*/
-
 void WinTimerClass::Update_Tick_Count ( void )
 {
-/*
- *
- *  Increment westwood timers
- *
- */
-	SysTicks++;
-	UserTicks++;
+	unsigned now = Platform_Milliseconds();
+	unsigned elapsed = (now - TrueRate) + UserRate;		// unsigned: safe across the 32-bit wrap
+	unsigned period = Platform_Tick_Period_Ms(Frequency);
+	unsigned ticks = elapsed / period;
 
+	TrueRate = now;
+	UserRate = elapsed % period;
+	SysTicks += ticks;
+	UserTicks += ticks;
 }
-
-
-
-
-
-
-
-
-/*
-;***************************************************************************
-;* GET_NUM_INTERRUPTS -- Returns the number of interrupts that have occured*
-;*                                                                         *
-;* INPUT: TRUE - returns num RM ints.                                      *
-;*        FALSE - return num PM ints.                                      *
-;*                                                                         *
-;* OUTPUT:                                                                 *
-;*                                                                         *
-;* WARNINGS:                                                               *
-;*                                                                         *
-;* HISTORY:                                                                *
-;*   07/12/1994 SKB : Created.                                             *
-;*=========================================================================*
-	PROC	Get_Num_Interrupts C Near
-	USES	esi
-	ARG	realmode:DWORD
-
-	mov	esi,[RealModePtr]
-	cmp	[realmode],0
-	je	??prot_mode
-	mov	eax,[(TimerType PTR esi).NumRMInts]
-	ret
-??prot_mode:
-	mov	eax,[(TimerType PTR esi).NumPMInts]
-	ret
-
-	ENDP
-  */
-
-
 
 
 /***********************************************************************************************
  * WinTimerClass::Get_System_Tick_Count -- returns the system tick count                       *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   tick count                                                                        *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    10/5/95 4:02PM ST : Created                                                              *
  *=============================================================================================*/
-
 unsigned WinTimerClass::Get_System_Tick_Count ( void )
 {
+	Update_Tick_Count();
 	return ( SysTicks );
 }
 
 
-
 /***********************************************************************************************
  * WinTimerClass::Get_User_Tick_Count -- returns the user tick count                           *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   tick count                                                                        *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    10/5/95 4:02PM ST : Created                                                              *
  *=============================================================================================*/
-
 unsigned WinTimerClass::Get_User_Tick_Count ( void )
 {
+	Update_Tick_Count();
 	return ( UserTicks );
 }

@@ -69,94 +69,118 @@
  * HISTORY:                                                                *
  *    03/20/1995 IML : Created.                                            *
  *=========================================================================*/
-int LCW_Uncomp(void const * source, void * dest, unsigned long )
+
+/*
+**	Port notes (session S07-D, 2026-10-14)
+**
+**	This file is now the ONLY LCW decoder in the build. It provides two entry points:
+**
+**	  LCW_Uncomp      - the game's C++ decoder (CODE/LCWSTRAW.CPP, CODE/LCWPIPE.CPP). It ignores the
+**	                    length argument and decodes until the 0x80 end code, as before.
+**	  LCW_Uncompress  - the library's C entry point (WIN32LIB/INCLUDE/IFF.H, WINVQ COMPRESS.H). It used
+**	                    to be WIN32LIB/IFF/LCWUNCMP.ASM, which is deleted. Like that asm, it never writes
+**	                    more than 'length' bytes: every command is clipped to the bytes left, and decoding
+**	                    stops when the output is full, even without an end code.
+**
+**	Both share Decode() below. Two changes from the 1995 C code, neither of which changes the bytes
+**	written for any stream the original handled correctly:
+**	  - The long run (0xFE) is a plain byte fill. The original filled with aligned 8-byte stores that
+**	    could write up to 4 bytes past the end of the run (later overwritten, or past the buffer),
+**	    and broke completely for a run shorter than the 1-4 bytes it wrote before its first aligned store. It also
+**	    cast a pointer to 'unsigned', which does not compile for 64-bit targets.
+**	  - The bounded mode for LCW_Uncompress, which the C code never had (the asm did).
+**	The format itself is described in docs/codebase/file-formats.md. Tests: tests/s07d_lcw_test.cpp.
+*/
+
+#ifndef _MSC_VER
+#ifndef __cdecl
+#define __cdecl
+#endif
+#endif
+
+#include	"LCW.H"
+
+static unsigned long Decode(void const * source, void * dest, unsigned long length, bool bounded)
 {
-	unsigned char * source_ptr, * dest_ptr, * copy_ptr, op_code, data;
-	unsigned	  count, * word_dest_ptr, word_data;
+	unsigned char const * source_ptr = (unsigned char const *) source;
+	unsigned char * const start = (unsigned char *) dest;
+	unsigned char * dest_ptr = start;
+	unsigned long left = length;		// bytes the output may still take (bounded mode only)
 
-	/* Copy the source and destination ptrs. */
-	source_ptr = (unsigned char*) source;
-	dest_ptr   = (unsigned char*) dest;
+	for (;;) {
+		if (bounded) {
+			left = length - (unsigned long)(dest_ptr - start);
+			if (left == 0) break;
+		}
 
-	while (1 /*TRUE*/) {
-
-		/* Read in the operation code. */
-		op_code = *source_ptr++;
+		unsigned op_code = *source_ptr++;
+		unsigned long count;
+		unsigned char const * copy_ptr;
 
 		if (!(op_code & 0x80)) {
 
-			/* Do a short copy from destination. */
-			count	 = (op_code >> 4) + 3;
-			copy_ptr = dest_ptr - ((unsigned) *source_ptr++ + (((unsigned) op_code & 0x0f) << 8));
+			/* 0cccpppp pppppppp: copy c+3 bytes from p bytes back in the output. */
+			count = (op_code >> 4) + 3;
+			copy_ptr = dest_ptr - (*source_ptr++ + ((op_code & 0x0f) << 8));
 
-			while (count--) *dest_ptr++ = *copy_ptr++;
+		} else if (!(op_code & 0x40)) {
+
+			/* 10000000: end of data. */
+			if (op_code == 0x80) break;
+
+			/* 10cccccc: copy the next c bytes of the source. */
+			count = op_code & 0x3f;
+			if (bounded && count > left) count = left;
+			while (count--) *dest_ptr++ = *source_ptr++;
+			continue;
+
+		} else if (op_code == 0xfe) {
+
+			/* 11111110 w1 b: write byte b, w1 times. */
+			count = source_ptr[0] + ((unsigned) source_ptr[1] << 8);
+			unsigned char data = source_ptr[2];
+			source_ptr += 3;
+			if (bounded && count > left) count = left;
+			while (count--) *dest_ptr++ = data;
+			continue;
 
 		} else {
 
-			if (!(op_code & 0x40)) {
-
-				if (op_code == 0x80) {
-
-					/* Return # of destination bytes written. */
-					return ((unsigned long) (dest_ptr - (unsigned char*) dest));
-
-				} else {
-
-					/* Do a medium copy from source. */
-					count = op_code & 0x3f;
-
-					while (count--) *dest_ptr++ = *source_ptr++;
-				}
-
+			if (op_code == 0xff) {
+				/* 11111111 w1 w2: copy w1 bytes from offset w2 of the output. */
+				count = source_ptr[0] + ((unsigned) source_ptr[1] << 8);
+				source_ptr += 2;
 			} else {
-
-				if (op_code == 0xfe) {
-
-					/* Do a long run. */
-					count = *source_ptr + ((unsigned) *(source_ptr + 1) << 8);
-					word_data = data = *(source_ptr + 2);
-					word_data  = (word_data << 24) + (word_data << 16) + (word_data << 8) + word_data;
-					source_ptr += 3;
-
-					copy_ptr = dest_ptr + 4 - ((unsigned) dest_ptr & 0x3);
-					count -= (copy_ptr - dest_ptr);
-					while (dest_ptr < copy_ptr) *dest_ptr++ = data;
-
-					word_dest_ptr = (unsigned*) dest_ptr;
-
-					dest_ptr += (count & 0xfffffffc);
-
-					while (word_dest_ptr < (unsigned*) dest_ptr) {
-						*word_dest_ptr		= word_data;
-						*(word_dest_ptr + 1) = word_data;
-						word_dest_ptr += 2;
-					}
-
-					copy_ptr = dest_ptr + (count & 0x3);
-					while (dest_ptr < copy_ptr) *dest_ptr++ = data;
-
-				} else {
-
-					if (op_code == 0xff) {
-
-						/* Do a long copy from destination. */
-						count	 = *source_ptr + ((unsigned) *(source_ptr + 1) << 8);
-						copy_ptr = (unsigned char*) dest + *(source_ptr + 2) + ((unsigned) *(source_ptr + 3) << 8);
-						source_ptr += 4;
-
-						while (count--) *dest_ptr++ = *copy_ptr++;
-
-					} else {
-
-						/* Do a medium copy from destination. */
-						count = (op_code & 0x3f) + 3;
-						copy_ptr = (unsigned char*) dest + *source_ptr + ((unsigned) *(source_ptr + 1) << 8);
-						source_ptr += 2;
-
-						while (count--) *dest_ptr++ = *copy_ptr++;
-					}
-				}
+				/* 11cccccc w1: copy c+3 bytes from offset w1 of the output. */
+				count = (op_code & 0x3f) + 3;
 			}
+			copy_ptr = start + source_ptr[0] + ((unsigned) source_ptr[1] << 8);
+			source_ptr += 2;
 		}
+
+		/* Copy from the output, one byte at a time: overlapping copies repeat a pattern. */
+		if (bounded && count > left) count = left;
+		while (count--) *dest_ptr++ = *copy_ptr++;
 	}
+
+	return (unsigned long)(dest_ptr - start);
+}
+
+
+int LCW_Uncomp(void const * source, void * dest, unsigned long )
+{
+	return (int) Decode(source, dest, 0, false);
+}
+
+
+/***************************************************************************
+ * LCW_Uncompress -- C entry point of the old WIN32LIB/IFF/LCWUNCMP.ASM.   *
+ *                                                                         *
+ *    Decodes at most 'length' bytes (see the port notes above).           *
+ *                                                                         *
+ * OUTPUT:  number of bytes written to dest.                               *
+ *=========================================================================*/
+extern "C" unsigned long __cdecl LCW_Uncompress(void * source, void * dest, unsigned long length)
+{
+	return Decode(source, dest, length, true);
 }

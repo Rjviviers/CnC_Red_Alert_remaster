@@ -532,21 +532,9 @@ bool InitDDraw(void)
 		{
 		VisiblePage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)(GBC_VISIBLE|GBC_VIDEOMEM));
 
-		/* Check that we really got a video memory page. Failure is fatal. */
-		memset(&surface_capabilities, 0, sizeof(surface_capabilities));
-		VisiblePage.Get_DD_Surface()->GetCaps(&surface_capabilities);
-
-		if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY)
-			{
-			/* Aaaarrgghh! */
-			WWDebugString(TEXT_DDRAW_ERROR);WWDebugString("\n");
-			MessageBox(MainWindow, TEXT_DDRAW_ERROR, TEXT_SHORT_TITLE, MB_ICONEXCLAMATION|MB_OK);
-
-			if (WindowsTimer)
-				delete WindowsTimer;
-				
-			return false;
-			}
+		/* S08: the "did we really get a video memory page" check (DirectDraw GetCaps) is
+		 * gone: the visible page is system memory presented by the platform layer, and
+		 * Get_Free_Video_Memory() returns 0, so the hidden page below is system memory too. */
 
 		/* If we have enough left then put the hidpage in video memory unless...
 		 *

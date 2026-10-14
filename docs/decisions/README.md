@@ -18,3 +18,6 @@ Numbers are never reused. To change an accepted decision, write a new ADR that s
 | [0011](0011-expansions-in-multiplayer.md) | Counterstrike and Aftermath content in multiplayer | Accepted |
 | [0012](0012-hand-maintained-source-lists.md) | Hand-maintained CMake source lists | Proposed |
 | [0013](0013-lan-scope-port-crossplay-naming.md) | LAN: port 19960, no cross-play for M3, rename "IPX" only when needed | Accepted |
+| [0016](0016-drop-video-memory-icon-cache.md) | Drop the DirectDraw video-memory icon cache | Proposed |
+| [0019](0019-one-lcw-decoder-and-asm-oracle-tests.md) | One LCW decoder; check asm ports against the original instructions in tests | Proposed |
+| [0020](0020-sdl3-via-fetchcontent.md) | Get SDL3 with CMake FetchContent from a pinned release tarball | Proposed |

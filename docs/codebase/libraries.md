@@ -99,7 +99,7 @@ have no counterpart left, e.g. `VESA.ASM`, `KEYIREAL.ASM`, `TIMERA.ASM`).
 
 | Sub-library | Purpose | Platform API | Example game caller | Verdict for the port |
 |-------------|---------|-------------|--------------------|---------------------|
-| AUDIO | Sound effects and streamed music: `Audio_Init`, `Play_Sample`, `File_Stream_Sample_Vol`; mixes into DirectSound buffers; decompresses Westwood ADPCM (`AUDUNCMP.ASM`) and HMI SOS IMA-ADPCM (`SOSCODEC.ASM`, `OLSOSDEC.ASM`) | DirectSound (`SOUNDIO.CPP:1017` `DirectSoundCreate`) | `CODE/AUDIO.CPP:466` `Play_Sample`; `CODE/THEME.CPP:341` | Replace backend with SDL audio (S09); keep the decoders (ported to C++) |
+| AUDIO | Sound effects and streamed music: `Audio_Init`, `Play_Sample`, `File_Stream_Sample_Vol`; mixes into DirectSound buffers; decompresses Westwood ADPCM (`AUDUNCMP.ASM`) and HMI SOS IMA-ADPCM (`SOSCODEC.ASM`, `OLSOSDEC.ASM`) | DirectSound (`SOUNDIO.CPP:1017` `DirectSoundCreate`) | `CODE/AUDIO.CPP:466` `Play_Sample`; `CODE/THEME.CPP:341` | Replace backend with SDL audio (S09); keep the decoders (ported to C++). **Done in S09**: software mixer + backend interface, decoders in C++; see [audio.md](audio.md) |
 | DIPTHONG | String table lookup (`Extract_String`) and foreign-language digraph compression | none | `CODE/INLINE.H:932` | Keep (pure C++) |
 | DRAWBUFF | `GraphicBufferClass` / `GraphicViewPortClass` (`WIN32LIB/INCLUDE/GBUFFER.H`): 8-bit software surfaces optionally backed by DirectDraw surfaces; all primitives (clear, blit, scale, line, rect, pixel, remap, text, stamps) are asm called through inline wrappers in `GBUFFER.H`; video-memory icon cache (`ICONCACH.CPP`, `STMPCACH.ASM`) | DirectDraw (`GBUFFER.CPP`, `ICONCACH.CPP`) | `CODE/CONQUER.CPP:432` `VisiblePage.Clear()`; `CODE/BAR.CPP:216` `Fill_Rect`; `CODE/CELL.CPP:1027` `Draw_Stamp` | Keep the class API, port the asm (S07), re-back surfaces with SDL (S08) |
 | FONT | Font loading/metrics (`Set_Font`, `String_Pixel_Width`, `Char_Pixel_Width`); font colour translation (`SETFPAL.ASM`) | none | `CODE/CONQUER.CPP:4598` `Set_Font`; `CODE/DIALOG.CPP:613` `Set_Font_Palette` | Keep; port `SETFPAL.ASM` |
@@ -129,7 +129,7 @@ These game definitions replace library code. Porting the library copy would be w
 |----------------|------------------|--------|
 | `Desired_Facing8/16/256` (`MISC/FACING*.ASM`) | `CODE/FACE.CPP:65,150` (C++), library prototypes disabled with `#if (0)` in `WIN32LIB/INCLUDE/MISC.H` | Asm never used. The **C++ version is the simulation authority** |
 | `Calculate_CRC` (`MISC/CRC.ASM`, `VQM32/CRC.ASM`) | `CODE/INIT.CPP:2376` `extern "C"` wrapper around `CRCEngine` | Asm never pulled |
-| `Buffer_Print`, `Get_Font_Palette_Ptr` (`DRAWBUFF/TXTPRNT.ASM`) | `CODE/2TXTPRNT.ASM` | Library member never pulled |
+| `Buffer_Print`, `Get_Font_Palette_Ptr` (`DRAWBUFF/TXTPRNT.ASM`) | `CODE/2TXTPRNT.ASM` (C++ `CODE/2TXTPRNT.CPP` since S07-C) | Library member never pulled |
 | `Size_Of_Region` → `Buffer_Size_Of_Region` (`DRAWBUFF/SZREGION.ASM`) | `#define Size_Of_Region(a, b) ((a)*(b))` in `CODE/COMPAT.H:51` | Asm never pulled |
 | `SetPalette` (`VQM32/PALETTE.ASM`, VGA DAC writes) | `CODE/WINSTUB.CPP:695` `extern "C"` | Asm never pulled |
 | `Load_Uncompress`, `Load_Picture` (`IFF/LOAD.CPP`, `IFF/LOADPICT.CPP`) | `CODE/JSHELL.CPP:193,270` | Library versions not used by the game |
@@ -137,6 +137,35 @@ These game definitions replace library code. Porting the library copy would be w
 | `__PRO` (`PROFILE/APROFILE.ASM`) | `CODE/INIT.CPP:3528` (empty) | Duplicate definition, allowed by `option redefsok` |
 | `WWKeyboardClass` (`KEYBOARD/KEYBOARD.CPP`) | `CODE/KEY.CPP` | Game version wins |
 | `Random()`, `Get_Random_Mask`, `IRandom` (`MISC/RANDOM.ASM`, `MISC/IRANDOM.CPP`) | `CODE/RANDOM.CPP` (`RandomClass`), `Sim_Random_Pick` in `CODE/INLINE.H:1006` | The library RNG is never called; only its seed variable `RandNumb` is written (`CODE/INIT.CPP:2451-2491`). The **simulation RNG is C++** |
+
+### 2.4 Text, palette, fading and cursor internals (learned in S07-C)
+
+These routines were assembly until S07-C; the C++ ports keep their exact behaviour. Details a caller can trip over:
+
+- **Font format** (`Buffer_Print`, `CODE/2TXTPRNT.CPP`). A font starts with a 14-byte header of little-endian
+  offsets: info block (+4), per-character offset table (+6, 256 words), width table (+8, 256 bytes), data (+10),
+  height table (+12, 256 words: low byte = blank rows above the glyph, high byte = rows of data). The info block's
+  byte 4 is the line height (max character height). Glyph pixels are 4-bit, two per byte, **low nibble first**;
+  every row starts on a new byte.
+- **`ColorXlat`** (defined in `CODE/2TXTPRNT.CPP`) translates font pixel values to palette colours. The low nibble
+  indexes `ColorXlat[n]`, the high nibble is used **unshifted**, so it indexes `ColorXlat[n * 16]`.
+  `Set_Font_Palette_Range` (`WIN32LIB/FONT/SETFPAL.CPP`) fills both entries; each `Buffer_Print` call overwrites
+  entry 0 with the background and entries 1 and 16 with the foreground. A translated colour of 0 is transparent.
+- **Line breaks.** `'\n'` returns to x = 0 of the viewport, `'\r'` to the starting x; a character that would cross
+  the right edge forces a `'\r'`-style break. The return value is the address of the next character, or 0 when the
+  text runs off the bottom (callers treat 0 as "did not fit").
+- **`CurrentPalette`** (`WIN32LIB/PALETTE/PAL.CPP`) is a copy of the last palette passed to `Set_Palette_Range`,
+  which then calls `Set_DD_Palette` (the display layer; S08 replaces it). It starts as 768 bytes of 255.
+- **`Build_Fading_Table`** (`WIN32LIB/MISC/FADING.CPP`) maps colours 1-255 to the closest palette colour to
+  `orig - (orig - target) * frac / 256`, computed in 8/16-bit signed arithmetic. Colour 0 always maps to 0 and is
+  never chosen; a colour never maps to itself; ties go to the higher index. The game's own
+  `Conquer_Build_Fading_Table` (`CODE/JSHELL.CPP:467`) is a separate C++ function and is used for most tables.
+- **Software cursor** (`WIN32LIB/KEYBOARD/WWMOUSE.CPP`). `ASM_Set_Mouse_Cursor` un-RLEs a shape (0 followed by a
+  count = run of transparent pixels; compact shapes remap through their 16-byte table) into `MouseCursor`,
+  staging LCW-compressed shapes in `_ShapeBuffer` first. It returns the old `PrevCursor` and stores the new shape
+  there even when the shape is too big to use. `Mouse_Shadow_Buffer` saves/restores the screen under the cursor
+  with the current `CursorWidth` as buffer stride. These routines read `WWMouseClass` and `GraphicViewPortClass`
+  members through mirror structs, so **the member order of those two classes must not change**.
 
 ## 3. `WINVQ/` – Win32 VQA movie player
 
@@ -229,6 +258,7 @@ Safe because nothing in the Win32 link uses them (evidence above and in the inve
 - **S03 (build system):** the Win32 makefile reuses the macro name `WWFLAT` for `..\win32lib`; don't let
   that name suggest `WWFLAT32/` is needed. The external tools the makefile expects (`utils\tasm`,
   `utils\tlink`, `utils\ebn`, `linker\nwlink`) are not in the repo.
+- **Done in S08** ([platform-layer.md](platform-layer.md)): `DDRAW.CPP`, `GBUFFER.CPP`, `ICONCACH.CPP`, `TIMERINI.CPP` and `MOUSE.CPP` now sit on `platform/`. Finding: `WinTimerClass(60)` ticked every `1000/60` = 16 ms, i.e. 62.5 Hz, not 60 Hz.
 - **S08 (platform layer):** DirectDraw lives in `WIN32LIB/MISC/DDRAW.CPP`, `WIN32LIB/DRAWBUFF/GBUFFER.CPP`
   and `ICONCACH.CPP`; timers in `WIN32LIB/TIMER/TIMERINI.CPP` (`timeSetEvent`); mouse in
   `WIN32LIB/KEYBOARD/MOUSE.CPP`. The video-memory icon cache can be removed instead of ported.
