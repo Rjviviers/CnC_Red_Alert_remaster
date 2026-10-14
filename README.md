@@ -1,3 +1,12 @@
+# Command & Conquer Red Alert — Multiplayer Port
+
+> **This fork** is being modernised into a multiplayer-focused version of Red Alert (LAN first, then
+> online play, matchmaking and ranked). See the **[project wiki](docs/README.md)** for the vision, the
+> [roadmap](docs/roadmap.md) and the [session board](docs/sessions/README.md).
+> The original README follows below.
+
+---
+
 
 # Command & Conquer Red Alert
 
