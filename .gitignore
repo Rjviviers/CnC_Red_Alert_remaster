@@ -1,0 +1,4 @@
+# CMake build directories (see docs/building.md)
+/build/
+/build-*/
+/out/
