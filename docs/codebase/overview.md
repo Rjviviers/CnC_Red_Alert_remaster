@@ -34,7 +34,7 @@ add detailed pages next to this one.
 | DirectSound | 1 (+ `WIN32LIB/AUDIO`) | Replace with SDL audio (S09) |
 | Winsock | ~30 | Keep UDP, made portable (S12) |
 | IPX | ~36 | Remove native IPX (S05) |
-| Greenleaf (`gcl`) | ~66 | Modem/serial: remove (S05) |
+| Greenleaf (`gcl`) | 3 (`FUNCTION.H` includes the headers; `NULLMGR.CPP` and `NULLDLG.CPP` use them). Headers only; the library isn't linked. *Corrected by S01; the earlier "~66" was substring false matches.* | Modem/serial: remove (S05) |
 | Watcom `#pragma aux` | `COORD.CPP`, `DPMI.CPP`, `EGOS.CPP`, `MONOC.CPP`, `JSHELL.H`, `MPU.H`, `RGB.H` | Rewrite (S06/S07) |
 
 ## Multiplayer architecture (first look)

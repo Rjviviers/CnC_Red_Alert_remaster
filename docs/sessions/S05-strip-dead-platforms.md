@@ -11,6 +11,12 @@ Shrink the codebase to what we will actually port, so later sessions don't waste
 - `SENDFILE.CPP` calls into the TCP/WOL layer at one point. Stub that call; don't delete the file.
 - The skirmish dialog lives in `NULLDLG.CPP` (the modem dialog file). Extract it into its own file before removing the modem code.
 
+## Inputs from S01
+- When you delete `WSPIPX`, change `INIT.CPP:1255` in the same commit to create `UDPInterfaceClass` instead of
+  `IPXInterfaceClass`, so the LAN path never points at deleted code. S12/S13 make it actually work over UDP.
+- Greenleaf is headers only: remove its `#include`s from `FUNCTION.H`; `NULLMGR.CPP` is the only real user.
+- Full per-file classification: [platform-dependencies.md](../codebase/platform-dependencies.md).
+
 ## Tasks
 - [ ] Delete DOS-only trees confirmed by S02 (expected: `WWFLAT32/`, `VQ/`, `IPX/`, `LAUNCH/`).
 - [ ] Remove modem/serial play and Greenleaf usage (`GAME_MODEM`, `GAME_NULL_MODEM`, `NULLCONN`, `SEQCONN` if only modem uses it).

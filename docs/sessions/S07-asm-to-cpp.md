@@ -10,6 +10,10 @@ Replace every assembly routine the build needs with portable C++ that behaves id
 One agent per area from the inventory, for example: blitting/draw buffers, shape drawing, LCW/compression,
 text printing, keyboard buffer, misc (CPUID, coordinates).
 
+## Inputs from S01
+- `calcx`/`calcy` and `Fixed_To_Cardinal` (Watcom inline asm) feed unit movement. They must be bit-exact.
+  The simulation itself has no floating point.
+
 ## Tasks
 - [ ] For each routine, write the C++ version with the same signature the callers expect.
 - [ ] Write a unit test for each routine, using inputs and expected outputs worked out from the assembly (compression round-trips, known blit results).

@@ -28,6 +28,12 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
   and add `static_assert`s (see [lan-multiplayer.md § Keeping network structs layout-stable](../design/lan-multiplayer.md#keeping-network-structs-layout-stable)).
   This is required for Windows and Linux builds to play together.
 
+## Inputs from S01
+- The release is missing `PALETTE.CPP`, `PASSEDIT.CPP`, `phone.h`, `pcx.h`, and Greenleaf's `modem.h`/`fast.h`.
+  Recreate them or remove the references first (S05 drops the Greenleaf ones). Nothing builds until this is done.
+- Network events depend on byte packing, compiler-specific bitfields and `unsigned long` fields, and the original
+  `bool` was 4 bytes. See [game-code.md](../codebase/game-code.md) (determinism section).
+
 ## Tasks
 - [ ] Replace Watcom-specific syntax: `#pragma aux`, `_far`/`__near`, Watcom intrinsics, `bool` workarounds, old-style `for` scoping.
 - [ ] Fix headers: `<mem.h>`, `<dos.h>`, `<i86.h>` → standard equivalents or our own shims in `CODE/compat/`.

@@ -7,6 +7,11 @@
 Replace DirectDraw, the Win32 window/message loop and the Windows timers with a thin SDL3 layer.
 The game keeps drawing into its 8-bit paletted buffers as before.
 
+## Inputs from S01
+- The Windows message pump is inside the keyboard code (`KEY.CPP:521`), not just the main loop.
+- Sockets are serviced through window messages (`WINSTUB.CPP:184`). S12 replaces this with polling.
+- Boot sequence and main loop: [game-code.md](../codebase/game-code.md).
+
 ## Tasks
 - [ ] Window creation, palette, and presenting the 8-bit buffer through an SDL texture, with scaling to modern resolutions.
 - [ ] Keyboard and mouse: feed SDL events into the existing keyboard buffer (`KEYBOARD/`, `KEYFBUFF`).

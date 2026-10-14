@@ -7,7 +7,7 @@ The dependency graph is in the [roadmap](../roadmap.md).
 | ID | Session | Wave | Depends on | Parallel-safe with | Status | Log |
 |----|---------|------|------------|--------------------|--------|-----|
 | S00 | [Project wiki & plan](S00-wiki-and-plan.md) | 0 | — | — | Done | [log](../logs/2026-10-14-S00-wiki-and-plan.md) |
-| S01 | [Audit: game code](S01-audit-game-code.md) | 1 | S00 | S02, S03, S04 | In progress | |
+| S01 | [Audit: game code](S01-audit-game-code.md) | 1 | S00 | S02, S03, S04 | Done | [log](../logs/2026-10-14-S01-audit-game-code.md) |
 | S02 | [Audit: support libraries & assembly](S02-audit-libraries.md) | 1 | S00 | S01, S03, S04 | In progress | |
 | S03 | [CMake + CI skeleton](S03-build-system-ci.md) | 1 | S00 | S01, S02, S04 | Done | [log](../logs/2026-10-14-S03-build-system-ci.md) |
 | S04 | [Audit: networking → LAN design](S04-audit-networking.md) | 1 | S00 | S01, S02, S03 | Done | [log](../logs/2026-10-14-S04-audit-networking.md) |
