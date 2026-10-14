@@ -26,9 +26,13 @@ text printing, keyboard buffer, misc (CPUID, coordinates).
 
 ## Tasks
 - [ ] For each routine, write the C++ version with the same signature the callers expect.
+  - [x] S07-A: 11 `DRAWBUFF` files + `MISC/CLIPRECT` ported; `STMPCACH` replaced by a stand-in (ADR-0016). See [surface-primitives.md](../codebase/surface-primitives.md).
 - [ ] Write a unit test for each routine, using inputs and expected outputs worked out from the assembly (compression round-trips, known blit results).
+  - [x] S07-A: 13 test executables `tests/s07a_*_test.cpp`, 92 cases, all passing.
 - [ ] Routines used by the simulation (e.g. `COORDA.ASM`) must be bit-exact. Flag them in the log.
+  - [x] S07-A: none of its routines is on the simulation path (log: Determinism impact).
 - [ ] Update the inventory: mark each file *ported*, with a link to its replacement and test.
+  - [x] S07-A: rows 10-12, 14, 16-21, 23, 24, 44.
 
 ## Done when
 The build no longer needs an assembler, and every ported routine has a passing test in CI.
