@@ -37,7 +37,6 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "function.h"
-#include "ccdde.h"
 
 /*****************************
 **	Function prototypes
@@ -766,17 +765,6 @@ int Main_Menu(unsigned long )
 		**	Get and process player input.
 		*/
 		input = commands->Input();
-
-#ifndef FIXIT_VERSION_3
-		/*
-		** Check to see if WChat has told us to start playing an internet game
-		*/
-		if (DDEServer.Get_MPlayer_Game_Info()) {
-			retval = BUTTON_INTERNET - BUTTON_EXPAND;
-			process = false;
-			input = KN_NONE;
-		}
-#endif
 
 		/*
 		**	If there is input, then take this opportunity to seed some bits

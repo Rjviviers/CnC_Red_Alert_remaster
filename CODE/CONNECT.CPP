@@ -53,7 +53,6 @@
 #include <sys\timeb.h>
 #include "connect.h"
 
-#include "WolDebug.h"
 
 /*
 ********************************* Globals ***********************************

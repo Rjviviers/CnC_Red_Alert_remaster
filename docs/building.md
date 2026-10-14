@@ -128,7 +128,7 @@ when it started deleting files. When you add, delete or rename a source file, ed
 
 Assembly (`.ASM`, TASM syntax) files are kept in `RA_*_ASM_SOURCES` but not compiled; S07
 replaces them. Objects named in the original makefile without a source file in the repository are listed
-in `RA_*_MISSING_OBJECTS` (currently `CODE/PASSEDIT` and `CODE/PALETTE`).
+in `RA_*_MISSING_OBJECTS` (currently `CODE/PALETTE`; `CODE/PASSEDIT` went with Westwood Online in S05).
 
 ### Defines and include paths
 
@@ -136,7 +136,9 @@ Mirrored from the original makefiles, minus the Watcom-specific options (full ma
 header of `cmake/RABuildConfig.cmake`):
 
 - All targets: `WIN32=1`, `_WIN32`.
-- Game: `WOLAPI_INTEGRATION`, `WINSOCK_IPX`, `ENGLISH=1`; includes `WIN32LIB/INCLUDE`, `WINVQ/INCLUDE`.
+- Game: `ENGLISH=1`; includes `WIN32LIB/INCLUDE`, `WINVQ/INCLUDE`. (The original also defined
+  `WOLAPI_INTEGRATION` and `WINSOCK_IPX`; S05 collapsed the sources as if they were defined and
+  dropped them, see [removed-code.md](codebase/removed-code.md).)
 - `win32lib`: includes `WIN32LIB/INCLUDE`. `vqa32wp`/`vqm32wp`: includes `WINVQ/INCLUDE`.
 - Dropped: Watcom's own headers, the DirectX 5 SDK (`..\dxsdk\inc`; the Windows SDK has
   `ddraw.h`/`dsound.h`) and Greenleaf (`..\gcl510\H`, modem code, removed in S05). None are in the repo.

@@ -95,16 +95,7 @@ B<A> test;
 #include	<io.h>
 #include	<dos.h>
 #include	<share.h>
-#include	"ccdde.h"
 #include	"vortex.h"
-
-#ifdef WOLAPI_INTEGRATION
-//#include "WolDebug.h"
-#include "WolStrng.h"
-#include "WolapiOb.h"
-extern WolapiObject* pWolapi;
-#define PAGE_RESPOND_KEY	KN_RETURN	//KN_COMMA
-#endif
 
 #ifdef MPEGMOVIE
 #ifdef MCIMPEG
@@ -117,7 +108,6 @@ MPG_RESPONSE far __stdcall MpegCallback(MPG_CMD cmd, LPVOID data, LPVOID user);
 #define SHAPE_TRANS		0x40
 
 void * Get_Shape_Header_Data(void * ptr);
-extern bool Spawn_WChat(bool can_launch);
 
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 void Enable_Secret_Units(void);
@@ -171,13 +161,7 @@ char FormationEvent = 0;	// 0 = no event, 1 = formation was toggled
 
 	 --------------------------------------------------*/
 
-#if(TEN)
-void TEN_Call_Back(void);
-#endif	// TEN
 
-#if(MPATH)
-void MPATH_Call_Back(void);
-#endif	// MPATH
 
 /***********************************************************************************************
  * Main_Game -- Main game startup routine.                                                     *
@@ -250,17 +234,6 @@ void Main_Game(int argc, char * argv[])
 			FormationEvent = 0;
 		} else {
 			Show_Mouse();
-		}
-
-		if (Session.Type == GAME_INTERNET) {
-			Register_Game_Start_Time();
-			GameStatisticsPacketSent = false;
-			PacketLater = NULL;
-			ConnectionLost = false;
-		} else {
-#ifndef WOLAPI_INTEGRATION
-			DDEServer.Disable();
-#endif	//	!WOLAPI_INTEGRATION
 		}
 
 #ifdef SCENARIO_EDITOR
@@ -406,13 +379,6 @@ void Main_Game(int argc, char * argv[])
 
 
 		/*
-		** Send the game stats to WChat if we haven't already done so
-		*/
-		if (!GameStatisticsPacketSent && PacketLater) {
-			Send_Statistics_Packet();		//	After game sending if PacketLater set.
-		}
-
-		/*
 		**	Scenario is done; fade palette to black
 		*/
 		BlackPalette.Set(FADE_PALETTE_SLOW);
@@ -438,22 +404,7 @@ void Main_Game(int argc, char * argv[])
 			}
 		}
 
-#if(TEN)
 
-		if (Session.Type == GAME_TEN) {
-			Shutdown_TEN();
-			//Prog_End();
-			Emergency_Exit(0);
-		}
-#endif	// TEN
-
-#if(MPATH)
-		if (Session.Type == GAME_MPATH) {
-			Shutdown_MPATH();
-			//Prog_End();
-			Emergency_Exit(0);
-		}
-#endif	// MPATH
 
 		/*
 		**	If we're playing back, the mouse will be hidden; show it.
@@ -464,16 +415,6 @@ void Main_Game(int argc, char * argv[])
 			Session.Type = GAME_NORMAL;
 			Session.Play = 0;
 		}
-#ifndef WOLAPI_INTEGRATION
-		if (Special.IsFromWChat) {
-			Shutdown_Network();		      // Clear up the pseudo IPX stuff
-			Special.IsFromWChat = false;
-			SpawnedFromWChat = false;
-			DDEServer.Delete_MPlayer_Game_Info();	//Make sure we dont use the same start packet twice
-			Session.Type = GAME_NORMAL;			//Have to do this or we will got straight to the multiplayer menu
-			Spawn_WChat(false);		//Will switch back to Wchat. It must be there because its been poking us
-		}
-#endif	//	!WOLAPI_INTEGRATION
 	}
 
 	/*
@@ -1115,13 +1056,7 @@ static void Message_Input(KeyNumType &input)
 	**	'to' portion.  At the other end, the buffer allocated to display the
 	**	message must be MAX_MESSAGE_LENGTH plus the size of "From: xxx (house)".
 	*/
-#ifdef WOLAPI_INTEGRATION
-	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH && 
-		( ( input >= KN_F1 && input < (KN_F1 + Session.MaxPlayers) ) || input == PAGE_RESPOND_KEY ) && 
-		!Session.Messages.Is_Edit()) {
-#else
 	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH && input >= KN_F1 && input < (KN_F1 + Session.MaxPlayers) && !Session.Messages.Is_Edit()) {
-#endif
 		memset (txt, 0, 40);
 		if ((Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) && !Session.Messages.Is_Edit()) {
 		/*
@@ -1139,11 +1074,7 @@ static void Message_Input(KeyNumType &input)
 
 				Map.Flag_To_Redraw(false);
 
-#ifdef WOLAPI_INTEGRATION
-			} else if ((input - KN_F1) < Ipx.Num_Connections() && !Session.ObiWan && input != PAGE_RESPOND_KEY ) {
-#else
 			} else if ((input - KN_F1) < Ipx.Num_Connections() && !Session.ObiWan) {
-#endif
 				id = Ipx.Connection_ID(input - KN_F1);
 				Session.MessageAddress = (*(Ipx.Connection_Address (id)));
 				sprintf(txt, Text_String(TXT_TO), Ipx.Connection_Name(id));
@@ -1153,99 +1084,7 @@ static void Message_Input(KeyNumType &input)
 
 				Map.Flag_To_Redraw(false);
 			}
-#ifdef WOLAPI_INTEGRATION
-			else if( Session.Type == GAME_INTERNET && pWolapi && !pWolapi->bConnectionDown && input == PAGE_RESPOND_KEY )
-			{
-				if( *pWolapi->szExternalPager )
-				{
-					//	Respond to a page from external ww online user that paged me.
-					//	Set MessageAddress to all zeroes, as a flag to ourselves later on.
-					NetNumType blip;
-					NetNodeType blop;
-					memset( blip, 0, 4 );
-					memset( blop, 0, 6 );
-					Session.MessageAddress = IPXAddressClass( blip, blop );
-
-					//	Tell pWolapi not to reset szExternalPager for the time being.
-					pWolapi->bFreezeExternalPager = true;
-
-					sprintf( txt, Text_String( TXT_TO ), pWolapi->szExternalPager );
-
-					Session.Messages.Add_Edit(Session.ColorIdx,
-						TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-					Map.Flag_To_Redraw(false);
-
-					Keyboard->Clear();
-				}
-				else
-				{
-					Session.Messages.Add_Message( NULL, 0, TXT_WOL_NOTPAGED, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
-					Sound_Effect( VOC_SYS_ERROR );
-				}
-			}
-#endif
 		}
-#if(TEN)
-		/*
-		**	For a TEN game:
-		**	F1-F7 = "To <name> (house):" (only allowed if we're not in ObiWan mode)
-		**	F8 = "To All:"
-		*/
-		else if (Session.Type == GAME_TEN && !Session.Messages.Is_Edit()) {
-			if (input==(KN_F1 + Session.MaxPlayers - 1)) {
-
-				Session.TenMessageAddress = -1;		// set to broadcast
-				strcpy(txt,Text_String(TXT_TO_ALL));	// "To All:"
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-
-			}  else if ((input - KN_F1) < Ten->Num_Connections() && !Session.ObiWan) {
-
-				id = Ten->Connection_ID(input - KN_F1);
-				Session.TenMessageAddress = Ten->Connection_Address(id);
-				sprintf(txt,Text_String(TXT_TO),Ten->Connection_Name(id));
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-			}
-		}
-#endif	// TEN
-#if(MPATH)
-		/*
-		**	For a MPATH game:
-		**	F1-F7 = "To <name> (house):" (only allowed if we're not in ObiWan mode)
-		**	F8 = "To All:"
-		*/
-		else if (Session.Type == GAME_MPATH && !Session.Messages.Is_Edit()) {
-			if (input==(KN_F1 + Session.MaxPlayers - 1)) {
-
-				Session.MPathMessageAddress = 0;			// set to broadcast
-				strcpy(txt,Text_String(TXT_TO_ALL));	// "To All:"
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-
-			}  else if ((input - KN_F1) < MPath->Num_Connections() && !Session.ObiWan) {
-
-				id = MPath->Connection_ID(input - KN_F1);
-				Session.MPathMessageAddress = MPath->Connection_Address(id);
-				sprintf(txt,Text_String(TXT_TO),MPath->Connection_Name(id));
-
-				Session.Messages.Add_Edit(Session.ColorIdx,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, txt, 0, 232 * RESFACTOR);
-
-				Map.Flag_To_Redraw(false);
-			}
-		}
-#endif	// MPATH
 	}
 
 	/*
@@ -1270,11 +1109,6 @@ static void Message_Input(KeyNumType &input)
 	if (rc==2 && Session.Type != GAME_NORMAL) {
 		if (copy_input==KN_ESC) {
 			Map.Flag_To_Redraw(true);
-#ifdef WOLAPI_INTEGRATION
-			if( pWolapi )
-				//	Just in case user was responding to a page from outside the game, and we had frozen the "szExternalPager".
-				pWolapi->bFreezeExternalPager = false;
-#endif
 		} else {
 			Map.Flag_To_Redraw(false);
 		}
@@ -1286,21 +1120,6 @@ static void Message_Input(KeyNumType &input)
 	*/
 	if ((rc==3 || rc==4) && Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH) {
 		if (Session.Type == GAME_IPX || Session.Type == GAME_INTERNET) {
-#ifdef WOLAPI_INTEGRATION
-			NetNumType blip;
-			NetNodeType blop;
-			Session.MessageAddress.Get_Address( blip, blop );
-			if(	blip[0] + blip[1] + blip[2] + blip[3] + blop[0] + blop[1] + blop[2] + blop[3] + blop[4] + blop[5] == 0 )
-			{
-				//	This message is a response to the last person that paged me.
-				if( pWolapi && !pWolapi->bConnectionDown )		//	(As connection may have gone down.)
-				{
-					pWolapi->Page( pWolapi->szExternalPager, Session.Messages.Get_Edit_Buf(), false );
-					pWolapi->bFreezeExternalPager = false;
-				}
-			}
-			else
-#endif
 			{
 
 			/*
@@ -1358,51 +1177,7 @@ static void Message_Input(KeyNumType &input)
 			}
 		}
 
-#if(TEN)
-		/*
-		**	TEN game: fill in a GlobalPacketType & send it.
-		*/
-		else if (Session.Type == GAME_TEN) {
-			Session.GPacket.Command = NET_MESSAGE;
-			strcpy (Session.GPacket.Name, Session.Players[0]->Name);
-			Session.GPacket.Message.Color = Session.ColorIdx;
-			Session.GPacket.Message.NameCRC = Compute_Name_CRC(Session.GameName);
 
-			if (rc==3) {
-				strcpy (Session.GPacket.Message.Buf, Session.Messages.Get_Edit_Buf());
-			} else {
-				strcpy (Session.GPacket.Message.Buf,
-					Session.Messages.Get_Overflow_Buf());
-				Session.Messages.Clear_Overflow_Buf();
-			}
-
-			Ten->Send_Global_Message(&Session.GPacket, sizeof(GlobalPacketType),
-				1, Session.TenMessageAddress);
-		}
-#endif	// TEN
-
-#if(MPATH)
-		/*
-		**	MPATH game: fill in a GlobalPacketType & send it.
-		*/
-		else if (Session.Type == GAME_MPATH) {
-			Session.GPacket.Command = NET_MESSAGE;
-			strcpy (Session.GPacket.Name, Session.Players[0]->Name);
-			Session.GPacket.Message.Color = Session.ColorIdx;
-			Session.GPacket.Message.NameCRC = Compute_Name_CRC(Session.GameName);
-
-			if (rc==3) {
-				strcpy (Session.GPacket.Message.Buf, Session.Messages.Get_Edit_Buf());
-			} else {
-				strcpy (Session.GPacket.Message.Buf,
-					Session.Messages.Get_Overflow_Buf());
-				Session.Messages.Clear_Overflow_Buf();
-			}
-
-			MPath->Send_Global_Message(&Session.GPacket, sizeof(GlobalPacketType),
-				1, Session.MPathMessageAddress);
-		}
-#endif	// MPATH
 
 		/*
 		**	Tell the map to completely update itself, since a message is now missing.
@@ -1541,54 +1316,7 @@ void Call_Back(void)
 		IPX_Call_Back();
 	}
 
-#ifdef WOLAPI_INTEGRATION
-	//	Wolapi maintenance.
-	if( pWolapi )
-	{
-		if( pWolapi->bInGame )
-		{
-			if( !pWolapi->bConnectionDown && ::timeGetTime() > pWolapi->dwTimeNextWolapiPump )
-			{
-				pWolapi->pChat->PumpMessages();
-				pWolapi->pNetUtil->PumpMessages();
-				pWolapi->dwTimeNextWolapiPump = ::timeGetTime() + WOLAPIPUMPWAIT + 700;		//	Slower pump during games.
-				if( pWolapi->bConnectionDown )
-				{
-					//	Connection to server lost.
-					Session.Messages.Add_Message( NULL, 0, TXT_WOL_WOLAPIGONE, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
-					Sound_Effect( WOLSOUND_LOGOUT );
-//	ajw (Wolapi object is now left around, so we can try to send game results.)
-//					//	Kill wolapi.
-//					pWolapi->UnsetupCOMStuff();
-//					delete pWolapi;
-//					pWolapi = NULL;
-				}
-			}
-		}
-		else
-		{
-			//	When showing a modal dialog during chat, this pumping is turned on. It's turned off immediately following.
-			if( pWolapi->bPump_In_Call_Back && ( ::timeGetTime() > pWolapi->dwTimeNextWolapiPump ) )
-			{
-				pWolapi->pChat->PumpMessages();
-				pWolapi->pNetUtil->PumpMessages();
-				pWolapi->dwTimeNextWolapiPump = ::timeGetTime() + WOLAPIPUMPWAIT;
-			}
-		}
-	}
-#endif
 
-#if(TEN)
-	if (Session.Type == GAME_TEN) {
-		TEN_Call_Back();
-	}
-#endif	// TEN
-
-#if(MPATH)
-	if (Session.Type == GAME_MPATH) {
-		MPATH_Call_Back();
-	}
-#endif	// MPATH
 }
 
 
@@ -1684,124 +1412,8 @@ void IPX_Call_Back(void)
 }
 
 
-#if(TEN)
-void TEN_Call_Back(void)
-{
-	int id;
-
-	Ten->Service();
-
-	if (Ten->Get_Global_Message (&Session.GPacket, &Session.GPacketlen,
-		&Session.TenAddress)) {
-
-		//
-		//	If this is another player signing off, remove the connection &
-		//	mark that player's house as non-human, so the computer will take
-		//	it over.
-		//
-		if (Session.GPacket.Command == NET_SIGN_OFF) {
-			for (int i = 0; i < Ten->Num_Connections(); i++) {
-
-				id = Ten->Connection_ID(i);
-
-				if (Session.TenAddress == Ten->Connection_Address(id)) {
-					Destroy_TEN_Connection(id, 0);
-				}
-			}
-		}
-
-		//
-		//	Process a message from another user.
-		//
-		else if (Session.GPacket.Command == NET_MESSAGE) {
-			if (!Session.Messages.Concat_Message(Session.GPacket.Name,
-				Session.GPacket.Message.Color,
-				Session.GPacket.Message.Buf, Rule.MessageDelay * TICKS_PER_MINUTE)) {
-
-				Session.Messages.Add_Message (Session.GPacket.Name,
-					Session.GPacket.Message.Color,
-					Session.GPacket.Message.Buf,
-					Session.GPacket.Message.Color,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL |
-					TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
-
-				Sound_Effect(VOC_INCOMING_MESSAGE);
-
-				/*
-				**	Tell the map to do a partial update (just to force the messages
-				**	to redraw).
-				*/
-				Map.Flag_To_Redraw(true);
-
-				/*
-				**	Save this message in our last-message buffer
-				*/
-				strcpy(Session.LastMessage, Session.GPacket.Message.Buf);
-			}
-		}
-	}
-}
-#endif	// TEN
 
 
-#if(MPATH)
-void MPATH_Call_Back(void)
-{
-	int id;
-
-	MPath->Service();
-
-	if (MPath->Get_Global_Message (&Session.GPacket, &Session.GPacketlen,
-		&Session.MPathAddress)) {
-
-		//
-		//	If this is another player signing off, remove the connection &
-		//	mark that player's house as non-human, so the computer will take
-		//	it over.
-		//
-		if (Session.GPacket.Command == NET_SIGN_OFF) {
-			for (int i = 0; i < MPath->Num_Connections(); i++) {
-
-				id = MPath->Connection_ID(i);
-
-				if (Session.MPathAddress == MPath->Connection_Address(id)) {
-					Destroy_MPATH_Connection(id, 0);
-				}
-			}
-		}
-
-		//
-		//	Process a message from another user.
-		//
-		else if (Session.GPacket.Command == NET_MESSAGE) {
-			if (!Session.Messages.Concat_Message(Session.GPacket.Name,
-				Session.GPacket.Message.Color,
-				Session.GPacket.Message.Buf, Rule.MessageDelay * TICKS_PER_MINUTE)) {
-
-				Session.Messages.Add_Message (Session.GPacket.Name,
-					Session.GPacket.Message.Color,
-					Session.GPacket.Message.Buf,
-					Session.GPacket.Message.Color,
-					TPF_6PT_GRAD | TPF_USE_GRAD_PAL |
-					TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
-
-				Sound_Effect(VOC_INCOMING_MESSAGE);
-
-				/*
-				**	Tell the map to do a partial update (just to force the messages
-				**	to redraw).
-				*/
-				Map.Flag_To_Redraw(true);
-
-				/*
-				**	Save this message in our last-message buffer
-				*/
-				strcpy(Session.LastMessage, Session.GPacket.Message.Buf);
-			}
-		}
-	}
-}
-#endif	// MPATH
 
 
 /***********************************************************************************************
@@ -2197,14 +1809,6 @@ Mono_Set_Cursor(0,0);
 	if (PlayerWins) {
 
 
-		/*
-		** Send the game statistics to WChat.
-		*/
-		if (Session.Type == GAME_INTERNET && !GameStatisticsPacketSent) {
-			Register_Game_End_Time();
-			Send_Statistics_Packet();		//	Player just won.
-		}
-
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
 		PlayerLoses = false;
 		PlayerWins = false;
@@ -2214,14 +1818,6 @@ Mono_Set_Cursor(0,0);
 		return(!GameActive);
 	}
 	if (PlayerLoses) {
-		/*
-		** Send the game statistics to WChat.
-		*/
-		if (Session.Type == GAME_INTERNET && !GameStatisticsPacketSent) {
-			Register_Game_End_Time();
-			Send_Statistics_Packet();		//	Player just lost.
-		}
-
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
 		PlayerWins = false;
 		PlayerLoses = false;
@@ -2245,10 +1841,6 @@ Mono_Set_Cursor(0,0);
 		Scen.bLocalProposesDraw && Scen.bOtherProposesDraw )
 	{
 		//	End game in a draw.
-		if (Session.Type == GAME_INTERNET && !GameStatisticsPacketSent) {
-			Register_Game_End_Time();
-			Send_Statistics_Packet();
-		}
 		WWMouse->Erase_Mouse(&HidPage, TRUE);
 		Map.Help_Text(TXT_NONE);
 		Do_Draw();

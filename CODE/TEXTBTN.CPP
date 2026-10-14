@@ -290,11 +290,7 @@ void TextButtonClass::Draw_Background(void)
 	BoxStyleEnum style;
 
 	if (IsDisabled) {
-#ifdef WOLAPI_INTEGRATION
 		style = BOXSTYLE_BOX;
-#else
-		style = BOXSTYLE_DIS_RAISED;
-#endif
 	} else {
 		if (IsPressed) {
 			style = BOXSTYLE_DOWN;

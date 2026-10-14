@@ -490,14 +490,8 @@ void Simple_Text_Print(char const * text, unsigned x, unsigned y, RemapControlTy
 			font = TypeFontPtr;
 			xspace -= 1;
 
-#ifdef WOLAPI_INTEGRATION
 		   xspace -= 2;
 		   yspace += 2;
-#else	//	I am implicitly assuming that TPF_TYPE was no longer being used, before I came along, despite the following. ajw
-#ifdef GERMAN
-		   yspace += 4;   //VG 10/17/96
-#endif
-#endif
 
 			break;
 

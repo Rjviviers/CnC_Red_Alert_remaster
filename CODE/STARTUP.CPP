@@ -41,15 +41,10 @@
 #include	<conio.h>
 #include	<io.h>
 
-#include  "ccdde.h"
-
 #ifdef MCIMPEG // Denzil 6/15/98
 #include "mcimovie.h"
 #endif
 
-#ifdef WOLAPI_INTEGRATION
-//#include "WolDebug.h"
-#endif
 
 bool Read_Private_Config_Struct(FileClass & file, NewConfigType * config);
 void Print_Error_End_Exit(char * string);
@@ -57,7 +52,6 @@ void Print_Error_Exit(char * string);
 
 //WinTimerClass * WinTimer;
 extern void Create_Main_Window ( HANDLE instance , int command_show , int width , int height);
-extern bool RA95AlreadyRunning;
 HINSTANCE	ProgramInstance;
 void Check_Use_Compressed_Shapes (void);
 void Read_Setup_Options(RawFileClass *config_file);
@@ -104,25 +98,6 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 	#ifndef MPEGMOVIE // Denzil 6/10/98
 	DDSCAPS	surface_capabilities;
 	#endif
-
-	/*
-	** First thing to do is check if there is another instance of Red Alert already running
-	**  and if so, switch to the existing instance and terminate ourselves.
-	*/
-	SpawnedFromWChat = false;
-
-	if (RA95AlreadyRunning) {	//Set in the DDEServer constructor
-		//MessageBox (NULL, "Error - attempt to restart Red Alert 95 when already running.", "Red Alert", MB_ICONEXCLAMATION|MB_OK);
-
-		HWND ccwindow;
-    	ccwindow = FindWindow (WINDOW_NAME, WINDOW_NAME);
-    	if (ccwindow) {
-    		SetForegroundWindow ( ccwindow );
-    		ShowWindow ( ccwindow, SW_RESTORE );
-    	}
-
-		return (EXIT_SUCCESS);
-	}
 
 
 //printf("in program.\n");getch();
@@ -238,67 +213,10 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 	}
 	chdir(path);
 
-#ifdef WOLAPI_INTEGRATION
-	//	Look for special wolapi install program, used after the patch to version 3, to install "Shared Internet Components".
-	WIN32_FIND_DATA wfd;
-	HANDLE hWOLSetupFile = FindFirstFile( "wolsetup.exe", &wfd );
-	bool bWOLSetupFile = ( hWOLSetupFile != INVALID_HANDLE_VALUE );
-//	if( bWOLSetupFile )
-//		debugprint( "Found wolsetup.exe\n" );
-	FindClose( hWOLSetupFile );
-	//	Look for special registry entry that tells us when the setup exe has done its thing.
-	HKEY hKey;
-	RegOpenKeyEx( HKEY_LOCAL_MACHINE, Game_Registry_Key(), 0, KEY_READ, &hKey );
-	DWORD dwValue;
-	DWORD dwBufSize = sizeof( DWORD );
-	if( RegQueryValueEx( hKey, "WolapiInstallComplete", 0, NULL, (LPBYTE)&dwValue, &dwBufSize ) == ERROR_SUCCESS )
-	{
-//		debugprint( "Found WolapiInstallComplete in registry\n" );
-		//	Setup has finished. Delete the setup exe and remove reg key.
-		if( bWOLSetupFile )
-		{
-			if( DeleteFile( "wolsetup.exe" ) )
-				RegDeleteValue( hKey, "WolapiInstallComplete" );
-		}
-		else
-			RegDeleteValue( hKey, "WolapiInstallComplete" );
-	}
-	RegCloseKey( hKey );
-
-	//	I've been having problems getting the patch to delete "conquer.eng", which is present in the game
-	//	directory for 1.08, but which must NOT be present for this version (Aftermath mix files provide the
-	//	string overrides that the 1.08 separate conquer.eng did before Aftermath).
-	//	Delete conquer.eng if it's found.
-	if( FindFirstFile( "conquer.eng", &wfd ) != INVALID_HANDLE_VALUE )
-		DeleteFile( "conquer.eng" );
-
-#endif
 
 	if (Parse_Command_Line(argc, argv)) {
 
-#if(TEN)
-	//
-	// Only allow the TEN version of the game to run if the TEN
-	// or AllowSoloPlayOptions arguments are specified.
-	//
-	if (Session.AllowSolo==0 && Session.Type != GAME_TEN) {
-		MessageBox(NULL, "Red Alert for TEN\n (c) 1996 Westwood Studios",
-			"Red Alert", MB_OK);
-		exit(0);
-	}
-#endif	// TEN
 
-#if(MPATH)
-	//
-	// Only allow the MPATH version of the game to run if the MPATH
-	// or AllowSoloPlayOptions arguments are specified.
-	//
-	if (Session.AllowSolo==0 && Session.Type != GAME_MPATH) {
-		MessageBox(NULL, "Red Alert for MPATH\n (c) 1996 Westwood Studios",
-			"Red Alert", MB_OK);
-		exit(0);
-	}
-#endif	// MPATH
 
 		WindowsTimer = new WinTimerClass(60, FALSE);
 
@@ -483,10 +401,8 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 			/*
 			**	Check for forced intro movie run disabling. If the conquer
 			**	configuration file says "no", then don't run the intro.
-			** Don't do this for TEN & MPath.
 			*/
-			if (!Special.IsFromInstall && Session.Type != GAME_TEN &&
-				Session.Type != GAME_MPATH) {
+			if (!Special.IsFromInstall) {
 				Special.IsFromInstall = ini.Get_Bool("Intro", "PlayIntro", true);
 			}
 			SlowPalette = ini.Get_Bool("Options", "SlowPalette", false);
@@ -502,20 +418,6 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 				ini.Save(cfile);
 			}
 
-#ifndef WOLAPI_INTEGRATION
-			/*
-			** If WChat has been trying to send us a game start packet then receive it and
-			** flag that we were spawned from WCHat so we dont play the into movie.
-			*/
-			if (DDEServer.Get_MPlayer_Game_Info()){
-				Check_From_WChat(NULL);
-			}else{
-				//Check_From_WChat("C&CSPAWN.INI");
-				//if (Special.IsFromWChat){
-				//	DDEServer.Disable();
-				//}
-			}
-#endif
 			/*
 			**	If the intro is being run for the first time, then don't
 			**	allow breaking out of it with the <ESC> key.

@@ -175,19 +175,6 @@
 #define TIMING_FIX	1
 
 
-/**********************************************************************
-** Define this to 1 to enable MPath-specific code.  Do not define
-** TEN at the same time.
-*/
-#define MPATH	0
-
-
-/**********************************************************************
-** Define this to 1 to enable TEN-specific code.  Do not define
-** MPATH at the same time.
-*/
-#define TEN		0
-
 
 /**********************************************************************
 **	If this is defined, the DoList is "mirrored", for memory trasher
@@ -251,19 +238,6 @@
 #define	PARM_INSTALL		0xD95C68A2		//	"FROMINSTALL"
 
 
-//
-// Allow normal game play in the MPath version
-//
-#if(MPATH)
-#define	PARM_ALLOW_SOLO	0xc901c9db	// AllowSoloPlayOptions
-#endif
-
-//
-// Allow normal game play in the TEN version
-//
-#if(TEN)
-#define	PARM_ALLOW_SOLO	0xc901c9db	// AllowSoloPlayOptions
-#endif
 
 /**********************************************************************
 **	Defines for verifying free disk space

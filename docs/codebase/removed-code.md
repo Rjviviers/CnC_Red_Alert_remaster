@@ -123,3 +123,59 @@ the diff small; callers always pass `true`. S11 can simplify the function.
 transfer in `SENDFILE.CPP` sends `SERIAL_FILE_CHUNK` packets, so these are part of the LAN path. `MAX_SERIAL_PACKET_SIZE`
 stays for the same reason. The `TXT_MODEM_*` string IDs in `CONQUER.H` and the modem-related `FIXIT_*` switches in
 `DEFINES.H` were left alone. Code inside `#ifdef NEVER` (e.g. the old `Write_MultiPlayer_Settings` body) was not touched.
+
+## 5. Westwood Online, the WChat/DDE internet path, TEN and MPath
+
+**Last commit with this code: `8b5bb75`.** Evidence: [networking.md](networking.md#what-s05-can-remove-and-what-must-stay),
+[platform-dependencies.md](platform-dependencies.md), [game-code.md](game-code.md) (feature switches). Decision: ADR-0005.
+
+**How the preprocessor switches were resolved** (all with `unifdef`, then hand edits where WOL code had to go):
+
+| Symbol | Resolved as | Notes |
+|--------|-------------|-------|
+| `TEN`, `MPATH` | `0` (`unifdef -DTEN=0 -DMPATH=0`, every `#if(TEN)` / `#if(MPATH)`) | As in `CODE/DEFINES.H`. Their `#define`s were then deleted |
+| `WOLAPI_INTEGRATION` | **defined** (`unifdef -DWOLAPI_INTEGRATION`) | As in the shipped build. This deletes every `#ifndef WOLAPI_INTEGRATION` block (the older WChat/DDE internet path, which the shipped game never compiled). *Before* that, the pure-WOL `#ifdef WOLAPI_INTEGRATION ... #endif` blocks (no `#else`) in the kept files were deleted by hand (a small script listed them; each was reviewed). The few `#ifdef ... #else` blocks were handled one by one, see below |
+
+The `#ifdef WOLAPI_INTEGRATION ... #else ... #endif` blocks in kept files:
+- **Kept the compiled (WOL) branch**, because it is not WOL functionality: `DIALOG.CPP` (text spacing for `TPF_TYPE`),
+  `TEXTBTN.CPP` (disabled-button style), `SESSION.H` (`ShortFileName[13]` in two packet structs: wire layout),
+  `NETDLG.CPP` (the matching `strcpy`). Also kept, although they had no `#else`: `DropListClass::Flag_To_Redraw`
+  (`DROP.CPP/.H`, a UI fix used by every dialog) and `HouseClass::InitialName` (`HOUSE.H`, set in `SCENARIO.CPP`):
+  removing it would change `HouseClass`'s layout, which save games depend on.
+- **Removed the WOL button / WOL-only input**, which gave code identical to the `#else` text: `MPLAYER.CPP` (the
+  "Internet" button; the dialog keeps the shipped game's centred position and is 11*RESFACTOR shorter),
+  `GAMEDLG.CPP` (the WOL options button, only shown when logged in to WOL), `CONQUER.CPP` (`PAGE_RESPOND_KEY`,
+  used only to answer WOL pages).
+
+| Removed | What it was | Why it could go |
+|---------|-------------|-----------------|
+| `CODE/WOL_CGAM.CPP`, `WOL_CHAT.CPP`, `WOL_DNLD.CPP`, `WOL_GSUP.CPP/.H`, `WOL_LOGN.CPP`, `WOL_MAIN.CPP`, `WOL_OPT.CPP` | Westwood Online lobby, chat, login, game setup, patch download, options | WOL service is gone (ADR-0005) |
+| `CODE/WOLAPIOB.CPP/.H`, `CODE/RAWOLAPI.CPP/.H`, `CODE/WOLAPI/` (`WOLAPI.H`, `WOLAPI_I.C`, `*DEFS.H`) | COM wrapper and event sinks for the WOLAPI DLL | Same |
+| `CODE/WOLEDIT.*`, `CODE/WOLDEBUG.H`, `CODE/W95TRACE.*`, `CODE/COMINIT.*`, `CODE/TOOLTIP.*`, `CODE/ICONLIST.*`, `CODE/BIGCHECK.*`, `CODE/SEDITDLG.*`, `CODE/DIBAPI.H`, `CODE/DIBFILE.CPP`, `CODE/DIBUTIL.*` | WOL-only UI controls, bitmap loading, debug trace and COM setup | Only used by WOL screens (checked: no other file uses them) |
+| `CODE/STATS.CPP`, `CODE/PACKET.*`, `CODE/FIELD.*` | Game-statistics packets sent to the WOL/WChat servers | Only used for `GAME_INTERNET`; every call (`Register_Game_Start_Time`, `Register_Game_End_Time`, `Send_Statistics_Packet`, `GameStatisticsPacketSent`, `PacketLater`, `ConnectionLost`) was removed from `CONQUER.CPP` and `QUEUE.CPP` |
+| `CODE/TCPIP.*`, `CODE/INTERNET.*`, `CODE/DDE.*`, `CODE/CCDDE.*` | Pre-WOL internet play through WChat: TCP manager (`Winsock` object), DDE server, spawn/launch WChat | Not compiled in the shipped game except the DDE server, which only received WChat start packets and gave the single-instance check (below) |
+| `CODE/TENMGR.*`, `CODE/CCTEN.CPP`, `CODE/CCMPATH.CPP`, `CODE/MPMGRD.*`, `CODE/MPMGRW.*`, `CODE/MPLIB.CPP`, `CODE/MPLPC.CPP` | TEN and MPath online services (all code was `#if(TEN)` / `#if(MPATH)`, both 0), and the DOS MPath library | Dead; services gone |
+| `GAME_TEN`, `GAME_MPATH` (`SESSION.H`) and their runtime checks in `QUEUE.CPP`, `INIT.CPP`, `STARTUP.CPP` | | Never set |
+| `CODE/STARTUP.CPP`: the `wolsetup.exe` / registry clean-up after the WOL patch, and the **single-instance check** (`RA95AlreadyRunning`, set by the DDE server constructor) | | **Behaviour change (not simulation):** a second copy of the game now starts instead of switching to the first one. That is what LAN testing on one machine needs (S12/S13) |
+| `CODE/INIT.CPP`: the WOL entry (`WOL_Main`), loading `WOLAPI.MIX`, the "returning from a WOL game" shortcut, a WOL debug loop | | WOL |
+| `CODE/QUEUE.CPP`: WOL tournament "disconnect pinging", the shorter resync timeout for WOL games with more than 2 players, the "cancel means forfeit" rule | | Only active with a WOL connection (`pWolapi`), which never exists now |
+| `CODE/NETDLG.CPP`: the WOL tournament "cancel means forfeit" text on the reconnect dialog; `Winsock.Get_Connected()` in `Shutdown_Network` (the WChat TCP connection) replaced by nothing (it was always false in a LAN game; a comment marks the spot) | | S04 listed this call under `SENDFILE.CPP`; the two `SENDFILE.CPP` calls were in `#ifndef WINSOCK_IPX` branches and went with section 2 |
+| `CODE/SENDFILE.CPP`: three WOLAPI message pumps during scenario download | | WOL |
+| `CODE/WOLSTRNG.CPP/.H`: all strings except the 12 still used | | The draw-proposal strings (LAN games, `FIXIT_VERSION_3`) and the expansion-mission captions are still used, so the file stays, trimmed |
+| `CODE/EXTERNS.H`: `PlanetWestwood*` (except the port), `WChatHWND`, the statistics and WChat prototypes; includes of the deleted headers in 12 files | | |
+| `CMakeLists`/`cmake/RABuildConfig.cmake`: the `WOLAPI_INTEGRATION` and `WINSOCK_IPX` compile definitions; `CODE/PASSEDIT.OBJ` from the missing-objects list (it was the WOL password edit control) | | No source tests the symbols any more |
+
+**Moved, not deleted:**
+- `PlanetWestwoodPortNumber` (and `ShowCommand`, also defined there) from `INTERNET.CPP` to `GLOBALS.CPP`; `WSPUDP.CPP` binds to it.
+- `GAME_VERSION` (`0x00030003`) from `RAWOLAPI.H` to `VERSION.CPP` (the LAN version check).
+- `bSpecialAftermathScenario()` from `WOL_GSUP.CPP` to `SESSION.CPP` (used by the LAN lobby and the skirmish dialog).
+
+**Deliberately kept** (WOL-era, but not WOL code, or removing it would touch the simulation):
+- `GAME_INTERNET`: nothing can select it any more, but its branches remain in the connection/queue code and in the
+  unit-tracker statistics inside simulation files (`HOUSE.CPP`, `TECHNO.CPP`, `BUILDING.CPP`, `CELL.CPP`). Removing
+  those touches simulation files and `HouseClass`; leave it to S12, which decides the internet design.
+- `UTRACKER.*` (`UnitTrackerClass`): members of `HouseClass`; same reason.
+- `SpecialClass::IsFromWChat`: a bit inside `SpecialClass`, which is sent in game-options packets (wire layout).
+- `#ifndef FIXIT_VERSION_3` blocks that mention WChat but only use symbols that still exist (e.g. `SCENARIO.CPP`);
+  those that used deleted symbols were removed. `FIXIT_*` switches themselves are untouched (ADR-0011).
+- `GETCPU.CPP` (`CPUType` was reported in WOL statistics, but the file is general).

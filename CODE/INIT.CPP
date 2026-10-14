@@ -63,11 +63,9 @@
 #include	"loaddlg.h"
 #include	"WSProto.h"
 #include	"WSPUDP.h"
-#include	"internet.h"
 
 #include	<conio.h>
 #include	<dos.h>
-#include  "ccdde.h"
 
 #include <time.h>
 
@@ -81,7 +79,6 @@
 
 RemapControlType SidebarScheme;
 
-#include "WolDebug.h"
 
 #ifdef CHEAT_KEYS
 extern bool bNoMovies;
@@ -119,11 +116,6 @@ void Init_Random(void);
 bool Load_Recording_Values(CCFileClass & file);
 bool Save_Recording_Values(CCFileClass & file);
 
-#ifdef WOLAPI_INTEGRATION
-extern int WOL_Main();
-#include "WolapiOb.h"
-extern WolapiObject* pWolapi;
-#endif
 
 #ifdef FIXIT_VERSION_3
 bool Expansion_Dialog( bool bCounterstrike );
@@ -280,12 +272,6 @@ bool Init_Game(int , char * [])
 	**	Initialize the animation system.
 	*/
 	Anim_Init();
-
-#ifndef FIXIT_VERSION_3			//	WChat eliminated.
-	if (SpawnedFromWChat){
-		Special.IsFromWChat = true;
-	}
-#endif
 
 	#ifdef MPEGMOVIE // Denzil 6/15/98
 	if( Using_DVD() )
@@ -460,12 +446,6 @@ bool Select_Game(bool fade)
 	NewUnitsEnabled = SecretUnitsEnabled = 0;	// Assume new units disabled, unless specifically .INI enabled or multiplayer negotiations enable it.
 #endif
 
-#ifndef WOLAPI_INTEGRATION
-	/*
-	** Enable the DDE Server so we can get internet start game packets from WChat
-	*/
-	DDEServer.Enable();
-#endif	//	!WOLAPI_INTEGRATION
 
 	/*
 	**	[Re]set any globals that need it, in preparation for a new scenario
@@ -561,20 +541,6 @@ bool Select_Game(bool fade)
 				Session.Play = false;
 		}
 
-#ifndef FIXIT_VERSION_3
-		/*
-		** Handle case where we were spawned from Wchat
-		*/
-		if (SpawnedFromWChat) {
-			Special.IsFromInstall = false;	//Dont play intro if we were spawned from wchat
-			selection = SEL_INTERNET;
-			Theme.Queue_Song(THEME_QUIET);
-			Session.Type = GAME_INTERNET;
-			display = false;
-			Set_Logic_Page(SeenBuff);
-		}
-#endif
-
 		while (process) {
 
 			/*
@@ -609,37 +575,7 @@ bool Select_Game(bool fade)
 			*/
 			if (Special.IsFromInstall) selection = SEL_START_NEW_GAME;
 
-#ifndef WOLAPI_INTEGRATION
-			/*
-			** Handle case where we were spawned from Wchat and our start game
-			**  packet has already arrived
-			*/
-			if (Special.IsFromWChat && DDEServer.Get_MPlayer_Game_Info()) {
-				Check_From_WChat(NULL);
-				selection = SEL_MULTIPLAYER_GAME;
-				Theme.Queue_Song(THEME_QUIET);
-				Session.Type = GAME_INTERNET;
-			} else {
-				/*
-				** We werent spawned but we could still receive a DDE packet from wchat
-				*/
-				if (DDEServer.Get_MPlayer_Game_Info()) {
-					Check_From_WChat(NULL);
-					/*
-					** Make sure top and bottom of screen are clear in 640x480 mode
-					*/
-					if (ScreenHeight == 480) {
-						VisiblePage.Fill_Rect (0, 0, 639, 40, 0);
-						VisiblePage.Fill_Rect (0, 440, 639, 479, 0);
-					}
-				}
-			}
-#endif
 
-#ifdef WOLAPI_INTEGRATION
-			if( pWolapi )
-				selection =	SEL_MULTIPLAYER_GAME;		//	We are returning from a game.
-#endif
 
 			if (selection == SEL_NONE) {
 #ifdef FIXIT_ANTS
@@ -843,33 +779,6 @@ bool Select_Game(bool fade)
 					process = false;
 					break;
 
-#ifndef FIXIT_VERSION_3			//	Removed button from main menu.
-				/*
-				** Internet game is requested
-				*/
-				case SEL_INTERNET:
-					/*
-					** Only call up the internet menu code if we dont already have connect info from WChat
-					*/
-					if (!DDEServer.Get_MPlayer_Game_Info()) {
-						if (Do_The_Internet_Menu_Thang() && DDEServer.Get_MPlayer_Game_Info()) {
-							Check_From_WChat(NULL);
-							selection = SEL_MULTIPLAYER_GAME;
-							display = false;
-							Session.Type = GAME_INTERNET;
-						} else {
-							selection = SEL_NONE;
-							display = true;
-						}
-					} else {
-						Check_From_WChat(NULL);
-						display = false;
-						Session.Type = GAME_INTERNET;
-						selection = SEL_MULTIPLAYER_GAME;
-					}
-					break;
-#endif
-
 //				#if defined(MPEGMOVIE) // Denzil 6/25/98
 //				case SEL_MOVIESETTINGS:
 //					MpgSettings->Dialog();
@@ -897,10 +806,6 @@ bool Select_Game(bool fade)
 				**	network play.
 				*/
 				case SEL_MULTIPLAYER_GAME:
-#ifdef WOLAPI_INTEGRATION
-					if( !pWolapi )
-					{
-#endif
 					switch (Session.Type) {
 
 						/*
@@ -936,122 +841,13 @@ bool Select_Game(bool fade)
 							}
 							break;
 
-#ifndef WOLAPI_INTEGRATION
-						/*
-						** Handle being spawned from WChat. Internet play based on IPX code.
-						*/
-						case GAME_INTERNET:						//	ajw		No longer hit.
-							if (Special.IsFromWChat) {
-								/*
-								** Give myself focus.
-								*/
-								SetForegroundWindow ( MainWindow );
-								ShowWindow ( MainWindow, ShowCommand );
-
-
-								if (PacketTransport ) delete PacketTransport;
-								PacketTransport = new UDPInterfaceClass;
-								assert ( PacketTransport != NULL);
-
-								if (PacketTransport->Init()) {
-									WWDebugString ("RA95 - About to read multiplayer settings.\n");
-									Session.Read_MultiPlayer_Settings ();
-
-									WWDebugString ("RA95 - About to call Start_Server or Start_Client.\n");
-									PacketTransport->Start_Listening();
-
-									/*
-									** Flush out any pending packets from a previous game.
-									*/
-									PacketTransport->Discard_In_Buffers();
-									PacketTransport->Discard_Out_Buffers();
-
-								} else {
-									delete PacketTransport;
-									PacketTransport = NULL;
-									WWDebugString ("RA95 - Winsock failed to initialise.\n");
-									Session.Type = GAME_NORMAL;
-									selection = SEL_EXIT;
-									Special.IsFromWChat = false;
-									break;
-								}
-
-								WWDebugString ("RA95 - About to call Init_Network.\n");
-								Init_Network();
-
-
-								WWDebugString ("RA95 - About to call Init_Network.\n");
-								Init_Network();
-
-								if (DDEServer.Get_MPlayer_Game_Info()) {
-									WWDebugString ("RA95 - About to call Read_Game_Options.\n");
-									Read_Game_Options( NULL );
-								} else {
-									Read_Game_Options( "C&CSPAWN.INI" );
-								}
-								WWDebugString ("RA95 - About to set addresses.\n");
-								PacketTransport->Set_Broadcast_Address (PlanetWestwoodIPAddress);
-								if (PlanetWestwoodIsHost) {
-
-									WWDebugString ("RA95 - About to call Server_Remote_Connect.\n");
-									if (Server_Remote_Connect()) {
-										WWDebugString ("RA95 - Server_Remote_Connect returned success.\n");
-										break;
-									} else {
-										/*
-										** We failed to connect to the other player
-										*/
-										delete PacketTransport;
-										PacketTransport = NULL;
-										Session.Type = GAME_NORMAL;
-										selection = SEL_NONE;
-										DDEServer.Delete_MPlayer_Game_Info();	// Make sure we dont go round in an infinite loop
-										break;
-									}
-								} else {
-									WWDebugString ("RA95 - About to call Client_Remote_Connect.\n");
-									if (Client_Remote_Connect()) {
-										WWDebugString ("RA95 - Client_Remote_Connect returned success.\n");
-										break;
-									} else {
-										/*
-										** We failed to connect to the other player
-										*/
-										delete PacketTransport;
-										PacketTransport = NULL;
-										Session.Type = GAME_NORMAL;
-										selection = SEL_NONE;
-										DDEServer.Delete_MPlayer_Game_Info();  // Make sure we dont go round in an infinite loop
-										break;
-									}
-								}
-
-							} else {
-								Session.Type = Select_MPlayer_Game();
-								if (Session.Type == GAME_NORMAL) {		// 'Cancel'
-									display = true;
-									selection = SEL_NONE;
-								}
-							}
-							break;
-
-#endif	//	!WOLAPI_INTEGRATION
 
 					}
-#ifdef WOLAPI_INTEGRATION
-					}	//	if( !pWolapi )
-
-					if( pWolapi )
-						Session.Type = GAME_INTERNET;
-#endif
 //debugprint( "Session.Type = %i\n", Session.Type );
 					switch (Session.Type) {
 						/*
 						**	Internet or skirmish
 						*/
-#ifndef WOLAPI_INTEGRATION
-						case GAME_INTERNET:
-#endif
 						case GAME_SKIRMISH:
 							Theme.Fade_Out();
 							process = false;
@@ -1062,51 +858,6 @@ bool Select_Game(bool fade)
 #endif
 							break;
 
-#ifdef WOLAPI_INTEGRATION		//	implies also WINSOCK_IPX
-						case GAME_INTERNET:
-							if( PacketTransport )
-								delete PacketTransport;
-							PacketTransport = new UDPInterfaceClass;
-							assert( PacketTransport != NULL );
-							if( PacketTransport->Init() )
-							{
-								switch( WOL_Main() )
-								{
-								case 1:
-									//	Start game.
-#ifdef FIXIT_VERSION_3
-									Options.ScoreVolume = Options.MultiScoreVolume;
-#else
-									Options.ScoreVolume = 0;
-#endif
-									process = false;
-									Theme.Fade_Out();
-									break;
-								case 0:
-									//	User cancelled.
-									Session.Type = GAME_NORMAL;
-									display = true;
-									selection = SEL_MULTIPLAYER_GAME;	//SEL_NONE;
-									delete PacketTransport;
-									PacketTransport = NULL;
-									break;
-								case -1:
-									//	Patch was downloaded. Exit app.
-									Theme.Fade_Out();
-									BlackPalette.Set( FADE_PALETTE_SLOW );
-									return false;
-								}
-							}
-							else
-							{
-								Session.Type = GAME_NORMAL;
-								display = true;
-								selection = SEL_MULTIPLAYER_GAME;	//SEL_NONE;
-								delete PacketTransport;
-								PacketTransport = NULL;
-							}
-							break;
-#endif
 
 						/*
 						**	Network (IPX): start a new network game.
@@ -1152,47 +903,7 @@ bool Select_Game(bool fade)
 							}
 							break;
 
-#if(TEN)
-						/*
-						**	TEN: jump straight into the game
-						*/
-						case GAME_TEN:
-							if (Init_TEN()) {
-#ifdef FIXIT_VERSION_3
-								Options.ScoreVolume = Options.MultiScoreVolume;
-#else
-								Options.ScoreVolume = 0;
-#endif
-								process = false;
-								Theme.Fade_Out();
-							} else {
-								WWMessageBox().Process("Unable to initialize TEN!");
-								//Prog_End();
-								Emergency_Exit(1);
-							}
-							break;
-#endif	// TEN
 
-#if(MPATH)
-						/*
-						**	MPATH: jump straight into the game
-						*/
-						case GAME_MPATH:
-							if (Init_MPATH()) {
-#ifdef FIXIT_VERSION_3
-								Options.ScoreVolume = Options.MultiScoreVolume;
-#else
-								Options.ScoreVolume = 0;
-#endif
-								process = false;
-								Theme.Fade_Out();
-							} else {
-								WWMessageBox().Process("Unable to initialize MPATH!");
-								//Prog_End();
-								Emergency_Exit(1);
-							}
-							break;
-#endif	// MPATH
 
 					}
 					break;
@@ -1298,11 +1009,6 @@ bool Select_Game(bool fade)
 //			debugprint( "Non Internet game: NewUnitsEnabled = %i\n", NewUnitsEnabled );
 			break;
 		case GAME_INTERNET:
-			if( !pWolapi )
-			{
-//				debugprint( "pWolapi is null on internet game!" );
-				Fatal( "pWolapi is null on internet game!" );
-			}
 			//if( pWolapi->bEnableNewAftermathUnits )
 			if( bAftermathMultiplayer )
 				NewUnitsEnabled = true;
@@ -1364,17 +1070,7 @@ bool Select_Game(bool fade)
 
 	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH &&
 		!Session.Play) {
-		if (Session.Type == GAME_TEN) {
-#if(TEN)
-			Session.Create_TEN_Connections();
-#endif	// TEN
-		} else if (Session.Type == GAME_MPATH) {
-#if(MPATH)
-			Session.Create_MPATH_Connections();
-#endif
-		} else {
-			Session.Create_Connections();
-		}
+		Session.Create_Connections();
 	}
 
 
@@ -1410,22 +1106,6 @@ bool Select_Game(bool fade)
 	Call_Back();
 	Map.Render();
 
-#ifdef WOLAPI_INTEGRATION
-
-						//ajw debugging only
-//						debugprint( "Debugging Session...\n" );
-//						debugprint( "Session.Players count is %i.\n", Session.Players.Count() );
-						for (i = 0; i < Session.Players.Count(); i++)
-						{
-							NetNumType net;
-							NetNodeType node;
-							Session.Players[i]->Address.Get_Address( net, node );
-//							debugprint( "Player %i, %s, color %i, ip %i.%i.%i.%i.%i.%i\n", i, Session.Players[i]->Name, 
-//								Session.Players[i]->Player.Color, node[0], node[1], node[2], node[3], node[4], node[5] );
-						}
-//						debugprint( "PlanetWestwoodPortNumber is %i\n", PlanetWestwoodPortNumber );
-
-#endif
 
 	return(true);
 }
@@ -1636,17 +1316,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 //				BreakoutAllowed = false;
 				break;
 
-#if(TEN)
-			case PARM_ALLOW_SOLO:
-				Session.AllowSolo = 1;
-				break;
-#endif
 
-#if(MPATH)
-			case PARM_ALLOW_SOLO:
-				Session.AllowSolo = 1;
-				break;
-#endif
 
 			default:
 				processed = false;
@@ -1769,15 +1439,6 @@ bool Parse_Command_Line(int argc, char * argv[])
 			continue;
 		}
 
-		/*
-		** Check for spawn from WChat
-		*/
-#ifndef FIXIT_VERSION_3			//	WChat eliminated.
-		if (strstr(string,"-WCHAT")){
-			SpawnedFromWChat = true;
-		}
-#endif
-
 
 #ifdef CHEAT_KEYS
 		/*
@@ -1792,75 +1453,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 #endif
 
 
-#if(TEN)
-		/*
-		**	Enable TEN
-		*/
-		if (strstr(string, "TEN")) {
 
-#ifdef CHEAT_KEYS
-			Debug_Flag = true;
-			MonoClass::Enable();
-#endif
-
-			Session.Type = GAME_TEN;
-			Special.IsFromInstall = false;
-			//
-			// Create the Ten network manager.  This allows us to keep
-			// the packet queues clean even while we're initializing the game,
-			// so the queues don't fill up in case we're slow, or the user
-			// didn't insert a CD.
-			//
-			Ten = new TenConnManClass();
-			Ten->Init();
-			strcpy(Session.OptionsFile, "OPTIONS.INI");
-			Ten->Flush_All();
-			continue;
-		}
-
-		/*
-		**	Set the game options filename
-		*/
-		if (strstr(string, "OPTIONS:")) {
-			strcpy(Session.OptionsFile, string + 8);
-			continue;
-		}
-#endif	// TEN
-
-#if(MPATH)
-		/*
-		**	Enable MPATH
-		*/
-		if (strstr(string, "MPATH")) {
-
-#ifdef CHEAT_KEYS
-			Debug_Flag = true;
-			MonoClass::Enable();
-#endif
-
-			Session.Type = GAME_MPATH;
-			Special.IsFromInstall = false;
-			//
-			// Create the MPath network manager.  This allows us to keep
-			// the packet queues clean even while we're initializing the game,
-			// so the queues don't fill up in case we're slow, or the user
-			// didn't insert a CD.
-			//
-			MPath = new MPlayerManClass();
-			MPath->Init();
-			strcpy(Session.OptionsFile, "OPTIONS.INI");
-			MPath->Flush_All();
-			continue;
-		}
-
-		/*
-		**	Set the game options filename
-		*/
-		if (strstr(string, "OPTIONS:")) {
-			strcpy(Session.OptionsFile, string + 8);
-			continue;
-		}
-#endif	// MPATH
 
 
 #ifdef NEVER
@@ -2706,14 +2299,6 @@ static void Init_Bootstrap_Mixfiles(void)
 	int temp = RequiredCD;
 	RequiredCD = -2;
 
-#ifdef WOLAPI_INTEGRATION
-	CCFileClass fileWolapiMix( "WOLAPI.MIX" );
-	if( fileWolapiMix.Is_Available() )
-	{
-		new MFCD( "WOLAPI.MIX", &FastKey );
-		MFCD::Cache( "WOLAPI.MIX" );
-	}
-#endif
 
 #ifdef FIXIT_CSII	//	Ok. ajw
 	CCFileClass file2("EXPAND2.MIX");

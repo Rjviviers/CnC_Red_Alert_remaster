@@ -380,13 +380,7 @@ CELL Coord_Cell(COORDINATE coord);
 #include "egos.h"
 #include	"pcx.h"
 
-#if(TEN)
-#include "tenmgr.h"
-#endif
 
-#if(MPATH)
-#include "mpmgrw.h"
-#endif
 
 // Denzil 5/18/98 - Mpeg movie playback
 #ifdef MPEGMOVIE
@@ -484,13 +478,7 @@ bool Is_Aftermath_Installed (void);
 #endif
 
 
-#if(TEN)
-void Ten_Call_Back(void);
-#endif	// TEN
 
-#if(MPATH)
-void MPATH_Call_Back(void);
-#endif	// MPATH
 
 void Center_About_Objects(void);
 bool Force_CD_Available(int cd);
@@ -700,37 +688,9 @@ bool Using_DVD();
 #endif
 int Abort_Dialog(void);
 
-#if(TEN)
-int Read_TEN_Game_Options(void);
-#endif	// TEN
 
-#if(MPATH)
-int Read_MPATH_Game_Options(void);
-#endif	// MPATH
 
-#if(TEN)
-/*
-** CCTEN.CPP
-*/
-int Init_TEN(void);
-void Shutdown_TEN(void);
-void Connect_TEN(void);
-void Destroy_TEN_Connection(int id, int error);
-void Send_TEN_Win_Packet(void);
-void Send_TEN_Alliance(char *whom, int ally);
-void Send_TEN_Out_Of_Sync(void);
-void Send_TEN_Packet_Too_Late(void);
-#endif	// TEN
 
-#if(MPATH)
-/*
-** CCMPATH.CPP
-*/
-int Init_MPATH(void);
-void Shutdown_MPATH(void);
-void Connect_MPATH(void);
-void Destroy_MPATH_Connection(int id, int error);
-#endif	// MPATH
 
 /*
 ** NETDLG.CPP

@@ -42,12 +42,6 @@
 #include "visudlg.h"
 #define GERMAN_OFFSET_Y   4      //VG
 
-#ifdef WOLAPI_INTEGRATION
-#include "WolStrng.h"
-#include "WolapiOb.h"
-extern WolapiObject* pWolapi;
-bool WOL_Options_Dialog( WolapiObject* pWO, bool bCalledFromGame );
-#endif
 
 
 /***********************************************************************************************
@@ -111,38 +105,10 @@ void GameControlsClass::Process(void)
 	int	d_ok_x = d_dialog_cx - (d_ok_w / 2);
 	int	d_ok_y = d_dialog_y + d_dialog_h - d_ok_h - d_margin1 - (4 * RESFACTOR);
 
-#ifdef WOLAPI_INTEGRATION
-	int d_wol_x = d_sound_x;
-	int d_wol_y = d_sound_y + d_sound_h + d_margin1;
-	int d_wol_w = d_sound_w;
-	int d_wol_h = d_sound_h;
-
-	bool bShowWolapi = ( pWolapi && !pWolapi->bConnectionDown );
-	if( bShowWolapi )
-	{
-		//	Enlarge dialog and shift ok button down.
-		d_dialog_h += d_wol_h + d_margin1;
-		d_dialog_y = ((SeenBuff.Get_Height() - d_dialog_h) / 2);				// centered y-coord
-		//d_ok_y += d_wol_h + d_margin1;
-		d_ok_y = d_dialog_y + d_dialog_h - d_ok_h - d_margin1 - (4 * RESFACTOR);
-	}
-#endif
 
 	/*
 	**	Button Enumerations
 	*/
-#ifdef WOLAPI_INTEGRATION
-	enum {
-		BUTTON_SPEED = 100,
-		BUTTON_SCROLLRATE,
-		BUTTON_VISUAL,
-		BUTTON_SOUND,
-		BUTTON_WOLAPI,
-		BUTTON_OK,
-		BUTTON_COUNT,
-		BUTTON_FIRST = BUTTON_SPEED,
-	};
-#else
 	enum {
 		BUTTON_SPEED = 100,
 		BUTTON_SCROLLRATE,
@@ -152,7 +118,6 @@ void GameControlsClass::Process(void)
 		BUTTON_COUNT,
 		BUTTON_FIRST = BUTTON_SPEED,
 	};
-#endif
 
 	/*
 	**	Dialog variables
@@ -181,9 +146,6 @@ void GameControlsClass::Process(void)
 	TextButtonClass okbtn(BUTTON_OK, TXT_OPTIONS_MENU, TPF_BUTTON, d_ok_x, d_ok_y);
 	okbtn.X = (SeenBuff.Get_Width()-okbtn.Width)/2;
 
-#ifdef WOLAPI_INTEGRATION
-	TextButtonClass wol_btn( BUTTON_WOLAPI, TXT_WOL_OPTTITLE, TPF_BUTTON, d_wol_x, d_wol_y, d_wol_w, d_wol_h );
-#endif
 
 	/*
 	**	Various Inits.
@@ -198,10 +160,6 @@ void GameControlsClass::Process(void)
 	scrate_btn.Add_Tail(*commands);
 	visual_btn.Add_Tail(*commands);
 	sound_btn.Add_Tail(*commands);
-#ifdef WOLAPI_INTEGRATION
-	if( bShowWolapi )
-		wol_btn.Add_Tail(*commands);
-#endif
 	/*
 	**	Init button states
 	**	For sliders, the thumb ranges from 0 - (maxval-1), so to convert the
@@ -225,12 +183,7 @@ void GameControlsClass::Process(void)
 	buttons[1] = NULL;
 	buttons[2] = &visual_btn;
 	buttons[3] = &sound_btn;
-#ifdef WOLAPI_INTEGRATION
-	buttons[4] = &wol_btn;
-	buttons[5] = &okbtn;
-#else
 	buttons[4] = &okbtn;
-#endif
 	/*
 	**	Processing loop.
 	*/
@@ -341,12 +294,6 @@ void GameControlsClass::Process(void)
 				pressed = true;
 				break;
 
-#ifdef WOLAPI_INTEGRATION
-			case (BUTTON_WOLAPI | KN_BUTTON):
-				selection = BUTTON_WOLAPI;
-				pressed = true;
-				break;
-#endif
 
 			case (KN_ESC):
 				process = false;
@@ -377,13 +324,6 @@ void GameControlsClass::Process(void)
 				}
 
 				curbutton--;
-#ifdef WOLAPI_INTEGRATION
-				if( !bShowWolapi )
-				{
-					if( curbutton == BUTTON_WOLAPI - BUTTON_FIRST )
-						curbutton--;		//	Skip over missing button.
-				}
-#endif
 				if (curbutton < 0) {
 					curbutton = (BUTTON_COUNT - BUTTON_FIRST - 1);
 				}
@@ -402,13 +342,6 @@ void GameControlsClass::Process(void)
 				}
 
 				curbutton++;
-#ifdef WOLAPI_INTEGRATION
-				if( !bShowWolapi )
-				{
-					if( curbutton == BUTTON_WOLAPI - BUTTON_FIRST )
-						curbutton++;		//	Skip over missing button.
-				}
-#endif
 				if (curbutton > (BUTTON_COUNT - BUTTON_FIRST - 1) ) {
 					curbutton = 0;
 				}
@@ -490,21 +423,6 @@ void GameControlsClass::Process(void)
 					}
 					break;
 
-#ifdef WOLAPI_INTEGRATION
-				case BUTTON_WOLAPI:
-					if( WOL_Options_Dialog( pWolapi, true ) )
-					{
-						//	The game ended while in this dialog.
-						process = false;
-					}
-					else
-					{
-						process = true;
-						display = true;
-						refresh = true;
-					}
-					break;
-#endif
 
 				case (BUTTON_OK):
 					break;

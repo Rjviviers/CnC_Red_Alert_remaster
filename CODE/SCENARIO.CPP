@@ -63,10 +63,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	"function.h"
-#include "tcpip.h"
-#include "ccdde.h"
 
-extern bool SpawnedFromWChat;
 extern int PreserveVQAScreen;
 
 //#include "WolDebug.h"
@@ -458,12 +455,6 @@ bool Read_Scenario(char * name)
 				GamePalette.Set(FADE_PALETTE_FAST, Call_Back);
 				RequiredCD = 3;
 				if (!Force_CD_Available(RequiredCD)) {	// force Aftermath CD in drive.
-#ifndef WOLAPI_INTEGRATION
-					if(Special.IsFromWChat || SpawnedFromWChat) {
-						char packet[10] = {"Hello"};
-					Send_Data_To_DDE_Server (packet, strlen(packet), DDEServerClass::DDE_CONNECTION_FAILED);
-						}
-#endif
 					Emergency_Exit(EXIT_FAILURE);
 		     	}
 			}
@@ -2566,10 +2557,8 @@ void Assign_Houses(void)
 		housep = HouseClass::As_Pointer(house);
 		memset((char *)housep->IniName, 0, MPLAYER_NAME_MAX);
 		strncpy((char *)housep->IniName, Session.Players[index]->Name, MPLAYER_NAME_MAX - 1);
-#ifdef WOLAPI_INTEGRATION
 		//	Make another copy of name, permanent throughout entire game.
 		strncpy((char *)housep->InitialName, Session.Players[index]->Name, MPLAYER_NAME_MAX - 1);
-#endif
 		housep->IsHuman = true;
 		housep->Init_Data((PlayerColorType)(Session.Players[index]->Player.Color),
 			Session.Players[index]->Player.House, Session.Options.Credits);
