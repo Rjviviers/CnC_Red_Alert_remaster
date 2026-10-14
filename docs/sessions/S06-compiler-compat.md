@@ -31,6 +31,8 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
 ## Inputs from S01
 - The release is missing `PALETTE.CPP`, `PASSEDIT.CPP`, `phone.h`, `pcx.h`, and Greenleaf's `modem.h`/`fast.h`.
   Recreate them or remove the references first (S05 drops the Greenleaf ones). Nothing builds until this is done.
+  **Owner decision (2026-10-14):** there's no other copy of these files. S06 rewrites them from how the rest
+  of the code uses them, and documents each rewritten file in `docs/codebase/compat-notes.md`.
 - Network events depend on byte packing, compiler-specific bitfields and `unsigned long` fields, and the original
   `bool` was 4 bytes. See [game-code.md](../codebase/game-code.md) (determinism section).
 
