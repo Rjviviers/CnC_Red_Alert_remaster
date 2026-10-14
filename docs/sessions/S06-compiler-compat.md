@@ -1,6 +1,6 @@
 # S06 — Compiler compatibility: game code compiles
 
-**Status:** Not started · **Wave:** 3 · **Depends on:** S05 · **Parallel with:** S07, S08, S09
+**Status:** In progress · **Wave:** 3 · **Depends on:** S05 · **Parallel with:** S07, S08, S09
 **Owns:** `CODE/*.CPP`/`*.H` (split by file group between agents; see below)
 
 ## Goal
@@ -54,11 +54,26 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
 - Network events depend on byte packing, compiler-specific bitfields and `unsigned long` fields, and the original
   `bool` was 4 bytes. See [game-code.md](../codebase/game-code.md) (determinism section).
 
+## Status after S06a (orchestrator, 2026-10-14)
+S06a merged: 236 of 319 files compile on Linux GCC `-m32` (was 10 of 284). The remaining failing files are split into four
+parallel groups (alphabetical by file name):
+
+| Agent | Range | Notable files |
+|-------|-------|---------------|
+| S06b | `2…`–`EV` | `CELL`, `COORD` (`calcx`/`calcy` are simulation: bit-exact), `DISPLAY`, `EGOS`, `BUILDING` |
+| S06c | `EX`–`MA` | `GLOBALS`, `HOUSE`, `INIT` |
+| S06d | `MI`–`SK` | `SAVELOAD`, `SCENARIO`, `SCORE` |
+| S06e | `SL`–`Z`, `_…` | `SPECIAL`, `TECHNO` |
+
+Most common remaining errors: narrowing in initialiser tables (508 of the 565 are in one `COORD.CPP` table), variables used after
+their `for` loop (on Linux, an out-of-scope `index` turns into POSIX `index()`), missing `template<>`, and `bool++`.
+See [compat-notes.md](../codebase/compat-notes.md) and ADR-0014.
+
 ## Tasks
-- [ ] Replace Watcom-specific syntax: `#pragma aux`, `_far`/`__near`, Watcom intrinsics, `bool` workarounds, old-style `for` scoping.
-- [ ] Fix headers: `<mem.h>`, `<dos.h>`, `<i86.h>` → standard equivalents or our own shims in `CODE/compat/`.
-- [ ] Keep struct layout identical where it is saved or sent over the network (`#pragma pack(1)` where the original used `/zp1`). Add `static_assert(sizeof(...))` checks for network structs.
-- [ ] Watch the compile-progress score from S03 rise to 100%.
+- [ ] Replace Watcom-specific syntax: `#pragma aux`, `_far`/`__near`, Watcom intrinsics, `bool` workarounds, old-style `for` scoping. *(S06a: done in all headers and via `CODE/compat/`; old-style `for` scoping and the `#pragma aux` in `COORD.CPP`/`MONOC.CPP` are per-file work for S06b–e.)*
+- [x] Fix headers: `<mem.h>`, `<dos.h>`, `<i86.h>` → standard equivalents or our own shims in `CODE/compat/`. *(S06a)*
+- [x] Keep struct layout identical where it is saved or sent over the network (`#pragma pack(1)` where the original used `/zp1`). Add `static_assert(sizeof(...))` checks for network structs. *(S06a: global packing kept, ADR-0014; asserts in `CODE/wire_layout_check.cpp`)*
+- [ ] Watch the compile-progress score from S03 rise to 100%. *(S06a: 10/284 → 197/286 on Linux GCC; 236/319 after merging S07–S09)*
 
 ## Done when
 CI reports 100% of game files compiling on both compilers. Every workaround is documented in `docs/codebase/compat-notes.md`.

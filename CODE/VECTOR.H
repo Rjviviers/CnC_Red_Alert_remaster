@@ -65,8 +65,13 @@
 #include	<stdlib.h>
 #include	<stddef.h>
 
+#ifdef __WATCOMC__
 inline void * operator new(size_t , void * pointer) {return(pointer);}
 inline void * operator new[](size_t , void * pointer) {return(pointer);}
+#else
+// S06a: placement new is part of the standard library (<new>); Watcom 10.6 lacked it.
+#include	<new>
+#endif
 
 
 /**************************************************************************

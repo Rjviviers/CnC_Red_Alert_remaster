@@ -38,6 +38,7 @@
 #ifndef WATCOM_H
 #define WATCOM_H
 
+#ifdef __WATCOMC__
 // Turn all warnings into errors.
 #pragma warning * 0
 
@@ -76,6 +77,7 @@
 
 // Turns off unreferenced function parameter warning.
 //#pragma off(unreferenced)
+#endif	// __WATCOMC__ (S06a: these pragmas are Watcom warning numbers)
 
 
 // Fix deficiency in Watcom so that true/false will be defined.

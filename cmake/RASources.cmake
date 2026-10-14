@@ -221,10 +221,13 @@ set(RA_GAME_CXX_SOURCES
     CODE/RANDOM.CPP
     CODE/RGB.CPP
     CODE/HSV.CPP
+    CODE/PALETTE.CPP           # reconstructed in S06a (missing from the release)
     CODE/BLOWFISH.CPP
     CODE/SHA.CPP
     CODE/CRC.CPP
     CODE/SENDFILE.CPP
+    # Added in S06a: static_asserts pinning the layout of the network structs.
+    CODE/wire_layout_check.cpp
 )
 
 # Game: TASM sources (listed, not compiled yet; see session S07)
@@ -233,8 +236,8 @@ set(RA_GAME_ASM_SOURCES
 )
 
 # Game: objects named in the makefile with no source file in the repo
+# (none since S06a reconstructed CODE/PALETTE.CPP)
 set(RA_GAME_MISSING_OBJECTS
-    CODE/PALETTE.OBJ
 )
 
 # win32lib.lib: WIN32LIB/MAKEFILE LIBS -> each WIN32LIB/<LIB>/MAKEFILE OBJECTS

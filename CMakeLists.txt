@@ -82,9 +82,9 @@ ra_target_includes(win32lib ${RA_WIN32LIB_INCLUDE})   # PROJECT.CFG: /i=$(WIN32L
 ra_apply_build_settings(win32lib)
 target_link_libraries(win32lib PUBLIC raplatform)     # S08: video/input/timer back end (platform/platform.h)
 
-# SDL3 audio backend (S09, WIN32LIB/AUDIO/audio_sdl3.cpp). OFF until S08 has added
-# SDL3 to the build: then turn it on (or default it to ON) and link SDL3::SDL3.
-option(RA_HAVE_SDL3 "Build the SDL3 audio backend (requires the SDL3::SDL3 target)" OFF)
+# SDL3 audio backend (S09, WIN32LIB/AUDIO/audio_sdl3.cpp). ON since S08 added SDL3 and S06a
+# stopped defining _WIN32 off Windows. OFF selects the null backend only.
+option(RA_HAVE_SDL3 "Build the SDL3 audio backend (requires the SDL3::SDL3 target)" ON)
 if(RA_HAVE_SDL3)
   target_compile_definitions(win32lib PUBLIC RA_HAVE_SDL3=1)
   target_link_libraries(win32lib PUBLIC SDL3::SDL3)

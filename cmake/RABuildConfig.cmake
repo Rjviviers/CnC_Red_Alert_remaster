@@ -12,7 +12,7 @@
 #
 #  Mapping from the original Watcom flags (CODE/MAKEFILE, WIN32LIB/PROJECT.CFG,
 #  WINVQ/*/MAKEFILE) to what we do here:
-#    /DWIN32=1 /D_WIN32 /D<LANG>=1  -> kept (defines below)
+#    /DWIN32=1 /D_WIN32 /D<LANG>=1  -> <LANG> kept; WIN32/_WIN32 only on Windows hosts (S06a)
 #    /DWOLAPI_INTEGRATION /DWINSOCK_IPX  -> dropped in S05: the sources were collapsed
 #                                          with unifdef as if they were defined
 #    /zp1   pack structs on 1 byte  -> RA_PACK_STRUCTS (/Zp1, -fpack-struct=1)
@@ -95,11 +95,38 @@ option(RA_PACK_STRUCTS
   "Pack all structs on 1-byte boundaries, like Watcom /zp1. Matches the original memory layout \
 (save games, network packets) but also applies to system headers; S06 decides the final policy." ON)
 
-# Defines shared by every target. The original WIN32LIB/WINVQ makefiles define
-# nothing themselves (Watcom's NT target supplied the platform macros), but
-# their headers are included by the game with WIN32 defined, so we define the
-# same platform macros everywhere for consistency.
-set(RA_PLATFORM_DEFINES WIN32=1 _WIN32)
+# Defines shared by every target. The original makefiles defined WIN32=1 and
+# _WIN32 for every build. Since S05 no source tests WIN32, _WIN32,
+# WINSOCK_IPX or WOLAPI_INTEGRATION (a few WIN32LIB/WINVQ component files
+# #define WIN32 themselves). Both names tell system and third-party headers
+# (glibc, SDL3) that the HOST is Windows, which breaks non-Windows builds (SDL3
+# took its Windows path and wanted <process.h>). So since S06a they are only
+# defined on Windows hosts, where the compilers predefine _WIN32 anyway
+# (ADR-0014).
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(RA_PLATFORM_DEFINES WIN32=1 _WIN32)
+else()
+  set(RA_PLATFORM_DEFINES "")
+endif()
+
+# Compatibility layer (session S06a, ADR-0014, docs/codebase/compat-notes.md):
+#   CODE/compat/ra_compat.h   force-included into every translation unit
+#   CODE/compat/              also on the include path (watcom_aux.h)
+#   CODE/compat/dos/          Watcom/DOS headers no current compiler has
+#                             (dos.h, mem.h, bios.h, pharlap.h, ...): every host
+#   CODE/compat/posix/        Microsoft C runtime headers glibc lacks (io.h,
+#                             direct.h, conio.h, share.h, new.h, process.h):
+#                             non-Windows hosts, searched after the system headers
+#   CODE/compat/win32/        minimal Win32/DirectX/Winsock declarations
+#                             (windows.h, ddraw.h, ...): non-Windows hosts only,
+#                             until S08 replaces the Win32 code with SDL
+set(RA_COMPAT_DIR ${CMAKE_CURRENT_LIST_DIR}/../CODE/compat)
+get_filename_component(RA_COMPAT_DIR ${RA_COMPAT_DIR} ABSOLUTE)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(RA_COMPAT_HOST_HEADERS FALSE)
+else()
+  set(RA_COMPAT_HOST_HEADERS TRUE)
+endif()
 
 # Game-only defines, straight from CODE/MAKEFILE (!ifdef WIN32 branch).
 # WOLAPI_INTEGRATION and WINSOCK_IPX were dropped in S05: no source tests them
@@ -112,6 +139,22 @@ function(ra_apply_build_settings target)
     CXX_STANDARD_REQUIRED OFF
     CXX_EXTENSIONS ON)
   target_compile_definitions(${target} PRIVATE ${RA_PLATFORM_DEFINES})
+
+  # Compatibility layer (see the comment above RA_COMPAT_DIR).
+  target_include_directories(${target} PRIVATE ${RA_COMPAT_DIR}/dos ${RA_COMPAT_DIR})
+  if(RA_PACK_STRUCTS)
+    target_compile_definitions(${target} PRIVATE RA_PACK_STRUCTS=1)
+  endif()
+  if(MSVC)
+    target_compile_options(${target} PRIVATE "/FI${RA_COMPAT_DIR}/ra_compat.h")
+  else()
+    target_compile_options(${target} PRIVATE "SHELL:-include ${RA_COMPAT_DIR}/ra_compat.h")
+  endif()
+  if(RA_COMPAT_HOST_HEADERS)
+    target_compile_options(${target} PRIVATE
+      "-idirafter${RA_COMPAT_DIR}/posix"
+      "-idirafter${RA_COMPAT_DIR}/win32")
+  endif()
 
   if(MSVC)
     target_compile_options(${target} PRIVATE

@@ -30,6 +30,10 @@ endfunction()
 ra_add_test(NAME smoke_test SOURCES tests/smoke_test.cpp)
 
 # Session-specific tests are listed below, one block per session or package, to keep merges simple.
+# --- S06a ---
+ra_add_test(NAME jshell_asm_test
+            SOURCES tests/jshell_asm_test.cpp
+            INCLUDES CODE/compat)
 # --- S07-A ---
 # Surface primitives ported from WIN32LIB/DRAWBUFF and WIN32LIB/MISC asm. One test per asm file.
 # tests/s07a_surface.h holds the shared viewport helpers.

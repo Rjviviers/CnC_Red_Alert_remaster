@@ -42,6 +42,12 @@
 #include "shapebtn.h"
 #include "slider.h"
 
+/*
+**	S06a: the template bodies below name SeenBuff, which EXTERNS.H declares later. Watcom
+**	looked such names up at instantiation; standard C++ needs them declared first.
+*/
+extern GraphicViewPortClass	SeenBuff;
+
 
 /***************************************************************************
  * ListClass -- Like a Windows ListBox structure									*
