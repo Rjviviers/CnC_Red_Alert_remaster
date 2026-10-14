@@ -115,6 +115,15 @@ target_link_libraries(redalert PRIVATE win32lib vqa32wp vqm32wp)
 # TASM syntax and are being rewritten in C++ in session S07.
 
 # -----------------------------------------------------------------------------
+# Unit tests (tests/tests.cmake). Each test is a small executable; run with ctest.
+# -----------------------------------------------------------------------------
+option(RA_BUILD_TESTS "Build the unit tests" ON)
+if(RA_BUILD_TESTS)
+  enable_testing()
+  include(${CMAKE_CURRENT_SOURCE_DIR}/tests/tests.cmake)
+endif()
+
+# -----------------------------------------------------------------------------
 # compile-progress: compile each translation unit independently, keep going on
 # errors, write ${CMAKE_BINARY_DIR}/compile-progress.md (+ .json).
 # -----------------------------------------------------------------------------

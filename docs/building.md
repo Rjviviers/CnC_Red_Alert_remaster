@@ -159,6 +159,32 @@ one-line forwarding header in `build/case_shim/_system/`. Details and trade-offs
 The shim is regenerated on every configure. If you add or change an `#include`, re-run CMake
 (the progress tool does this automatically unless `--no-configure` is given).
 
+## Unit tests
+
+Unit tests live in `tests/`. Each test is a small executable that uses the dependency-free framework in
+`tests/ra_test.h` (`RA_TEST`, `RA_CHECK`, `RA_CHECK_EQ`, `RA_CHECK_MEM_EQ`, `RA_TEST_MAIN`).
+Tests are built with the same settings as the game (32-bit, struct packing, defines), so they see the same layouts.
+
+```sh
+cmake --build build --target ra_tests            # build every test
+ctest --test-dir build --output-on-failure       # run them
+```
+
+To add a test, add a `ra_add_test(...)` call to `tests/tests.cmake`, under the marker comment for your session:
+
+```cmake
+ra_add_test(NAME lcw_test
+            SOURCES tests/lcw_test.cpp CODE/LCW.CPP
+            INCLUDES CODE WIN32LIB/INCLUDE)
+```
+
+Paths are relative to the repo root. `tests/tests.cmake` is pulled in with `include()`, not `add_subdirectory()`, so the
+existing helpers resolve paths correctly. Test targets are excluded from the compile-progress report, which only
+counts `redalert`, `win32lib`, `vqa32wp` and `vqm32wp` (`PROGRESS_TARGETS` in `scripts/compile_progress.py`;
+add any new game library target there). Turn tests off with `-DRA_BUILD_TESTS=OFF`.
+
+In CI, **failing unit tests fail the job**, unlike compile errors in the progress report.
+
 ## Continuous integration
 
 [`.github/workflows/build.yml`](../.github/workflows/build.yml) runs on every push and pull request:

@@ -12,10 +12,10 @@ The dependency graph is in the [roadmap](../roadmap.md).
 | S03 | [CMake + CI skeleton](S03-build-system-ci.md) | 1 | S00 | S01, S02, S04 | Done | [log](../logs/2026-10-14-S03-build-system-ci.md) |
 | S04 | [Audit: networking → LAN design](S04-audit-networking.md) | 1 | S00 | S01, S02, S03 | Done | [log](../logs/2026-10-14-S04-audit-networking.md) |
 | S05 | [Strip dead platforms](S05-strip-dead-platforms.md) | 2 | S01, S02, S03 | S04 | Done | [log](../logs/2026-10-14-S05-strip-dead-platforms.md) |
-| S06 | [Compiler compatibility](S06-compiler-compat.md) | 3 | S05 | S07, S08, S09 | Not started | |
-| S07 | [Assembly → C++](S07-asm-to-cpp.md) | 3 | S02, S03 | S06, S08, S09 | Not started | |
-| S08 | [Platform layer: video, input, timer](S08-platform-layer.md) | 3 | S01, S03, S05 | S06, S07, S09 | Not started | |
-| S09 | [Audio via SDL](S09-audio.md) | 3 | S02, S03, S05 | S06, S07, S08 | Not started | |
+| S06 | [Compiler compatibility](S06-compiler-compat.md) | 3 | S05 | S07, S08, S09 | In progress | |
+| S07 | [Assembly → C++](S07-asm-to-cpp.md) | 3 | S02, S03 | S06, S08, S09 | In progress | |
+| S08 | [Platform layer: video, input, timer](S08-platform-layer.md) | 3 | S01, S03, S05 | S06, S07, S09 | In progress | |
+| S09 | [Audio via SDL](S09-audio.md) | 3 | S02, S03, S05 | S06, S07, S08 | In progress | |
 | S10 | [Link & boot to main menu → **M1**](S10-link-and-boot.md) | 4 | S06, S07, S08, S09 | — | Not started | |
 | S11 | [Skirmish vs AI playable → **M2**](S11-skirmish.md) | 5 | S10 | S12 | Not started | |
 | S12 | [Portable UDP sockets](S12-portable-sockets.md) | 5 | S04, S10 | S11 | Not started | |

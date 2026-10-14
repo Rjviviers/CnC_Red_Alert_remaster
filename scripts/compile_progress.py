@@ -282,6 +282,9 @@ def main():
              "(the Visual Studio generator does not write it)." % ccj)
     with open(ccj, encoding="utf-8") as f:
         entries = json.load(f)
+    # Only the game and its libraries count towards progress; unit tests (tests/) are built by ctest.
+    PROGRESS_TARGETS = ("redalert", "win32lib", "vqa32wp", "vqm32wp")
+    entries = [e for e in entries if target_of(e)[0] in PROGRESS_TARGETS]
     if args.filter:
         entries = [e for e in entries if args.filter.lower() in e["file"].lower()]
     if not entries:

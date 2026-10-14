@@ -5,6 +5,7 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-14 | Wave 3 prep: unit-test harness | [log](2026-10-14-wave3-prep.md) |
 | 2026-10-14 | S05 — Strip dead platforms | [log](2026-10-14-S05-strip-dead-platforms.md) |
 | 2026-10-14 | Wave 1 review & merge | [log](2026-10-14-wave1-review.md) |
 | 2026-10-14 | S02 — Audit: support libraries & assembly | [log](2026-10-14-S02-audit-libraries.md) |

@@ -41,6 +41,12 @@ jobs:
       - name: Compile progress
         run: python3 scripts/compile_progress.py --build-dir build --no-configure
 
+      # Unlike the compile-progress report, failing unit tests fail the job.
+      - name: Unit tests
+        run: |
+          cmake --build build --target ra_tests
+          ctest --test-dir build --output-on-failure
+
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,6 +76,12 @@ jobs:
 
       - name: Compile progress
         run: python scripts/compile_progress.py --build-dir build --no-configure
+
+      # Unlike the compile-progress report, failing unit tests fail the job.
+      - name: Unit tests
+        run: |
+          cmake --build build --target ra_tests
+          ctest --test-dir build --output-on-failure
 
       - name: Upload report
         if: always()
