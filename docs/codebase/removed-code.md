@@ -179,3 +179,18 @@ The `#ifdef WOLAPI_INTEGRATION ... #else ... #endif` blocks in kept files:
 - `#ifndef FIXIT_VERSION_3` blocks that mention WChat but only use symbols that still exist (e.g. `SCENARIO.CPP`);
   those that used deleted symbols were removed. `FIXIT_*` switches themselves are untouched (ADR-0011).
 - `GETCPU.CPP` (`CPUType` was reported in WOL statistics, but the file is general).
+
+## 6. Remaining DOS-only sources in `CODE/`
+
+**Last commit with this code: `ca5523e`.** Evidence: [platform-dependencies.md](platform-dependencies.md)
+("Files in `CODE/` that are not in the Win32 build").
+
+| Removed | What it was | Why it could go |
+|---------|-------------|-----------------|
+| `CODE/KEYFRAME.CPP` | DOS version of the keyframe shape decoder | DOS object list only (`CODE/MAKEFILE:421-424`); Win32 uses `2KEYFRAM.CPP` |
+| `CODE/DPMI.CPP`, `CODE/DPMI.H` | DOS protected-mode interface helpers (`#pragma aux`) | DOS only; nothing includes `DPMI.H` |
+| `CODE/CWSTUB.C` | DOS/4GW extender stub (`DOS4GPATH`) | DOS only |
+
+**Not removed** from that list: the old connection code `COMQUEUE.*` (kept on purpose, see section 4), the unbuilt
+experiments (`ADPCM.CPP`, `LCWUNCMP.CPP` and the others: S07 may reuse some of them, they are not platform code),
+the unbuilt Win32 `CODE/KEYBOARD.CPP`, and the IDE project files (`*.PJT`, `*.IDE`), which are not code.
