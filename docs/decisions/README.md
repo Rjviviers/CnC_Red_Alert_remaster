@@ -11,3 +11,4 @@ Numbers are never reused. To change an accepted decision, write a new ADR that s
 | [0004](0004-platform-library.md) | SDL3 as the platform layer; drop DirectX | Accepted |
 | [0005](0005-multiplayer-first-scope.md) | Multiplayer-first scope: drop DOS, IPX, modem, WOL, movies | Accepted |
 | [0006](0006-no-game-assets.md) | Never ship game assets | Accepted |
+| [0008](0008-case-insensitive-include-shim.md) | Case-insensitive include shim for Linux builds | Proposed |

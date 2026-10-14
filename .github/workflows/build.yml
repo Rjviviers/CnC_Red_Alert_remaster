@@ -1,0 +1,86 @@
+# Build + compile-progress report (session S03, see docs/building.md).
+#
+# The code does not compile yet (Watcom C++ 10.6 era). These jobs therefore do
+# not build the game; they configure CMake and run scripts/compile_progress.py,
+# which compiles every source file on its own and reports how many succeed.
+# A job fails only when the build system itself is broken (stale generated
+# source lists, CMake configure error, compiler cannot be started) - never
+# because game sources fail to compile.
+
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-gcc-x86:
+    name: Linux (GCC, 32-bit x86)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install 32-bit toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-multilib g++-multilib ninja-build
+
+      - name: Check generated source lists are up to date
+        run: python3 scripts/gen_cmake_sources.py --check
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86
+
+      - name: Compile progress
+        run: python3 scripts/compile_progress.py --build-dir build --no-configure
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-progress-linux-gcc-x86
+          path: |
+            build/compile-progress.md
+            build/compile-progress.json
+            build/compile-progress-logs/
+          if-no-files-found: warn
+
+  windows-msvc-x86:
+    name: Windows (MSVC, Win32)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      # x86 Developer Command Prompt environment: puts the 32-bit cl.exe,
+      # CMake and Ninja (shipped with Visual Studio) on PATH.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Check generated source lists are up to date
+        run: python scripts/gen_cmake_sources.py --check
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86
+
+      - name: Compile progress
+        run: python scripts/compile_progress.py --build-dir build --no-configure
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-progress-windows-msvc-x86
+          path: |
+            build/compile-progress.md
+            build/compile-progress.json
+            build/compile-progress-logs/
+          if-no-files-found: warn
