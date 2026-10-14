@@ -5,6 +5,7 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-14 | S08 — Platform layer: SDL video, input, timer | [log](2026-10-14-S08-platform-layer.md) |
 | 2026-10-14 | S07-A — Assembly → C++: surface primitives | [log](2026-10-14-S07A-surface-primitives.md) |
 | 2026-10-14 | S07-B — Assembly → C++: shape renderer | [log](2026-10-14-S07B-shape-renderer.md) |
 | 2026-10-14 | S07-D — Assembly → C++: data codecs | [log](2026-10-14-S07D-data-codecs.md) |

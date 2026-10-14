@@ -258,6 +258,7 @@ Safe because nothing in the Win32 link uses them (evidence above and in the inve
 - **S03 (build system):** the Win32 makefile reuses the macro name `WWFLAT` for `..\win32lib`; don't let
   that name suggest `WWFLAT32/` is needed. The external tools the makefile expects (`utils\tasm`,
   `utils\tlink`, `utils\ebn`, `linker\nwlink`) are not in the repo.
+- **Done in S08** ([platform-layer.md](platform-layer.md)): `DDRAW.CPP`, `GBUFFER.CPP`, `ICONCACH.CPP`, `TIMERINI.CPP` and `MOUSE.CPP` now sit on `platform/`. Finding: `WinTimerClass(60)` ticked every `1000/60` = 16 ms, i.e. 62.5 Hz, not 60 Hz.
 - **S08 (platform layer):** DirectDraw lives in `WIN32LIB/MISC/DDRAW.CPP`, `WIN32LIB/DRAWBUFF/GBUFFER.CPP`
   and `ICONCACH.CPP`; timers in `WIN32LIB/TIMER/TIMERINI.CPP` (`timeSetEvent`); mouse in
   `WIN32LIB/KEYBOARD/MOUSE.CPP`. The video-memory icon cache can be removed instead of ported.

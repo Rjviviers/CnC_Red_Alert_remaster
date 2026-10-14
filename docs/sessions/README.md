@@ -14,7 +14,7 @@ The dependency graph is in the [roadmap](../roadmap.md).
 | S05 | [Strip dead platforms](S05-strip-dead-platforms.md) | 2 | S01, S02, S03 | S04 | Done | [log](../logs/2026-10-14-S05-strip-dead-platforms.md) |
 | S06 | [Compiler compatibility](S06-compiler-compat.md) | 3 | S05 | S07, S08, S09 | In progress | |
 | S07 | [Assembly → C++](S07-asm-to-cpp.md) | 3 | S02, S03 | S06, S08, S09 | In review (A–D done; audio asm in S09) | [A](../logs/2026-10-14-S07A-surface-primitives.md), [B](../logs/2026-10-14-S07B-shape-renderer.md), [C](../logs/2026-10-14-S07C-text-palette-cursor.md), [D](../logs/2026-10-14-S07D-data-codecs.md) |
-| S08 | [Platform layer: video, input, timer](S08-platform-layer.md) | 3 | S01, S03, S05 | S06, S07, S09 | In progress | |
+| S08 | [Platform layer: video, input, timer](S08-platform-layer.md) | 3 | S01, S03, S05 | S06, S07, S09 | Done | [log](../logs/2026-10-14-S08-platform-layer.md) |
 | S09 | [Audio via SDL](S09-audio.md) | 3 | S02, S03, S05 | S06, S07, S08 | In progress | |
 | S10 | [Link & boot to main menu → **M1**](S10-link-and-boot.md) | 4 | S06, S07, S08, S09 | — | Not started | |
 | S11 | [Skirmish vs AI playable → **M2**](S11-skirmish.md) | 5 | S10 | S12 | Not started | |

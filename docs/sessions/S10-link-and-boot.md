@@ -5,6 +5,16 @@
 ## Goal
 Link the executable, load the player's MIX files, and reach the main menu.
 
+## Inputs from S08
+- Work through the "Remaining integration for S10" list in [platform-layer.md](../codebase/platform-layer.md): replace `WinMain`
+  with `main`, remove the old window code, wire the focus callback (the cursor won't draw until `GameInFocus` is set), handle quit/shutdown,
+  clean up `InitDDraw`, disable the DirectDraw MPEG movie path, delete the icon cache and `STMPCACH.CPP`, remove the 320-wide
+  leftovers, and add video options to the INI.
+- The timer runs at the original's real rate: 62.5 Hz (16 ms), not 60 Hz.
+- `GBUFFER.CPP`, `ICONCACH.CPP`, `DDRAW.CPP`, `MOUSE.CPP` and `STARTUP.CPP` were rewired by S08 but reviewed only by hand, because they need
+  S06's `windows.h`/`ddraw.h` shims to compile. Compile and check them first.
+- MSVC has not built the platform layer locally; check the first CI result.
+
 ## Tasks
 - [ ] Resolve every unresolved symbol, adding documented stubs where a feature is out of scope (movies, WOL, …).
 - [ ] Asset path configuration: the player points the game at their Red Alert data folder (CLI flag + INI). Document it in `docs/playing.md`.
