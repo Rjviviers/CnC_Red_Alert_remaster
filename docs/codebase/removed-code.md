@@ -12,6 +12,27 @@ The original makefiles (`CODE/MAKEFILE`, `WIN32LIB/*/MAKEFILE`, `WINVQ/*/MAKEFIL
 they still name some deleted files and are kept as a record of the original build
 ([ADR-0012](../decisions/0012-hand-maintained-source-lists.md)).
 
+## Summary
+
+S05 deleted **1,209 files** (2,143 → 937 files in the repository, counting the few it added) and about **417,000 lines** (net about 415,500;
+counts from `git diff --shortstat 7a69f38 807268f`; binary files count as files, not lines). Every source-level
+change is listed below; the commits are:
+
+| Commit | What | Section |
+|--------|------|---------|
+| `2557f1d` | Hand-maintained CMake source lists, ADR-0012 | (build) |
+| `e87f703` | DOS trees, prebuilt tools, debug copies, unused asm | [1](#1-dos-trees-tools-debug-copies-and-unused-assembly) |
+| `98d4fee` | `unifdef` collapse of `WIN32`/DOS/`WINSOCK_IPX` branches | [2](#2-dos-branches-inside-the-remaining-sources-preprocessor-collapse) |
+| `59ea2e1` | Native IPX removed; LAN switched to `UDPInterfaceClass` | [3](#3-native-ipx) |
+| `064a13a` | Skirmish dialog moved to `SKIRMDLG.CPP` (pure move) | [4](#4-modem--null-modem-serial-play-and-greenleaf) |
+| `8b5bb75` | Modem/null-modem play and Greenleaf removed | [4](#4-modem--null-modem-serial-play-and-greenleaf) |
+| `ca5523e` | Westwood Online, WChat/DDE, statistics, TEN, MPath removed | [5](#5-westwood-online-the-wchatdde-internet-path-ten-and-mpath) |
+| `807268f` | Remaining DOS-only sources in `CODE/` | [6](#6-remaining-dos-only-sources-in-code) |
+
+**ADR-0005 status:** Accepted, and implemented by S05 for the DOS build, native IPX, modem/null-modem play,
+Westwood Online and TEN/MPath. Not done yet: stubbing the cutscene movies (the `WINVQ/` player and
+`CODE/INTERPAL.CPP` are still built; S08/S09 decide how to stub them).
+
 ## 1. DOS trees, tools, debug copies and unused assembly
 
 **Last commit with this code: `2557f1d`.** Evidence: [libraries.md](libraries.md) §4 and §6,

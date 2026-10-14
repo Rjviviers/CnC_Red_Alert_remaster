@@ -5,6 +5,12 @@ with its subsystem and the platform APIs it uses in code that is **actually comp
 For a narrative map of the subsystems, the boot sequence and the feature switches, see
 [game-code.md](game-code.md).
 
+> **Update from S05 (2026-10-14).** This table describes the build before S05. S05 deleted the DOS, native IPX,
+> modem/Greenleaf, Westwood Online, WChat/DDE, statistics and TEN/MPath files listed here, collapsed every
+> `WIN32`/DOS, `WINSOCK_IPX` and `WOLAPI_INTEGRATION` branch with `unifdef`, and removed `#include <modem.h>`,
+> `<fast.h>` and `"phone.h"` from `FUNCTION.H` (so S06 no longer needs a `phone.h`). What went, and the last
+> commit that still has it: [removed-code.md](removed-code.md).
+
 ## Summary
 
 - **The build has 250 object files**, all listed in `CODE/MAKEFILE`. They come from 242 `.CPP` files, 6 `.ASM` files and

@@ -5,6 +5,11 @@ starts up and runs, which preprocessor switches shape it, and which code matters
 The per-file table of platform dependencies is in [platform-dependencies.md](platform-dependencies.md).
 For the networking stack, see S04's pages. For `WIN32LIB/`, `WINVQ/` and the assembly files, see S02's pages.
 
+> **Update from S05 (2026-10-14).** The DOS branches, native IPX, modem play, Westwood Online, the WChat/DDE path
+> and TEN/MPath described on this page were removed in S05; `WIN32`, `WINSOCK_IPX` and `WOLAPI_INTEGRATION` are no
+> longer tested anywhere, and `TEN`/`MPATH` no longer exist. The skirmish dialog moved to `SKIRMDLG.CPP`.
+> See [removed-code.md](removed-code.md).
+
 ## Summary
 
 - **What gets built.** `CODE/MAKEFILE` builds `ra95.exe` from **250 object files**: 242 `.CPP`, 6 `.ASM`, and 2 sources that

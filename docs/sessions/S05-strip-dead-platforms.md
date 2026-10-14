@@ -1,6 +1,6 @@
 # S05 — Strip dead platforms
 
-**Status:** Not started · **Wave:** 2 · **Depends on:** S01, S02, S03 · **Parallel with:** S04
+**Status:** In review · **Wave:** 2 · **Depends on:** S01, S02, S03 · **Parallel with:** S04
 **Owns:** deletions across the tree; `docs/codebase/removed-code.md`
 
 ## Goal
@@ -25,12 +25,12 @@ Shrink the codebase to what we will actually port, so later sessions don't waste
 - Full per-file classification: [platform-dependencies.md](../codebase/platform-dependencies.md).
 
 ## Tasks
-- [ ] Delete DOS-only trees confirmed by S02 (expected: `WWFLAT32/`, `VQ/`, `IPX/`, `LAUNCH/`).
-- [ ] Remove modem/serial play and Greenleaf usage (`GAME_MODEM`, `GAME_NULL_MODEM`, `NULLCONN`, `SEQCONN` if only modem uses it).
-- [ ] Remove native IPX (`IPX.CPP`, `IPX95.CPP`, `IPXPROT.ASM`, `IPXREAL.ASM`, `WSPIPX`). **Keep** the UDP transport (`WSPROTO`, `WSPUDP`) and the whole connection layer, even though it is named "IPX" (`IPXMGR`, `IPXCONN`, `IPXGCONN`, `IPXADDR`). The LAN game uses it. Follow the keep/remove list in [networking.md](../codebase/networking.md#what-s05-can-remove-and-what-must-stay).
-- [ ] Remove Westwood Online (`WOL_*.CPP`, `WOLAPI*`, `RAWOLAPI`) and TEN/MPath code.
-- [ ] Collapse `#ifdef WIN32` / DOS branches so only the Win32 branch remains.
-- [ ] Record each removal and why in `docs/codebase/removed-code.md`, plus ADR-0005 status.
+- [x] Delete DOS-only trees confirmed by S02 (expected: `WWFLAT32/`, `VQ/`, `IPX/`, `LAUNCH/`).
+- [x] Remove modem/serial play and Greenleaf usage (`GAME_MODEM`, `GAME_NULL_MODEM`, `NULLCONN`, `SEQCONN` if only modem uses it).
+- [x] Remove native IPX (`IPX.CPP`, `IPX95.CPP`, `IPXPROT.ASM`, `IPXREAL.ASM`, `WSPIPX`). **Keep** the UDP transport (`WSPROTO`, `WSPUDP`) and the whole connection layer, even though it is named "IPX" (`IPXMGR`, `IPXCONN`, `IPXGCONN`, `IPXADDR`). The LAN game uses it. Follow the keep/remove list in [networking.md](../codebase/networking.md#what-s05-can-remove-and-what-must-stay).
+- [x] Remove Westwood Online (`WOL_*.CPP`, `WOLAPI*`, `RAWOLAPI`) and TEN/MPath code.
+- [x] Collapse `#ifdef WIN32` / DOS branches so only the Win32 branch remains.
+- [x] Record each removal and why in `docs/codebase/removed-code.md`, plus ADR-0005 status.
 
 ## Done when
 No DOS, IPX, modem or WOL code remains. The removal record lets anyone find it again in git history.
