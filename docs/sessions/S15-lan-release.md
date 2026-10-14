@@ -6,7 +6,7 @@
 Hand a build to friends and play LAN games.
 
 ## Tasks
-- [ ] Release packaging: a GitHub Release with Windows (and Linux) builds and a README for players.
+- [ ] Release packaging: a GitHub Release with Windows builds (Linux optional; cross-play isn't required, ADR-0013) and a README for players.
 - [ ] `docs/playing.md`: install, point at game data, firewall setup, hosting and joining a LAN game.
 - [ ] Playtest with 2–4 players; collect logs and desync reports.
 - [ ] Fix blocking bugs found in the playtest, or create follow-up sessions for them.

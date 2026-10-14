@@ -37,7 +37,7 @@ Out of scope for M3 (only touched on in [Later: internet play](#later-internet-p
 | Event loop | No window messages. The transport gets `Poll()`, called from `IPXManagerClass::Service()` (and harmlessly from the main loop). `WriteTo` sends immediately |
 | Sockets | New `net::` wrapper over Winsock 2 and BSD sockets: non-blocking IPv4 UDP, `SO_BROADCAST`, interface enumeration |
 | Address | Keep the 10-byte `IPXAddressClass`. For UDP: network = `0.0.0.0`, node = 4-byte IPv4 + **2-byte UDP port** (both network byte order). Port 0 means "the base port" |
-| Default port | **19960/udp** (mnemonic: 1996). Each instance binds the first free port in `19960..19963` |
+| Default port | **19960/udp** (mnemonic: 1996; confirmed by the owner, [ADR-0013](../decisions/0013-lan-scope-port-crossplay-naming.md)). Each instance binds the first free port in `19960..19963` |
 | Configuration | `REDALERT.INI [Network] Port=19960`, `PortSpan=4`, `Broadcast=` extra targets. Command line `-PORT=<n>` binds exactly that port (no fallback) |
 | Discovery | Keep the original broadcast query protocol unchanged. Send each broadcast to `255.255.255.255`, to each interface's directed broadcast, to `127.0.0.1`, and to configured extra targets, for every port in the span |
 | Same-machine play | Port fallback plus loopback targets. Packets from any local IP are normalised to `127.0.0.1:port`. Only packets from **our own port** on a local IP are dropped |
@@ -356,8 +356,10 @@ Modern compilers change it silently:
 - GCC's default bitfield layout shrinks `SpecialClass` to 2 bytes and moves `ScenarioInfo`.
 
 Requirements:
-1. **Hard requirement:** identical layout on every compiler and OS we ship (MSVC x86, GCC/Clang x86
-   Linux). A Linux player must be able to join a Windows host.
+1. ~~**Hard requirement:** identical layout on every compiler and OS we ship (MSVC x86, GCC/Clang x86
+   Linux). A Linux player must be able to join a Windows host.~~ **Changed by
+   [ADR-0013](../decisions/0013-lan-scope-port-crossplay-naming.md):** cross-play isn't required for M3. The layout must
+   be stable and asserted per compiler; cross-compiler matching is a later, optional task.
 2. **Target values:** start from the original Watcom sizes. We don't need compatibility with original clients
    ([ADR-0009](../decisions/0009-own-network-protocol.md)), so these may change when that's simpler, as long as rule 1 holds. They're proven: 26 events per 520-byte packet, under the
    historic 546-byte limit, and far below any MTU.

@@ -20,7 +20,9 @@ Option 2: we make our own protocol. Original clients are not supported.
 ## Consequences
 - The original Watcom struct sizes become a convenient **starting point**, not a requirement. S06/S12 may keep them
   where that's easiest, or change them.
-- What stays required: every build we ship (MSVC on Windows, GCC/Clang on Linux) uses an **identical** wire layout,
-  enforced with `static_assert`s, so Windows and Linux players can play together.
+- ~~What stays required: every build we ship (MSVC on Windows, GCC/Clang on Linux) uses an **identical** wire layout,
+  enforced with `static_assert`s, so Windows and Linux players can play together.~~ **Amended by
+  [ADR-0013](0013-lan-scope-port-crossplay-naming.md):** cross-play isn't required for M3. Each platform's layout must
+  only be stable and asserted.
 - Every protocol change bumps our own `NET_PROTOCOL_VERSION` (ADR-0007 / LAN design), so mismatched builds refuse to
   connect instead of desyncing.

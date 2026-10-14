@@ -26,6 +26,9 @@ Every kept source file compiles with MSVC and GCC (32-bit). It doesn't need to l
   sizes, bitfield layout and `/zp1` packing. With modern defaults, `EventClass` grows from 20 to 32 bytes, and GCC
   and MSVC disagree on other structs. Pin enum underlying types, packing and bitfields to the original Watcom layout,
   and add `static_assert`s (see [lan-multiplayer.md § Keeping network structs layout-stable](../design/lan-multiplayer.md#keeping-network-structs-layout-stable)).
+  **Scope reduced by [ADR-0013](../decisions/0013-lan-scope-port-crossplay-naming.md):** Windows ↔ Linux cross-play isn't
+  required for M3, so MSVC and GCC don't need identical layouts. Keep each compiler's layout stable, and pin it with
+  `static_assert`s. Cross-compiler layout matching is deferred. The rest of this paragraph is the original note.
   This is required for Windows and Linux builds to play together. Compatibility with original Red Alert clients is
   **not** required ([ADR-0009](../decisions/0009-own-network-protocol.md)): the layout must match between our own
   builds, and may differ from Watcom where that's simpler.

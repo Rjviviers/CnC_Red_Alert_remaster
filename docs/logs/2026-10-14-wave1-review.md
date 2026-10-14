@@ -31,9 +31,8 @@
 | Accept ADR-0007 (LAN transport), ADR-0008 (include shim), ADR-0010 (asm porting policy) | ADR files, decisions index |
 
 ## Still open for the owner
-- Default LAN port 19960/udp
-- Windows ↔ Linux cross-play as a requirement for M3
-- Rename the "IPX" identifiers later, or never
+None. The last three (port, cross-play, renaming) were answered and recorded in
+[ADR-0013](../decisions/0013-lan-scope-port-crossplay-naming.md).
 
 ## Key numbers after Wave 1
 - Win32 game build: 250 objects (242 `.CPP`, 6 `.ASM`, 2 missing sources).
