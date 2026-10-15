@@ -459,7 +459,8 @@ bool Read_Scenario(char * name)
 		     	}
 			}
 			CCINIClass ini;
-			if (ini.Load(CCFileClass("MPLAYER.INI"), false)) {
+			CCFileClass mpfile("MPLAYER.INI");
+			if (ini.Load(mpfile, false)) {
 				Rule.General(ini);
 				Rule.Recharge(ini);
 				Rule.AI(ini);
@@ -511,7 +512,8 @@ void Fill_In_Data(void)
 	*/
 	ScenarioInit++;
 
-	for (int index = 0; index < Buildings.Count(); index++) {
+	int index;
+	for (index = 0; index < Buildings.Count(); index++) {
 		Buildings.Ptr(index)->Update_Buildables();
 	}
 
@@ -1295,11 +1297,11 @@ bool Restate_Mission(char const * name, int button1, int button2)
 #define	BUTTON_2		2
 #define	BUTTON_3		3
 #define	BUTTON_FLAG	0x8000
-bool BGMessageBox(char const * msg, int btn1, int btn2)
+int BGMessageBox(char const * msg, int btn1, int btn2)	// S06d: int as in FUNCTION.H (Watcom bool was int; retval can be 2)
 {
 #define BUFFSIZE 511
 	char buffer[BUFFSIZE];
-	bool retval;
+	int retval;									// S06d: was bool (= int on Watcom); holds 0, 1 or 2
 	bool process;								// loop while true
 	KeyNumType input;							// user input
 	int selection;
@@ -1484,7 +1486,7 @@ bool BGMessageBox(char const * msg, int btn1, int btn2)
 
 	VisiblePage.Blit(seen_buff_save);
 
-	static char _scorepal[]={0,1,12,13,4,5,6,7,8,9,10,255,252,253,14,248};
+	static char _scorepal[]={0,1,12,13,4,5,6,7,8,9,10,(char)255,(char)252,(char)253,14,(char)248};
 	Set_Font_Palette(_scorepal);
 	temp.Set(FADE_PALETTE_MEDIUM, Call_Back);
 
@@ -2307,7 +2309,8 @@ bool Read_Scenario_INI(char * fname, bool )
 	**	the mission.ini file.  VG 10/17/96
 	*/
 	INIClass mini;
-	mini.Load(CCFileClass("MISSION.INI"));
+	CCFileClass missionfile("MISSION.INI");
+	mini.Load(missionfile);
 	mini.Get_TextBlock(fname, Scen.BriefingText, sizeof(Scen.BriefingText));
 
 	/*
@@ -2421,7 +2424,8 @@ void Write_Scenario_INI(char * fname)
 	**	maintained entries.
 	*/
 	if (CCFileClass(fname).Is_Available()) {
-		ini.Load(CCFileClass(fname), true);
+		CCFileClass oldfile(fname);
+		ini.Load(oldfile, true);
 	}
 
 	static char const * const BASIC = "Basic";

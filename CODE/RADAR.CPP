@@ -1376,8 +1376,8 @@ bool RadarClass::UnJam_Cell(CELL cell, HouseClass * house)
 #pragma argsused
 void RadarClass::Radar_Cursor(int forced)
 {
-	static 					_last_pos = -1;
-	static 					_last_frame = -1;
+	static int				_last_pos = -1;
+	static int				_last_frame = -1;
 	GraphicViewPortClass 	* oldpage;
 	int						x1, y1, x2, y2;
 

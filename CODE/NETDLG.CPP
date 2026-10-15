@@ -1942,7 +1942,8 @@ static int Net_Join_Dialog(void)
 				if (Session.Options.ScenarioDescription[0]) {
 
 					// EW - Scenario language translation goes here!!!!!!!! VG
-					for (int ii = 0; EngMisStr[ii] != NULL;  ii++) {
+					int ii;
+					for (ii = 0; EngMisStr[ii] != NULL;  ii++) {
 						if (!strcmp(Session.Options.ScenarioDescription, EngMisStr[ii])) {
 							#if defined(GERMAN) || defined(FRENCH)
 								sprintf(txt, "%s %s", p, EngMisStr[ii+1]);

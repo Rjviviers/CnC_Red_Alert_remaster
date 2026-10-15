@@ -5,6 +5,10 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-14 | S06c — Compile fixes, group 2 (EXPAND–MAP) | [log](2026-10-14-S06c-compile-group2.md) |
+| 2026-10-14 | S06d — Compile fixes, group 3 (MISSION–SKIRMDLG) | [log](2026-10-14-S06d-compile-group3.md) |
+| 2026-10-14 | S06e — Compile fixes, group 4 (SLIDER–WSPUDP) | [log](2026-10-14-S06e-compile-group4.md) |
+| 2026-10-14 | S06f — Compile fixes, support libraries | [log](2026-10-14-S06f-compile-libraries.md) |
 | 2026-10-14 | S06a — Compiler compatibility: shared headers & missing files | [log](2026-10-14-S06a-shared-headers.md) |
 | 2026-10-14 | S09 — Audio | [log](2026-10-14-S09-audio.md) |
 | 2026-10-14 | S08 — Platform layer: SDL video, input, timer | [log](2026-10-14-S08-platform-layer.md) |

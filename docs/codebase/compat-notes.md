@@ -240,6 +240,45 @@ Patterns found while fixing `EXPAND`…`MAP` ([log](../logs/2026-10-14-S06c-comp
   `RemapControlType *` argument; use `NULL`. The same call is in `LIST.H:280` (a template, not instantiated) and `EDIT.CPP:92`.
 - **Member written in a `const` function:** `FootClass::Greatest_Threat() const` clears `IsScanLimited`; Watcom allowed it.
   Fixed with `const_cast<FootClass *>(this)` (the objects live in non-const heaps).
+## S06f notes
+Support libraries (`WIN32LIB/`, `WINVQ/`), session S06f ([log](../logs/2026-10-14-S06f-compile-libraries.md)). After S06f
+every C++ file in `win32lib`, `vqa32wp` and `vqm32wp` compiles with GCC `-m32`, and the three static libraries build.
+Removed files and the evidence are in [removed-code.md §7](removed-code.md#7-dead-or-shadowed-support-library-files-s06f).
+| File | Fix | Behaviour |
+|------|-----|-----------|
+| `WIN32LIB/MISC/DELAY.CPP`, `WIN32LIB/PALETTE/PALETTE.CPP`, `WIN32LIB/WW_WIN/WINDOWS.CPP`, `WIN32LIB/WW_WIN/WINHIDE.CPP`; component headers `WIN32LIB/SHAPE/SHAPE.H` (two bytes), `WIN32LIB/WW_WIN/WW_WIN.H` | Trailing DOS end-of-file byte (Ctrl-Z, 0x1A) removed, as S06a did for the shared headers | None |
+| `WIN32LIB/PALETTE/PALETTE.CPP:59`, `WIN32LIB/PALETTE/PALETTE.H:80` (component copy) | `extern "C" extern unsigned char CurrentPalette[]` → `extern "C" unsigned char CurrentPalette[]` (same fix S06a made in `WIN32LIB/INCLUDE/PALETTE.H`) | None |
+| `WIN32LIB/DRAWBUFF/ICONCACH.CPP:226` | `Invalidate_Cached_Icons` reused the `i` of the previous `for (int i ...)` (old Watcom scoping); second loop now declares `int i` | None (the first loop's `i` is dead after it) |
+| `WINVQ/VQA32/TASK.CPP` | Needed `GetPriorityClass`; declared in the stand-in `CODE/compat/win32/windows.h` next to `SetPriorityClass` | None. Declaration only: `VQA_Play` raises the process priority while a movie plays. When movies are stubbed (ADR-0005) or the player is ported, drop the `Get/SetPriorityClass` pair |
+| `WIN32LIB/SHAPE/GETSHAPE.CPP` | Compiled once its component `SHAPE.H` lost the Ctrl-Z bytes | None |
+Patterns:
+- **Component-directory header copies win over `WIN32LIB/INCLUDE/`.** The case shim puts a file's own directory first, so
+  `GETSHAPE.CPP` reads `WIN32LIB/SHAPE/SHAPE.H`, not `WIN32LIB/INCLUDE/SHAPE.H`. A fix made in `INCLUDE/` must also be made
+  in the copy (or the copy deleted). Still left with Ctrl-Z: `WIN32LIB/AUDIO/SOSRES.H` (S09's directory; it compiles because
+  nothing in `AUDIO/` includes it any more).
+- **Library copies shadowed by the game** (`KEYBOARD.CPP` vs `CODE/KEY.CPP`, `MONO.CPP` vs `CODE/MONOC.CPP`,
+  `IFF/WRITEPCX.CPP` vs `CODE/WRITEPCX.CPP`) are removed rather than fixed: the game's copy is the one that links.
+- **Code switched off by a `#define ... 0`** (`VQACAPTIONS_ON`, `VQAVIDEO_ON`, `VQAVESA_ON`) is not compiled in the callers,
+  so the implementing file can leave the build. The static library only pulls an object when something references it.
+## S06d notes
+Files MISSION … SKIRMDLG ([log](../logs/2026-10-14-S06d-compile-group3.md)). Reusable patterns:
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `static member function ... declared with type qualifiers` | Out-of-class definition of a `static` member carries a stray `const` (MISSION, MIXFILE). Watcom ignored it. | Drop the `const` on the definition. |
+| `no matching function for call to Fancy_Text_Print(int, int, int, ColorType, ColorType, ...)` | `TBLACK` (enumerator 0) passed as the `RemapControlType *` argument; only a literal 0 is a null pointer constant. | `(RemapControlType *)NULL`. Also in `EDIT.CPP` and `LIST.H`. |
+| `cannot bind non-const lvalue reference ... to an rvalue` | `ini.Load(CCFileClass("X"))`, `Read_Line(FileStraw(file), ...)` | Named local object (`CCFileClass file("X"); ini.Load(file)`). `INIClass::Load` opens and closes the file itself, so the longer lifetime changes nothing. |
+| `use of an operand of type 'bool' in 'operator--'` on `ScenarioInit` | A nesting counter declared `bool` (Watcom: `int`). | Declared `int` in `EXTERNS.H` (S06d). **Do not** rewrite the `++`/`--` as `= true/false`: nested calls would switch it off early. `GLOBALS.CPP` must define it as `int`. |
+| `no declaration matches ... Take_Damage(..., int)` | Header says `bool forced`, definition `int forced` (identical on Watcom). | Change the definition to `bool` when the parameter is only tested for truth. |
+| `assignment of member ... in read-only object` | Watcom allowed writing members in `const` functions (`ObjectClass::Render`'s `IsToDisplay`). | `const_cast<Class *>(this)->Member = ...;` in the `.CPP` (no header change; `mutable` on a bit-field would also work). |
+| `'Sub_Saturate' was not declared` | In-class `friend` functions of `fixed` are found only by ADL; `Sub_Saturate(1, 1)` has no `fixed` argument. | `Sub_Saturate(fixed(1), 1)`: same overload Watcom chose (int → unsigned beats int → fixed). |
+| `ambiguating new declaration of 'bool BGMessageBox'` | Definition says `bool`, `FUNCTION.H` says `int`. | Use the header's `int`. Check whether the function (or a local) really holds more than 0/1 (`BGMessageBox`'s `retval` holds 2 = "more"): then a `bool` would change behaviour. |
+| (no error) `bool retval; ... retval = 2;` | Watcom `bool` was `int`; a real `bool` silently turns 2 into 1 (`WWMessageBox::Process`). | Make it `int`. Grep every `bool` for `++`, `--`, `+=` and assignments of values above 1. |
+| (warning only) derived virtual no longer overrides | `bool` in the base, `int` in the derived declaration (`VesselClass::Take_Damage`). | Check with `-fsyntax-only -Woverloaded-virtual=2`. |
+| `'X' does not name a type` on `static _x = -1;` | Implicit `int` (RADAR). | `static int`. |
+| `#pragma aux output` (MONOC) | Watcom inline asm for MDA/6845 port I/O. | Kept under `#ifdef __WATCOMC__`; elsewhere a documented no-op `static inline` function. |
+Win32 stand-in additions (`CODE/compat/win32/windows.h`): `BY_HANDLE_FILE_INFORMATION` (SDK layout, inside the
+`pack(push, 8)` block), `GetFileInformationByHandle` (declaration), `FILE_ATTRIBUTE_TEMPORARY` (0x100),
+`SEM_FAILCRITICALERRORS` (1).
 
 ## S06b notes
 Patterns found while fixing `AIRCRAFT`…`EVENT` ([log](../logs/2026-10-14-S06b-compile-group1.md)). The `bool` counter

@@ -215,3 +215,38 @@ The `#ifdef WOLAPI_INTEGRATION ... #else ... #endif` blocks in kept files:
 **Not removed** from that list: the old connection code `COMQUEUE.*` (kept on purpose, see section 4), the unbuilt
 experiments (`ADPCM.CPP`, `LCWUNCMP.CPP` and the others: S07 may reuse some of them, they are not platform code),
 the unbuilt Win32 `CODE/KEYBOARD.CPP`, and the IDE project files (`*.PJT`, `*.IDE`), which are not code.
+
+## 7. Dead or shadowed support-library files (S06f)
+
+**Last commit with this code: `99742a1`.** Session S06f ([log](../logs/2026-10-14-S06f-compile-libraries.md)) had to make
+each of 19 failing `WIN32LIB/`/`WINVQ/` files compile or take it out of the build. Evidence for each removal is a
+grep of `CODE/`, `WIN32LIB/`, `WINVQ/` and `tests/` for every function the file defines. The libraries are static
+(`CMakeLists.txt`), so an object is only linked when something references it.
+
+**Removed from `cmake/RASources.cmake` and deleted from the repository** (nothing references them):
+
+| Removed | What it was | Why it could go |
+|---------|-------------|-----------------|
+| `WIN32LIB/IFF/WRITELBM.CPP` | `Write_LBM_File` (writes a `BufferClass` as an IFF/LBM picture) | No caller anywhere; only declared in `IFF.H` |
+| `WIN32LIB/IFF/WRITEPCX.CPP` | `Write_PCX_File(char *, GraphicViewPortClass &, unsigned char *)` | Shadowed: the game has its own `CODE/WRITEPCX.CPP` (`Write_PCX_File(FileClass &, GraphicBufferClass &, PaletteClass *)`), which is what `DEBUG`/`CONQUER`/`GADGET` call. The library overload has no caller |
+| `WIN32LIB/KEYBOARD/KEYBOARD.CPP` | A second `WWKeyboardClass` with its own Windows message pump (`VkKeyScan`, `GetMessage`) | Shadowed by the game's `CODE/KEY.CPP` (S08 rewired that one to the platform layer). S08's "Remaining integration" item 8 asked for it to be dropped |
+| `WIN32LIB/MISC/FINDARGV.CPP` | `Find_Argv` (search `argv` for a switch) | No caller |
+| `WIN32LIB/MISC/IRANDOM.CPP` | `IRandom(min, max)` on top of `Get_Random_Mask` (deleted asm) | No caller. The game's RNG is `CODE/RANDOM.CPP` (`RandomClass`) and `Sim_Random_Pick`; the library RNG was never called (libraries.md §2) |
+| `WIN32LIB/PALETTE/LOADPAL.CPP` | `Load_Palette(char *file, void *pal)` | No caller (the game loads palettes through `CCFileClass`) |
+| `WIN32LIB/PALETTE/MORPHPAL.CPP` | `Morph_Palette` (fade between two palettes) | No caller (the game fades with `PaletteClass::Set` → `Fade_Palette_To`) |
+| `WIN32LIB/MONO/` (`MONO.CPP`, `MONO.H`, makefiles) | `MonoClass` and `Mono_*` for the monochrome debug adapter at `0xB0000` (`#pragma aux` port I/O) | Shadowed: `CODE/MONOC.CPP`/`MONOC.H` define the same class and functions, and `QUEUE.CPP`'s `Mono_Printf` calls use the game's copy. Linking both would define `MonoClass` twice. libraries.md verdict: delete. `WIN32LIB/INCLUDE/MONO.H` is kept (still included by `WWLIB32.H`) |
+
+**Removed from the build, files kept** (some source still names their functions, so the files stay for reference
+until those callers go):
+
+| File | What it is | Why out of the build | Remaining references |
+|------|------------|----------------------|----------------------|
+| `WIN32LIB/PROFILE/WPROFILE.CPP` (+ `APROFILE.ASM` from the asm list) | Sampling profiler: `Start_Profiler`/`Stop_Profiler`, Watcom `__PRO`/`__EPI` hooks, `timeSetEvent`, `vdmdbg.h` | Developer tool (libraries.md verdict: delete). `Start_Profiler` is never called, so `Stop_Profiler` was always a no-op. Making it compile would mean porting a Win32 thread-context profiler | `CODE/WINSTUB.CPP:229` calls `Stop_Profiler()` inside `Windows_Procedure`'s `WM_DESTROY`, which S10 deletes (platform-layer.md, item 14). **Until then that call is an unresolved symbol at link time**; delete the call (S10) |
+| `WINVQ/VQA32/CAPTION.CPP` | VQA subtitles (`OpenCaptions`, `DoCaptions`, `CloseCaptions`) | Every call is inside `#if (VQACAPTIONS_ON)` and `VQACAPTIONS_ON` is `0` (`WINVQ/VQA32/CAPTION.H:45`). Movies are stubbed (ADR-0005) | `LOADER.CPP`, `DRAWER.CPP` (compiled out) |
+| `WINVQ/VQM32/VIDEO.CPP` | DOS video-mode switch (`SetVideoMode`, `GetDisplayInfo`, `GetVBIBit`) through `int 10h` (`union REGS`) | Only called under `#if (VQAVIDEO_ON)` in `LOADER.CPP`; `VQAVIDEO_ON` is `0` (`VQAPLAY.H`) | `LOADER.CPP` (compiled out), `VIDEO.H`/`VIDEO.I` |
+| `WINVQ/VQM32/VESAVID.CPP` | VESA BIOS mode setting and bank switching (`InitVESA`, `SetVESAWindow`, DOS-extender `SWI_REGS`) | DOS real-mode BIOS calls. Its only caller is `VESABLIT.CPP`'s `VESA_Blit_640x480`, which is itself only called under `#if VQAVESA_ON` (`0`). `VESABLIT.CPP` still compiles; its object is never pulled from the static library, so its reference to `SetVESAWindow` is harmless | `VESABLIT.CPP`, `VESAVID.H`/`VESAVID.I` |
+
+Not removed: `WIN32LIB/DRAWBUFF/ICONCACH.CPP` and S07-A's `STMPCACH.CPP` (the icon cache, ADR-0016). Removing them
+requires deleting the `Register_Icon_Set` call in `CODE/CDATA.CPP:3136` and the `Invalidate_Cached_Icons`/
+`Restore_Cached_Icons` calls in `CODE/WINSTUB.CPP`, which S06f does not own; S08 already made the cache inert. It
+stays as platform-layer.md item 10 for S10.
