@@ -29,7 +29,20 @@
 
 #include "audio_backend.h"
 
+/*
+** SDL's headers assert their natural struct layout (SDL_alignment_test in SDL_stdinc.h),
+** but the game libraries are built with 1-byte packing (/Zp1, -fpack-struct=1; ADR-0014).
+** Include SDL with natural packing on every compiler. On GCC, ra_compat.h has already
+** pre-included it the same way; MSVC needs it here, because SDL_begin_code.h's own packing
+** push comes after that assert.
+*/
+#if defined(RA_PACK_STRUCTS)
+#  pragma pack(push, 8)
+#endif
 #include <SDL3/SDL.h>
+#if defined(RA_PACK_STRUCTS)
+#  pragma pack(pop)
+#endif
 
 namespace {
 

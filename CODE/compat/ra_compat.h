@@ -130,9 +130,10 @@
 #  endif
 /*
 **	SDL3 (S08/S09) has the same problem: its headers assert their natural struct
-**	layout (SDL_alignment_test) and fail under -fpack-struct=1. On MSVC SDL pushes its
-**	own packing (SDL_begin_code.h), on GCC it does not. So when the SDL3 backend is
-**	enabled, SDL is pre-included here too, under natural packing.
+**	layout (SDL_alignment_test) and fail under -fpack-struct=1. So when the SDL3 backend
+**	is enabled, SDL is pre-included here too, under natural packing. MSVC (/Zp1) has the
+**	same problem, because SDL_begin_code.h's packing push comes after that assert:
+**	audio_sdl3.cpp therefore includes SDL inside its own #pragma pack(push, 8).
 */
 #  if defined(RA_HAVE_SDL3) && defined(__has_include)
 #    if __has_include(<SDL3/SDL.h>)
