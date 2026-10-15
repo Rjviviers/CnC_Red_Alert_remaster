@@ -112,3 +112,8 @@ ra_add_test(NAME s09_sound_api_test
 ra_add_test(NAME s06b_coord_test
             SOURCES tests/s06b_coord_test.cpp
             INCLUDES CODE/compat)
+# --- S10b ---
+# Portable file layer used by RawFileClass (CODE/compat/ra_file.cpp, ADR-0022).
+ra_add_test(NAME s10b_file_test
+            SOURCES tests/s10b_file_test.cpp CODE/compat/ra_file.cpp
+            INCLUDES CODE/compat)

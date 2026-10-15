@@ -61,6 +61,7 @@
 #include	<stddef.h>
 
 #include	"rawfile.h"
+#include	"ra_file.h"		// S10b: portable file I/O (CODE/compat/ra_file.h, ADR-0022)
 
 
 
@@ -245,19 +246,14 @@ int RawFileClass::Open(int rights)
 				errno = EINVAL;
 				break;
 
+			/*
+			**	S10b: CreateFile(OPEN_EXISTING) for READ, CreateFile(CREATE_ALWAYS) for WRITE
+			**	and READ|WRITE, now through the portable layer (same meaning).
+			*/
 			case READ:
-					Handle = CreateFile(Filename, GENERIC_READ, FILE_SHARE_READ,
-												NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-				break;
-
 			case WRITE:
-					Handle = CreateFile(Filename, GENERIC_WRITE, 0,
-												NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-				break;
-
 			case READ|WRITE:
-					Handle = CreateFile(Filename, GENERIC_READ | GENERIC_WRITE, 0,
-												NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+				Handle = RA_File_Open(Filename, rights);
 				break;
 		}
 
@@ -276,7 +272,7 @@ int RawFileClass::Open(int rights)
 		if (Handle == NULL_HANDLE) {
 
 //			return(false);
-			Error(GetLastError(), false, Filename);
+			Error(errno, false, Filename);
 //			continue;
 		}
 		break;
@@ -331,8 +327,7 @@ int RawFileClass::Is_Available(int forced)
 	*/
 	for (;;) {
 
-		Handle = CreateFile(Filename, GENERIC_READ, FILE_SHARE_READ,
-											NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		Handle = RA_File_Open(Filename, READ);
 		if (Handle == NULL_HANDLE) {
 			return(false);
 		}
@@ -342,8 +337,8 @@ int RawFileClass::Is_Available(int forced)
 	/*
 	**	Since the file could be opened, then close it and return that the file exists.
 	*/
-	if (!CloseHandle(Handle)) {
-		Error(GetLastError(), false, Filename);
+	if (!RA_File_Close(Handle)) {
+		Error(errno, false, Filename);
 	}
 	Handle = NULL_HANDLE;
 
@@ -377,8 +372,8 @@ void RawFileClass::Close(void)
 		**	Try to close the file. If there was an error (who knows what that could be), then
 		**	call the error routine.
 		*/
-		if (!CloseHandle(Handle)) {
-			Error(GetLastError(), false, Filename);
+		if (!RA_File_Close(Handle)) {
+			Error(errno, false, Filename);
 		}
 
 		/*
@@ -444,15 +439,16 @@ long RawFileClass::Read(void * buffer, long size)
 	while (size > 0) {
 		bytesread = 0;
 
-		SetErrorMode(SEM_FAILCRITICALERRORS);
-		if (!ReadFile(Handle, buffer, size, &(unsigned long&)bytesread, NULL)) {
-			size -= bytesread;
-			total += bytesread;
-			Error(GetLastError(), true, Filename);
-			SetErrorMode(0);
+		/*
+		**	S10b: ReadFile -> RA_File_Read. A failed read reports nothing read, as
+		**	ReadFile did, and the error handler decides whether to retry.
+		*/
+		bytesread = RA_File_Read(Handle, buffer, size);
+		if (bytesread < 0) {
+			bytesread = 0;
+			Error(errno, true, Filename);
 			continue;
 		}
-		SetErrorMode(0);
 		size -= bytesread;
 		total += bytesread;
 		if (bytesread == 0) break;
@@ -504,8 +500,10 @@ long RawFileClass::Write(void const * buffer, long size)
 		opened = true;
 	}
 
-	if (!WriteFile(Handle, buffer, size, &(unsigned long&)bytesread, NULL)) {
-		Error(GetLastError(), false, Filename);
+	bytesread = RA_File_Write(Handle, buffer, size);		// S10b: was WriteFile
+	if (bytesread < 0) {
+		bytesread = 0;
+		Error(errno, false, Filename);
 	}
 
 
@@ -639,13 +637,13 @@ long RawFileClass::Size(void)
 	*/
 	if (Is_Open()) {
 
-		size = GetFileSize(Handle, NULL);
+		size = RA_File_Size(Handle);		// S10b: was GetFileSize
 
 		/*
 		**	If there was in internal error, then call the error function.
 		*/
-		if (size == 0xFFFFFFFF) {
-			Error(GetLastError(), false, Filename);
+		if (size == -1) {
+			Error(errno, false, Filename);
 		}
 
 	} else {
@@ -755,8 +753,8 @@ int RawFileClass::Delete(void)
 			return(false);
 		}
 
-		if (!DeleteFile(Filename)) {
-			Error(GetLastError(), false, Filename);
+		if (!RA_File_Delete(Filename)) {		// S10b: was DeleteFile
+			Error(errno, false, Filename);
 			return(false);
 		}
 		break;
@@ -787,15 +785,10 @@ int RawFileClass::Delete(void)
  *=============================================================================================*/
 unsigned long RawFileClass::Get_Date_Time(void)
 {
-	BY_HANDLE_FILE_INFORMATION info;
-
-	if (GetFileInformationByHandle(Handle, &info)) {
-		WORD dosdate;
-		WORD dostime;
-		FileTimeToDosDateTime(&info.ftLastWriteTime, &dosdate, &dostime);
-		return((dosdate << 16) | dostime);
-	}
-	return(0);
+	/*
+	**	S10b: was GetFileInformationByHandle + FileTimeToDosDateTime (UTC last-write time).
+	*/
+	return(RA_File_Get_Dos_Date_Time(Handle));
 }
 
 
@@ -817,14 +810,10 @@ unsigned long RawFileClass::Get_Date_Time(void)
 bool RawFileClass::Set_Date_Time(unsigned long datetime)
 {
 	if (RawFileClass::Is_Open()) {
-		BY_HANDLE_FILE_INFORMATION info;
-
-		if (GetFileInformationByHandle(Handle, &info)) {
-			FILETIME filetime;
-			if (DosDateTimeToFileTime((WORD)(datetime >> 16), (WORD)(datetime & 0x0FFFF), &filetime)) {
-				return(SetFileTime(Handle, &info.ftCreationTime, &filetime, &filetime));
-			}
-		}
+		/*
+		**	S10b: was DosDateTimeToFileTime + SetFileTime (last access and last write).
+		*/
+		return(RA_File_Set_Dos_Date_Time(Handle, datetime));
 	}
 	return(false);
 }
@@ -903,27 +892,17 @@ long RawFileClass::Raw_Seek(long pos, int dir)
 		Error(EBADF, false, Filename);
 	}
 
-	switch (dir) {
-		case SEEK_SET:
-			dir = FILE_BEGIN;
-			break;
-
-		case SEEK_CUR:
-			dir = FILE_CURRENT;
-			break;
-
-		case SEEK_END:
-			dir = FILE_END;
-			break;
-	}
-
-	pos = SetFilePointer(Handle, pos, NULL, dir);
+	/*
+	**	S10b: was SetFilePointer with FILE_BEGIN/FILE_CURRENT/FILE_END, which have the
+	**	same meaning as SEEK_SET/SEEK_CUR/SEEK_END. -1 on error, as before (0xFFFFFFFF).
+	*/
+	pos = RA_File_Seek(Handle, pos, dir);
 
 	/*
 	**	If there was an error in the seek, then bail with an error condition.
 	*/
-	if (pos == 0xFFFFFFFF) {
-		Error(GetLastError(), false, Filename);
+	if (pos == -1) {
+		Error(errno, false, Filename);
 	}
 
 	/*

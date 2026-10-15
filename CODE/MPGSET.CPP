@@ -34,7 +34,8 @@
 
 #include "function.h"
 
-#ifdef DVD
+// S10b: the MPEG settings dialog only exists with the MPEG movie player (MPEGMOVIE, now off).
+#if defined(DVD) && defined(MPEGMOVIE)
 #include "mpgset.h"
 
 #ifdef MCIMPEG

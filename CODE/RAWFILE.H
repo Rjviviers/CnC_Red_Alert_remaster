@@ -49,8 +49,12 @@
 
 #include	<windows.h>
 
-#define	NULL_HANDLE		INVALID_HANDLE_VALUE
-#define	HANDLE_TYPE		HANDLE
+/*
+**	S10b (ADR-0022): the handle is a C runtime file descriptor from CODE/compat/ra_file.h
+**	on every host (it was a Win32 HANDLE), -1 when closed as in the DOS version.
+*/
+#define	NULL_HANDLE		-1
+#define	HANDLE_TYPE		int
 
 #include	"wwfile.h"
 
@@ -263,7 +267,7 @@ inline RawFileClass::RawFileClass(void) :
 	Rights(READ),
 	BiasStart(0),
 	BiasLength(-1),
-	Handle(INVALID_HANDLE_VALUE),
+	Handle(NULL_HANDLE),
 	Filename(0),
 	Date(0),
 	Time(0),
@@ -316,7 +320,7 @@ inline RawFileClass::~RawFileClass(void)
  *=============================================================================================*/
 inline int RawFileClass::Is_Open(void) const
 {
-	return(Handle != INVALID_HANDLE_VALUE);
+	return(Handle != NULL_HANDLE);
 }
 
 #endif

@@ -112,10 +112,19 @@ ra_target_sources(redalert ${RA_GAME_CXX_SOURCES})
 ra_target_includes(redalert ${RA_WIN32LIB_INCLUDE} ${RA_WINVQ_INCLUDE})
 ra_apply_build_settings(redalert)
 target_compile_definitions(redalert PRIVATE ${RA_GAME_DEFINES})
-target_link_libraries(redalert PRIVATE win32lib vqa32wp vqm32wp)
+# S10b (ADR-0022): vqa32wp (the VQA movie player) is not linked: movies are stubbed
+# (ADR-0005, CODE/stubs/movie_stubs.cpp). It still builds as its own target.
+target_link_libraries(redalert PRIVATE win32lib vqm32wp)
+if(WIN32)
+  # The Win32 API the game still calls on Windows (registry, Winsock until S12, winmm).
+  target_link_libraries(redalert PRIVATE ws2_32 winmm advapi32 user32)
+  if(MSVC)
+    # WIN32_EXECUTABLE (no console) normally wants WinMain; the game has a portable main.
+    target_link_options(redalert PRIVATE /ENTRY:mainCRTStartup)
+  endif()
+endif()
 # The original also linked ipx\wwipx32.lib (native IPX, removed in S05), mpgdll.lib,
 # DirectX (ddraw, dsound, dxguid), DirectShow (amstrmid, strmbasd) and uuid.
-# Linking is session S10.
 
 # Assembly sources are listed (RA_*_ASM_SOURCES) but not compiled: they are
 # TASM syntax and are being rewritten in C++ in session S07.

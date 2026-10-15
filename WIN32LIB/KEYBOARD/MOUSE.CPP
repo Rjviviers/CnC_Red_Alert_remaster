@@ -59,7 +59,7 @@ static void Process_Mouse_Hook(void *)
 }
 
 static WWMouseClass *_Mouse=NULL;
-extern BOOL GameInFocus;
+extern bool GameInFocus;		// S10b: was BOOL (4 bytes) but CODE/GLOBALS.CPP defines a 1-byte bool
 
 
 /***********************************************************************************************

@@ -176,15 +176,15 @@ palette-cycling band at top right is shifted.*
 The platform layer works, and the WIN32LIB video/timer/mouse back ends and the keyboard pump are rewired. The game cannot link
 yet (S06/S07), so these pieces are left. They are listed in boot order. File:line references are to the tree at the end of S08.
 
-1. **Entry point.** `WinMain` (`STARTUP.CPP`) becomes `int main(int argc, char **argv)`:
+1. *(Done in S10b, see [How `main` works](#how-main-works).)* **Entry point.** `WinMain` (`STARTUP.CPP`) becomes `int main(int argc, char **argv)`:
    - Drop the hand-made argv split, `_dos_getdrive`/`_dos_setdrive` and the `FindWindow` single-instance check.
    - Call `Platform_Init()` first. On failure, `Platform_Message_Box("Red Alert", Platform_Last_Error())` and exit.
-2. **Window.** Delete `Create_Main_Window` (`WINSTUB.CPP:394`) and `Windows_Procedure` (`WINSTUB.CPP:161`). `Set_Video_Mode`
+2. *(Done in S10b: `Create_Main_Window`, `Windows_Procedure`, `Window_Dialog_Box` deleted; the start-up `MessageBox` calls are `Platform_Message_Box`. `MainWindow` stays `NULL` and is still passed to `Audio_Init`, `Set_Video_Mode` (ignored) and the Winsock code (S12). The ~90 dialog/WOL `MessageBox` calls were left: none of them is linked into the Linux build any more.)* **Window.** Delete `Create_Main_Window` (`WINSTUB.CPP:394`) and `Windows_Procedure` (`WINSTUB.CPP:161`). `Set_Video_Mode`
    already opens the window. `MainWindow` is only still passed to `Audio_Init` (S09 decides) and `MessageBox`.
    Replace each `MessageBox(MainWindow, text, title, …)` in `STARTUP.CPP`/`WINSTUB.CPP`/`INIT.CPP` that is shown before
    the game UI exists with `Platform_Message_Box(title, text)`. The other 90-odd `MessageBox` calls are in dialogs/WOL leftovers;
    decide per call.
-3. **Focus.** Register a focus callback once after `Platform_Init` that does what `WM_ACTIVATEAPP` did:
+3. *(Done in S10b: `On_Focus_Change` in `WINSTUB.CPP`, and `MOUSE.CPP` now says `extern bool GameInFocus`. `main` sets `GameInFocus = true` after the window opens, because the platform only reports changes.)* **Focus.** Register a focus callback once after `Platform_Init` that does what `WM_ACTIVATEAPP` did:
    ```cpp
    static void On_Focus(bool in) { GameInFocus = in; if (!in) Focus_Loss();
                                    AllSurfaces.Set_Surface_Focus(in); AllSurfaces.Restore_Surfaces(); }
@@ -193,35 +193,58 @@ yet (S06/S07), so these pieces are left. They are listed in boot order. File:lin
    `WWMouseClass::Process_Mouse` does nothing while `GameInFocus` is false, so **the cursor will not draw until this is
    done**. Also `GameInFocus` is `bool` in `CODE/GLOBALS.CPP:195` but `extern BOOL` in `GBUFFER.CPP`, `MOUSE.CPP` and
    `SOUNDIO.CPP`, a type mismatch to fix (S06/S10).
-4. **`Check_For_Focus_Loss`** (`WINSTUB.CPP:112`): replace both `PeekMessage` loops with `Platform_Pump_Events()`. While not in
+4. *(Done in S10b. It does not block: while out of focus it pumps once and sleeps 10 ms, and its callers loop.)* **`Check_For_Focus_Loss`** (`WINSTUB.CPP:112`): replace both `PeekMessage` loops with `Platform_Pump_Events()`. While not in
    focus, sleep (`Platform_Sleep(10)`) and pump until `Platform_Has_Focus()`.
-5. **Quit.** Where the main loops run (`Main_Loop`/`Select_Game`), treat `Platform_Quit_Requested()` like the old `SC_CLOSE` (which
+5. *(Done in S10b: a poll hook (`Quit_Poll_Hook`) calls `Emergency_Exit(EXIT_SUCCESS)` when the window is closed, from any loop that pumps; shutdown is `Game_Shutdown` (`WINSTUB.CPP`), also used by `Emergency_Exit`, `Memory_Error_Handler` and `Assert_Failure`.)* **Quit.** Where the main loops run (`Main_Loop`/`Select_Game`), treat `Platform_Quit_Requested()` like the old `SC_CLOSE` (which
    was ignored: Alt+F4 did nothing) or offer the quit dialog. Shutdown (`STARTUP.CPP` after `Main_Game`): replace
    `PostMessage(MainWindow, WM_DESTROY)` plus the `ReadyToQuit` wait loop with a direct call to the `WM_DESTROY` body (`Prog_End`,
    `VisiblePage.Un_Init()`, `HiddenPage.Un_Init()`, `Reset_Video_Mode()`), then `Platform_Shutdown()`. Same for
    `Memory_Error_Handler` (`WINSTUB.CPP:750`).
-6. **`InitDDraw`** (`STARTUP.CPP:487`): the `VisiblePage` `GetCaps` check is removed. Remove the now-unreachable `HiddenPage`
+6. *(Done in S10b: `InitDDraw` is the only video set-up; the inline copy in `WinMain` went with it.)* **`InitDDraw`** (`STARTUP.CPP:487`): the `VisiblePage` `GetCaps` check is removed. Remove the now-unreachable `HiddenPage`
    `GBC_VIDEOMEM` branch (`Get_DD_Surface()->GetCaps`, `Attach_DD_Surface`), the `DDSCAPS` local, and the `#else` copy of the
    same code inside `WinMain` (`STARTUP.CPP:276-375`, compiled only without `MPEGMOVIE`).
-7. **Timer start-up check** (`STARTUP.CPP:221-228`): `Sleep(1000)` to prove the timer ticks is no longer needed. Use
+7. *(Done in S10b: removed.)* **Timer start-up check** (`STARTUP.CPP:221-228`): `Sleep(1000)` to prove the timer ticks is no longer needed. Use
    `Platform_Sleep` if kept.
-8. **Keyboard.** `WWKeyboardClass::Message_Handler` (`KEY.CPP`) and its `HWND`/`UINT`/`LONG` signature can go with
+8. *(S10b removed `Message_Handler` from `KEY.CPP`/`KEY.H`. `KeyState[256]` and the `<windows.h>` include in `KEY.H` remain.)* **Keyboard.** `WWKeyboardClass::Message_Handler` (`KEY.CPP`) and its `HWND`/`UINT`/`LONG` signature can go with
    `Windows_Procedure`, as can the unused `KeyState[256]` member (only after checking nothing depends on the layout; `KEY.H` is
    not read by asm). `KEY.H` still includes `<windows.h>` only for VK codes, which it defines itself. `WWKeyboardClass::Down` has
    no return type (`KEY.CPP`, implicit int, S06). The library copy `WIN32LIB/KEYBOARD/KEYBOARD.CPP` (a second `WWKeyboardClass`
    with its own message pump; the game's `KEY.CPP` wins at link time) should be dropped from `RA_WIN32LIB_CXX_SOURCES`. *(Done in S06f: removed and deleted.)*
-9. **MPEG movies.** `CONQUER.CPP:2468-2610` (`Play_Movie` under `MPEGMOVIE`/`DVD`) uses `DirectDrawObject`, `PaletteSurface` and
+9. *(Done in S10b: `MPEGMOVIE` is no longer defined in `DEFINES.H`; VQA movies are stubbed too, see [stubs.md](stubs.md).)* **MPEG movies.** `CONQUER.CPP:2468-2610` (`Play_Movie` under `MPEGMOVIE`/`DVD`) uses `DirectDrawObject`, `PaletteSurface` and
    `PalettePtr` directly for the DVD MPEG player (`mpgdll`, not in the repo). With S08 these are `NULL`. Turn `MPEGMOVIE` off
    (VQA movies are unaffected) or remove that path.
 10. **Icon cache** (ADR-0016, S07-A): delete `ICONCACH.CPP`/`.H`, the cache branch of `Draw_Stamp` in
     `GBUFFER.H`, `IconCacheAllowed`, the `Register_Icon_Set` call at `CODE/CDATA.CPP:3136`, `Invalidate_Cached_Icons`/
     `Restore_Cached_Icons` calls (`WINSTUB.CPP:87`, `:223`), and S07-A's stand-in `WIN32LIB/DRAWBUFF/STMPCACH.CPP`.
     S08 made the cache inert, but did not delete it because the stand-in is S07-A's file.
-11. **320-wide leftovers** (from S07-C): remove the 320-wide branch of `GScreenClass::Blit_Display` and `Colour_Debug`
+11. *(S10b deleted `Colour_Debug`. `Blit_Display`'s 320-wide branch and `WINASM.CPP`'s `ModeX_Blit`/`Set_Palette_Register` remain.)* **320-wide leftovers** (from S07-C): remove the 320-wide branch of `GScreenClass::Blit_Display` and `Colour_Debug`
     (`WINSTUB.CPP:516`), then the empty `ModeX_Blit` and `Set_Palette_Register` in `CODE/WINASM.CPP`.
 12. **Sockets** (S12): register the transport's poll with `Platform_Add_Poll_Hook`, and drop the
     `PacketTransport->Message_Handler` routing in `Windows_Procedure`.
 13. **Options.** Read fullscreen/scale/aspect preferences (for example `[Video] Fullscreen=`, `Scale=`, `AspectCorrect=` in
     `REDALERT.INI`) in `Read_Setup_Options` and pass them through a `PlatformVideoConfig`. `Set_Video_Mode` currently uses the defaults:
     windowed, FIT, 4:3.
-14. **Profiler** (`WINSTUB.CPP:236` `Stop_Profiler`, `WIN32LIB/PROFILE`): uses `timeSetEvent`. Delete it (developer tool, libraries.md). *(S06f took `WPROFILE.CPP`/`APROFILE.ASM` out of the build; the `Stop_Profiler()` call in `WINSTUB.CPP` is now unresolved and must be deleted.)*
+14. *(Done in S10b: the call went with `Windows_Procedure`.)* **Profiler** (`WINSTUB.CPP:236` `Stop_Profiler`, `WIN32LIB/PROFILE`): uses `timeSetEvent`. Delete it (developer tool, libraries.md). *(S06f took `WPROFILE.CPP`/`APROFILE.ASM` out of the build; the `Stop_Profiler()` call in `WINSTUB.CPP` is now unresolved and must be deleted.)*
+
+Still open after S10b: 10 (icon cache), the rest of 11, 12 (S12) and 13 (video options).
+
+## How `main` works
+
+Since S10b `CODE/STARTUP.CPP` has a portable `int main(int argc, char *argv[])` (no `WinMain` on any host; MSVC links
+with `/ENTRY:mainCRTStartup` because the target is still a `WIN32_EXECUTABLE`). In order:
+
+1. `Platform_Init()`. On failure: `Platform_Message_Box(title, Platform_Last_Error())`, exit code 1.
+2. `Install_Platform_Callbacks()` (`WINSTUB.CPP`): the focus callback `On_Focus_Change` (what `WM_ACTIVATEAPP` did),
+   the poll hook `Quit_Poll_Hook` (window closed → `Emergency_Exit(EXIT_SUCCESS)`), and the focus-loss function
+   pointers `Create_Main_Window` used to set.
+3. The RAM check (`Ram_Free`, always 64 MB), then `chdir` to the executable's directory, as the original did
+   (`_splitpath(argv[0])`). **S10c**: the asset-path setting will have to decide whether this stays.
+4. `Parse_Command_Line(argc, argv)` with the real `argv`. Then `WinTimerClass(60)`, `KeyboardClass`, the compressed-shape
+   check and the disk-space warning (now a plain message box; the game continues, as "yes" did).
+5. `REDALERT.INI` (`CONFIG_FILE_NAME`, found case-insensitively). Missing: message box "Run SETUP program first",
+   exit code 0 (the original waited for a key without a window). Present: `Read_Private_Config_Struct`,
+   `Read_Setup_Options`, `Audio_Init(NULL, …)`, `InitDDraw()` (window via `Set_Video_Mode`, `VisiblePage`/`HiddenPage`,
+   `SeenBuff`/`HidPage`), `GameInFocus = true`, mouse, CD drive (none), intro flag, `Main_Game`.
+6. On return: `Game_Shutdown(false)` (the old `WM_DESTROY` body: `Prog_End`, icon cache, pages, `Reset_Video_Mode`,
+   then `Platform_Shutdown`).
+

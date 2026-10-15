@@ -78,8 +78,7 @@ class WWKeyboardClass
 		char To_ASCII(unsigned short num);
 		bool Down(unsigned short key);
 
-		/* Define the main hook for the message processing loop.					*/
-		bool Message_Handler(HWND hwnd, UINT message, UINT wParam, LONG lParam);
+		/* S10b: Message_Handler (the hook for the Win32 message loop) is removed. */
 
 		/* Define the public access variables which are used with the			*/
 		/*   Keyboard Class.																	*/

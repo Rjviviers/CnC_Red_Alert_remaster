@@ -44,7 +44,6 @@
  *   WWKeyboardClass::Is_Buffer_Empty -- Checks to see if the keyboard buffer is empty.        *
  *   WWKeyboardClass::Is_Buffer_Full -- Determines if the keyboard buffer is full.             *
  *   WWKeyboardClass::Is_Mouse_Key -- Checks to see if specified key refers to the mouse.      *
- *   WWKeyboardClass::Message_Handler -- Process a windows message as it relates to the keyboar*
  *   WWKeyboardClass::Peek_Element -- Fetches the next element in the keyboard buffer.         *
  *   WWKeyboardClass::Put -- Logic to insert a key into the keybuffer]                         *
  *   WWKeyboardClass::Put_Element -- Put a keyboard data element into the buffer.              *
@@ -532,163 +531,11 @@ void WWKeyboardClass::Clear(void)
 }
 
 
-/***********************************************************************************************
- * WWKeyboardClass::Message_Handler -- Process a windows message as it relates to the keyboard *
- *                                                                                             *
- *    This routine will examine the Windows message specified. If the message relates to an    *
- *    event that the keyboard input system needs to process, then it will be processed         *
- *    accordingly.                                                                             *
- *                                                                                             *
- * INPUT:   window   -- Handle to the window receiving the message.                            *
- *                                                                                             *
- *          message  -- The message number of this event.                                      *
- *                                                                                             *
- *          wParam   -- The windows specific word parameter (meaning depends on message).      *
- *                                                                                             *
- *          lParam   -- The windows specific long word parameter (meaning is message dependant)*
- *                                                                                             *
- * OUTPUT:  bool; Was this keyboard message recognized and processed? A 'false' return value   *
- *                means that the message should be processed normally.                         *
- *                                                                                             *
- * WARNINGS:   none                                                                            *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   09/30/1996 JLB : Created.                                                                 *
- *=============================================================================================*/
-bool WWKeyboardClass::Message_Handler(HWND window, UINT message, UINT wParam, LONG lParam)
-{
-	bool processed = false;
-
-	/*
-	**	Examine the message to see if it is one that should be processed. Only keyboard and
-	**	pertinant mouse messages are processed.
-	*/
-	switch (message) {
-
-		/*
-		**	System key has been pressed. This is the normal keyboard event message.
-		*/
-		case WM_SYSKEYDOWN:
-		case WM_KEYDOWN:
-			if (wParam == VK_SCROLL) {
-				Stop_Execution();
-			} else {
-				Put_Key_Message((unsigned short)wParam);
-			}
-			processed = true;
-			break;
-
-		/*
-		**	The key has been released. This is the normal key release message.
-		*/
-		case WM_SYSKEYUP:
-		case WM_KEYUP:
-			Put_Key_Message((unsigned short)wParam, true);
-			processed = true;
-			break;
-
-		/*
-		**	Press of the left mouse button.
-		*/
-		case WM_LBUTTONDOWN:
-			Put_Mouse_Message(VK_LBUTTON, LOWORD(lParam), HIWORD(lParam));
-			processed = true;
-			break;
-
-		/*
-		**	Release of the left mouse button.
-		*/
-		case WM_LBUTTONUP:
-			Put_Mouse_Message(VK_LBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			processed = true;
-			break;
-
-		/*
-		**	Double click of the left mouse button. Fake this into being
-		**	just a rapid click of the left button twice.
-		*/
-		case WM_LBUTTONDBLCLK:
-			Put_Mouse_Message(VK_LBUTTON, LOWORD(lParam), HIWORD(lParam));
-			Put_Mouse_Message(VK_LBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			Put_Mouse_Message(VK_LBUTTON, LOWORD(lParam), HIWORD(lParam));
-			Put_Mouse_Message(VK_LBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			processed = true;
-			break;
-
-		/*
-		**	Press of the middle mouse button.
-		*/
-		case WM_MBUTTONDOWN:
-			Put_Mouse_Message(VK_MBUTTON, LOWORD(lParam), HIWORD(lParam));
-			processed = true;
-			break;
-
-		/*
-		**	Release of the middle mouse button.
-		*/
-		case WM_MBUTTONUP:
-			Put_Mouse_Message(VK_MBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			processed = true;
-			break;
-
-		/*
-		**	Middle button double click gets translated into two
-		**	regular middle button clicks.
-		*/
-		case WM_MBUTTONDBLCLK:
-			Put_Mouse_Message(VK_MBUTTON, LOWORD(lParam), HIWORD(lParam));
-			Put_Mouse_Message(VK_MBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			Put_Mouse_Message(VK_MBUTTON, LOWORD(lParam), HIWORD(lParam));
-			Put_Mouse_Message(VK_MBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			processed = true;
-			break;
-
-		/*
-		**	Right mouse button press.
-		*/
-		case WM_RBUTTONDOWN:
-			Put_Mouse_Message(VK_RBUTTON, LOWORD(lParam), HIWORD(lParam));
-			processed = true;
-			break;
-
-		/*
-		**	Right mouse button release.
-		*/
-		case WM_RBUTTONUP:
-			Put_Mouse_Message(VK_RBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			processed = true;
-			break;
-
-		/*
-		**	Translate a double click of the right button
-		**	into being just two regular right button clicks.
-		*/
-		case WM_RBUTTONDBLCLK:
-			Put_Mouse_Message(VK_RBUTTON, LOWORD(lParam), HIWORD(lParam));
-			Put_Mouse_Message(VK_RBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			Put_Mouse_Message(VK_RBUTTON, LOWORD(lParam), HIWORD(lParam));
-			Put_Mouse_Message(VK_RBUTTON, LOWORD(lParam), HIWORD(lParam), true);
-			processed = true;
-			break;
-
-		/*
-		**	If the message is not pertinant to the keyboard system,
-		**	then do nothing.
-		*/
-		default:
-			break;
-	}
-
-	/*
-	**	If this message has been processed, then pass it on to the system
-	**	directly.
-	*/
-	if (processed) {
-		DefWindowProc(window, message, wParam, lParam);
-		return(true);
-	}
-	return(false);
-}
+/*
+** S10b: WWKeyboardClass::Message_Handler (WM_KEYDOWN/WM_*BUTTON* -> key buffer) is removed
+** with Windows_Procedure. Fill_Buffer_From_System above does its job from the platform
+** input queue (S08).
+*/
 
 
 /***********************************************************************************************

@@ -366,3 +366,34 @@ calls pick, so they are **defined** instead, with the template's body:
   spellings that do **not** match a file name on disk (`CODE/` itself is not on the include path). An exact-case
   include from such a header fails with "No such file". Use the lower-case spelling, like the rest of the code, and
   re-run CMake configure so the shim gets the new link.
+
+## S10b notes
+Link fixes outside the templates, session S10b ([log](../logs/2026-10-15-S10b-link-platform.md),
+[ADR-0022](../decisions/0022-portable-file-io-and-win32-replacements.md)). Stubs are listed in [stubs.md](stubs.md).
+
+- **`RawFileClass` on C runtime descriptors** (`CODE/compat/ra_file.{h,cpp}`, every host). `RAWFILE.H`: `HANDLE_TYPE`
+  is `int` and `NULL_HANDLE` is `-1` (the DOS build's values; same size as the old `HANDLE` on 32-bit; the class is
+  never saved or sent). Access modes keep the Win32 meaning: `READ` opens an existing file, `WRITE` **and `READ|WRITE`
+  create or truncate** (`CREATE_ALWAYS`). Reads, writes and seeks are unbuffered and positioned like a Win32 handle.
+  `Get_Date_Time`/`Set_Date_Time` use the file's UTC time, as `FileTimeToDosDateTime` did (no time zone conversion).
+  Error codes passed to `Error()` are `errno` values now; every `Error()` override ignores the code.
+- **Case-insensitive names** (non-Windows): `RA_Resolve_Path` turns `\` into `/`, drops a drive letter (`C:\X` → `/X`,
+  `D:X` → `X`) and matches each component that does not exist as spelled case-insensitively (first match in byte
+  order). A file being created keeps its spelling in the real directory. `_dos_findfirst` (`dos/dos.h`) was already
+  case-insensitive but returns `readdir` order; `INIT.CPP` uses it to register `SC*.MIX`/`SS*.MIX`, so if the order
+  ever matters, sort there too (`FindFirstFile` in `win32_api.cpp` sorts).
+- **Variables with the same name and different types.** Watcom (and MSVC) put a variable's type in its linker name,
+  GCC does not. `CODE/GLOBALS.CPP` defines `TTimerClass<SystemTimerClass> TickCount` and `WIN32LIB/TIMER/TIMERINI.CPP`
+  defines `TimerClass TickCount`: one symbol on GCC, "multiple definition". Both `WIN32LIB` `TIMER.H` copies now
+  `#define TickCount WWLib_TickCount` (only seen by library code: the game includes them with `FUNCTION_H` defined),
+  which keeps two objects as on Watcom. The same trap in reverse: `GameInFocus` is `bool` in `GLOBALS.CPP` but was
+  `extern BOOL` (4 bytes) in `WIN32LIB/KEYBOARD/MOUSE.CPP`, so the mouse read three bytes of whatever followed it.
+  Fixed to `extern bool`. Check any other `extern` whose type differs from the definition the same way.
+- **String literals are read-only.** Watcom put them in writable memory; GCC does not, and there is no switch for it
+  any more. `MixFileClass::Offset` (`MIXFILE.CPP:538`) does `strupr((char *)filename)` on its argument, so
+  `MFCD::Retrieve("FONT.FNT")` crashes (first seen when booting with a `REDALERT.INI` and no data files: `Init_Fonts`).
+  Other `strupr` calls on caller strings: `INIT.CPP:1245` (argv: writable), `NETDLG.CPP`, `PROFILE.CPP`, `VERSION.CPP`.
+  For S10c: copy into a local buffer before upper-casing.
+- **Game sources outside `CODE/`** (`CODE/stubs/`, `CODE/compat/*.cpp`): a quoted `"function.h"` finds
+  `WIN32LIB/INCLUDE/FUNCTION.H` first, and the case shim does not cover a new spelling until CMake is re-run. Include
+  headers with their exact on-disk case (`<VQA32/VQAPLAY.H>`) or avoid the game's `FUNCTION.H`.

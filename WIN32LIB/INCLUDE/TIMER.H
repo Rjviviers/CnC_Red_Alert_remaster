@@ -168,6 +168,14 @@ extern	WinTimerClass	*WindowsTimer;
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////// externs  //////////////////////////////////////////
 #ifndef FUNCTION_H
+/*
+** S10b: the game (CODE/GLOBALS.CPP) defines its own TickCount of a different type
+** (TTimerClass<SystemTimerClass>). Watcom and MSVC put a variable's type in its linker
+** name, so the two never met; GCC/Clang do not, and the link failed with a duplicate
+** TickCount. The library's timer keeps its own object under a distinct linker name.
+** Game files never see this (they include this header with FUNCTION_H defined).
+*/
+#define TickCount						WWLib_TickCount
 extern TimerClass					TickCount;
 #endif
 extern CountDownTimerClass		CountDown;

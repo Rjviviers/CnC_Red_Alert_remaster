@@ -228,6 +228,14 @@ set(RA_GAME_CXX_SOURCES
     CODE/SENDFILE.CPP
     # Added in S06a: static_asserts pinning the layout of the network structs.
     CODE/wire_layout_check.cpp
+    # Added in S10b (ADR-0022, docs/codebase/stubs.md): portable file I/O, the Win32
+    # calls still made on non-Windows hosts (empty on Windows), and documented stubs.
+    CODE/compat/ra_file.cpp
+    CODE/compat/win32_api.cpp
+    CODE/stubs/asm_stubs.cpp
+    CODE/stubs/movie_stubs.cpp
+    CODE/stubs/win32_stubs.cpp
+    CODE/stubs/winsock_stubs.cpp
 )
 
 # Game: TASM sources (listed, not compiled yet; see session S07)
