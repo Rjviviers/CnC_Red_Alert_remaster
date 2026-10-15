@@ -38,6 +38,8 @@
 #ifndef EDIT_H
 #define EDIT_H
 
+#include	"enumops.h"		// S10a (ADR-0021): RA_ENUM_POSTINC / RA_ENUM_BITOPS
+
 class EditClass : public ControlClass
 {
 	public:
@@ -100,8 +102,6 @@ class EditClass : public ControlClass
 		int IsReadOnly;
 };
 
-inline EditClass::EditStyle operator |(EditClass::EditStyle, EditClass::EditStyle);
-inline EditClass::EditStyle operator &(EditClass::EditStyle, EditClass::EditStyle);
-inline EditClass::EditStyle operator ~(EditClass::EditStyle);
+RA_ENUM_BITOPS(EditClass::EditStyle)
 
 #endif

@@ -181,8 +181,21 @@ class Int {
 		void DERDecode(const unsigned char *input) {XMP_DER_Decode(&reg[0], input, PRECISION);}
 
 		// Friend helper functions.
+#ifdef __WATCOMC__
 		friend Int<PRECISION> Generate_Prime(Straw & rng, int pbits, Int<PRECISION> const * = 0);
 		friend Int<PRECISION> Gcd(const Int<PRECISION> & a, const Int<PRECISION> & b);
+#else
+		/*
+		**	S10a (ADR-0021): Watcom bound these friends to the Generate_Prime/Gcd templates
+		**	below. In standard C++ they declare non-template functions that are found by
+		**	argument-dependent lookup, preferred over the template, and never defined (an
+		**	unresolved symbol). Befriend the templates instead; the code that runs is the same.
+		**	(No default argument: a friend declaration may only have one if it is a definition;
+		**	every caller passes all three arguments.)
+		*/
+		template<class T> friend T Generate_Prime(Straw & rng, int pbits, T const *);
+		template<class T> friend T Gcd(const T & a, const T & n);
+#endif
 //		friend bool NextPrime(Int<PRECISION> & p, const Int<PRECISION> & max, bool blumInt=false);
 //		friend Int<PRECISION> a_exp_b_mod_pq(const Int<PRECISION> & a, const Int<PRECISION> & ep, const Int<PRECISION> & eq, const Int<PRECISION> & p, const Int<PRECISION> & q, const Int<PRECISION> & u);
 
