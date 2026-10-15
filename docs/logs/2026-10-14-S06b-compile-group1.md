@@ -85,6 +85,8 @@ No ADR needed (ADR-0014 patterns). Small decisions:
     targets are unchanged (win32lib 59, vqa32wp 7, vqm32wp 15) and every still-failing game file is in another group's range.
   - after merging the current base `22de8d5` (S06c + S06e): **284 / 319** (redalert 203/219). The remaining 16 failing
     game files are all in S06d's range (`MISSION`…`SKIRMDLG`).
+- after merging the base again with S06c–f (`3b2d5da`): **307 / 307 (100 %)**: redalert 219, win32lib 65, vqa32wp 8,
+  vqm32wp 15 (S06f removed some library files, hence the smaller total).
 - `cmake --build build --target ra_tests && ctest --test-dir build`: **32/32 passed** (including `s06b_coord_test`, 0.56 s).
 - Mutation check of the oracle: a perturbed `coord_aux.h` compiled against the test → 3/3 tests fail.
 - Table values: scripted comparison of the old and new `COORD.CPP` literals (signed-char interpretation) → identical.
