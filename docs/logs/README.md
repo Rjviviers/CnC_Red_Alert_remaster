@@ -5,6 +5,7 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-14 | S06b — Compile fixes, group 1 (AIRCRAFT–EVENT) | [log](2026-10-14-S06b-compile-group1.md) |
 | 2026-10-14 | S06c — Compile fixes, group 2 (EXPAND–MAP) | [log](2026-10-14-S06c-compile-group2.md) |
 | 2026-10-14 | S06d — Compile fixes, group 3 (MISSION–SKIRMDLG) | [log](2026-10-14-S06d-compile-group3.md) |
 | 2026-10-14 | S06e — Compile fixes, group 4 (SLIDER–WSPUDP) | [log](2026-10-14-S06e-compile-group4.md) |

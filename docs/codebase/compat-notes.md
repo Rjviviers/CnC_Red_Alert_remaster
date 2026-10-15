@@ -279,3 +279,36 @@ Files MISSION … SKIRMDLG ([log](../logs/2026-10-14-S06d-compile-group3.md)). R
 Win32 stand-in additions (`CODE/compat/win32/windows.h`): `BY_HANDLE_FILE_INFORMATION` (SDK layout, inside the
 `pack(push, 8)` block), `GetFileInformationByHandle` (declaration), `FILE_ATTRIBUTE_TEMPORARY` (0x100),
 `SEM_FAILCRITICALERRORS` (1).
+
+## S06b notes
+Patterns found while fixing `AIRCRAFT`…`EVENT` ([log](../logs/2026-10-14-S06b-compile-group1.md)). The `bool` counter
+(`ScenarioInit`), `Take_Damage(..., int forced)`, `TBLACK`-as-pointer, temporaries-to-`T &` and `const`-member-write
+patterns above came up here too and were fixed the same way.
+- **`#pragma aux` in `COORD.CPP` (`calcx`/`calcy`, simulation code):** the asm stays under `#ifdef __WATCOMC__`; other
+  compilers include `CODE/compat/coord_aux.h` (self-contained, like `watcom_aux.h`). Only `AX` of the asm result is
+  defined (the upper half of `EAX` is caller garbage; the `and eax,0FFFFh` is commented out), and every caller adds the
+  result to a `short`, so the C++ returns those 16 bits sign-extended. `tests/s06b_coord_test.cpp` runs the original
+  instructions as GCC inline asm, **with random garbage in the upper half of `EAX`**, and compares the low 16 bits (and
+  `short += result`) exhaustively for every table value against every 16-bit distance, plus 2 000 000 random 16-bit pairs.
+- **Trap: a `//` comment ending in `\`** (common after `#pragma aux` blocks, e.g. `//	"and eax,0FFFFh" \`) splices the
+  *next* line into the comment. When wrapping such a block in `#ifdef __WATCOMC__`, leave a blank line before `#else`.
+- **Byte tables with values ≥ 0x80** (`char`/`signed char` sine/cosine tables): Watcom's `/j` made `char` signed, so
+  `0xfd` stored −3. Write `(signed char)0xfd` (same value, hex kept for review) and declare a plain-`char` table as
+  `signed char` so the value no longer depends on `-fsigned-char`. Checked mechanically: old and new tables parse to the
+  same 1024 numbers.
+- **`long` tables with values ≥ 0x80000000** (`CONST.CPP` cheat-code CRCs): `(long)0xE0792D6D`, the same bit pattern
+  Watcom stored.
+- **A bare `class Tmpl<Args>;`** (`FUNCTION.H`: `class DynamicVectorClass<EgoClass *>;` and five more): Watcom read it
+  as naming the instantiation; standard C++ reads it as declaring an explicit specialisation that is never defined, so
+  any object of that type is an "incomplete type" (`EgoList` in `EGOS.CPP`). Now `#ifdef __WATCOMC__`.
+- **Out-of-line members of a class template using a dependent base's members** (`DYNAVEC.CPP`: `IsAllocated`,
+  `VectorMax` of `VectorClass<T>`): `this->IsAllocated`.
+- **Watcom runtime constants** used by DOS-only code: `CDFILE.CPP`'s `harderr_handler` returns `_HARDERR_FAIL` (Watcom
+  `<dos.h>`: 3). Defined locally under `#ifndef`; the handler is never installed outside DOS.
+- **Member function named without a call:** `sprintf(txt, ..., house->Name)` (`EVENT.CPP`) passed the address of
+  `HouseClass::Name` to `%s` (printed garbage under Watcom). Now `house->Name()`. Message text only.
+- **For-loop hoisting, mechanically:** for each "was not declared" / "overloaded function" (`index`) error, find the
+  nearest preceding `for (TYPE NAME =` whose enclosing `{}` block contains the use (Watcom scope), and turn it into
+  `TYPE NAME;` + `for (NAME = ...`. Skip (and fix by hand) a `for` that is the body of an unbraced `if`/`else`, because
+  a declaration inserted there would change what the `if` controls. Pass `-fdiagnostics-column-unit=byte` when reading
+  GCC columns from a script: by default GCC counts a tab as up to 8 columns.

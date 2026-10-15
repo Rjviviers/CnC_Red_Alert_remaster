@@ -1,6 +1,6 @@
 # S07 — Assembly → C++
 
-**Status:** Not started · **Wave:** 3 · **Depends on:** S02, S03 · **Parallel with:** S06, S08, S09
+**Status:** Done · **Wave:** 3 · **Depends on:** S02, S03 · **Parallel with:** S06, S08, S09
 **Owns:** the assembly files listed in `docs/codebase/assembly-inventory.md`; new C++ files beside them
 
 ## Goal

@@ -212,7 +212,7 @@ bool AnimClass::Render(bool forced) const
 
 	if (Delay) return(false);
 	if (Map[Center_Coord()].IsVisible) {
-		IsToDisplay = true;
+		const_cast<AnimClass *>(this)->IsToDisplay = true;	// Watcom allowed this in a const function.
 	}
 #endif
 	return(ObjectClass::Render(forced));
@@ -590,7 +590,8 @@ AnimClass::~AnimClass(void)
 			**	this animation is attached to. If there are no others, then inform the
 			**	attached object of this fact.
 			*/
-			for (int index = 0; index < Anims.Count(); index++) {
+			int index;
+			for (index = 0; index < Anims.Count(); index++) {
 				if (Anims.Ptr(index) != this && Anims.Ptr(index)->xObject == xObject) break;
 			}
 

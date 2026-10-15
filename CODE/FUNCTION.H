@@ -930,17 +930,31 @@ extern CCPtr<TemplateTypeClass>	y24;
 extern CCPtr<TerrainTypeClass>	y25;
 extern CCPtr<OverlayTypeClass>	y26;
 extern CCPtr<SmudgeTypeClass>		y27;
+// Watcom: a bare `class Tmpl<Args>;` named the instantiation. In standard C++ it declares an
+// explicit specialization that is never defined (an incomplete type), so only Watcom sees it.
+#ifdef __WATCOMC__
 class DynamicVectorClass<CCPtr<TeamTypeClass> >;
+#endif
 extern DynamicVectorClass<CCPtr<TeamTypeClass> > y002;
+#ifdef __WATCOMC__
 class DynamicVectorClass<CCPtr<TriggerTypeClass> >;
+#endif
 extern DynamicVectorClass<CCPtr<TriggerTypeClass> > y001;
+#ifdef __WATCOMC__
 class DynamicVectorClass<TeamMissionClass *>;
+#endif
 extern DynamicVectorClass<TeamMissionClass *> xxx1;
+#ifdef __WATCOMC__
 class DynamicVectorClass<EventChoiceClass *>;
+#endif
 extern DynamicVectorClass<EventChoiceClass *> xxx2;
+#ifdef __WATCOMC__
 class DynamicVectorClass<ActionChoiceClass *>;
+#endif
 extern DynamicVectorClass<ActionChoiceClass *> xxx3;
+#ifdef __WATCOMC__
 class DynamicVectorClass<EgoClass *>;
+#endif
 extern DynamicVectorClass<EgoClass *> whatever;
 
 #endif
