@@ -183,7 +183,8 @@ static void Put_All(Pipe & pipe, int save_net)
 
 	int count = MapTriggers.Count();
 	pipe.Put(&count, sizeof(count));
-	for (int index = 0; index < MapTriggers.Count(); index++) {
+	int index;
+	for (index = 0; index < MapTriggers.Count(); index++) {
 		TARGET target = MapTriggers[index]->As_Target();
 		pipe.Put(&target, sizeof(target));
 	}
@@ -674,7 +675,8 @@ bool Load_Game(int id)
 	int count;
 	straw.Get(&count, sizeof(count));
 	MapTriggers.Clear();
-	for (int index = 0; index < count; index++) {
+	int index;
+	for (index = 0; index < count; index++) {
 		TARGET target;
 		straw.Get(&target, sizeof(target));
 		MapTriggers.Add(As_Trigger(target));
@@ -873,7 +875,8 @@ bool Load_Game(int id)
 	**	Rescan the scenario file for any rules updates.
 	*/
 	CCINIClass ini;
-	int result = ini.Load(CCFileClass(Scen.ScenarioName), true);
+	CCFileClass scenfile(Scen.ScenarioName);
+	int result = ini.Load(scenfile, true);
 
 	/*
 	**	Reset the rules values to their initial settings.
@@ -944,7 +947,8 @@ bool Load_Game(int id)
 		     	}
 			}
 			CCINIClass mpini;
-			if (mpini.Load(CCFileClass("MPLAYER.INI"), false)) {
+			CCFileClass mpfile("MPLAYER.INI");
+			if (mpini.Load(mpfile, false)) {
 				Rule.General(mpini);
 				Rule.Recharge(mpini);
 				Rule.AI(mpini);

@@ -183,3 +183,26 @@ real class. The `_WIN32` numbers were measured with MinGW-w64 (MSVC bit-field la
   from `<strings.h>`, giving odd errors such as "no post-increment operator for type" or
   "unresolved overloaded function type". Declare the variable before the loop.
 - **MinGW-only:** 14 files fail only with MinGW, because its `windows.h` does not define `min`/`max` in C++ (MSVC's does).
+
+## S06d notes
+
+Files MISSION … SKIRMDLG ([log](../logs/2026-10-14-S06d-compile-group3.md)). Reusable patterns:
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `static member function ... declared with type qualifiers` | Out-of-class definition of a `static` member carries a stray `const` (MISSION, MIXFILE). Watcom ignored it. | Drop the `const` on the definition. |
+| `no matching function for call to Fancy_Text_Print(int, int, int, ColorType, ColorType, ...)` | `TBLACK` (enumerator 0) passed as the `RemapControlType *` argument; only a literal 0 is a null pointer constant. | `(RemapControlType *)NULL`. Also in `EDIT.CPP` and `LIST.H`. |
+| `cannot bind non-const lvalue reference ... to an rvalue` | `ini.Load(CCFileClass("X"))`, `Read_Line(FileStraw(file), ...)` | Named local object (`CCFileClass file("X"); ini.Load(file)`). `INIClass::Load` opens and closes the file itself, so the longer lifetime changes nothing. |
+| `use of an operand of type 'bool' in 'operator--'` on `ScenarioInit` | A nesting counter declared `bool` (Watcom: `int`). | Declared `int` in `EXTERNS.H` (S06d). **Do not** rewrite the `++`/`--` as `= true/false`: nested calls would switch it off early. `GLOBALS.CPP` must define it as `int`. |
+| `no declaration matches ... Take_Damage(..., int)` | Header says `bool forced`, definition `int forced` (identical on Watcom). | Change the definition to `bool` when the parameter is only tested for truth. |
+| `assignment of member ... in read-only object` | Watcom allowed writing members in `const` functions (`ObjectClass::Render`'s `IsToDisplay`). | `const_cast<Class *>(this)->Member = ...;` in the `.CPP` (no header change; `mutable` on a bit-field would also work). |
+| `'Sub_Saturate' was not declared` | In-class `friend` functions of `fixed` are found only by ADL; `Sub_Saturate(1, 1)` has no `fixed` argument. | `Sub_Saturate(fixed(1), 1)`: same overload Watcom chose (int → unsigned beats int → fixed). |
+| `ambiguating new declaration of 'bool BGMessageBox'` | Definition says `bool`, `FUNCTION.H` says `int`. | Use the header's `int`. Check whether the function (or a local) really holds more than 0/1 (`BGMessageBox`'s `retval` holds 2 = "more"): then a `bool` would change behaviour. |
+| (no error) `bool retval; ... retval = 2;` | Watcom `bool` was `int`; a real `bool` silently turns 2 into 1 (`WWMessageBox::Process`). | Make it `int`. Grep every `bool` for `++`, `--`, `+=` and assignments of values above 1. |
+| (warning only) derived virtual no longer overrides | `bool` in the base, `int` in the derived declaration (`VesselClass::Take_Damage`). | Check with `-fsyntax-only -Woverloaded-virtual=2`. |
+| `'X' does not name a type` on `static _x = -1;` | Implicit `int` (RADAR). | `static int`. |
+| `#pragma aux output` (MONOC) | Watcom inline asm for MDA/6845 port I/O. | Kept under `#ifdef __WATCOMC__`; elsewhere a documented no-op `static inline` function. |
+
+Win32 stand-in additions (`CODE/compat/win32/windows.h`): `BY_HANDLE_FILE_INFORMATION` (SDK layout, inside the
+`pack(push, 8)` block), `GetFileInformationByHandle` (declaration), `FILE_ATTRIBUTE_TEMPORARY` (0x100),
+`SEM_FAILCRITICALERRORS` (1).

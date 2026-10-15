@@ -73,12 +73,21 @@
 
 
 
+#ifdef __WATCOMC__
 extern void output(short port, short data);
 #pragma aux output parm [dx] [ax] =		\
 		"out	dx,al"		\
 		"inc	dx"			\
 		"mov	al,ah"		\
 		"out	dx,al"
+#else
+/*
+**	S06d: the Watcom version writes the 6845 CRT controller ports of an MDA card (hardware cursor of
+**	the monochrome debug display). User-mode port I/O is impossible on every current OS, so this is a
+**	no-op elsewhere. Only reached when MonoClass::Enabled is set (debug builds, "-MONO" style options).
+*/
+static inline void output(short port, short data) {(void)port; (void)data;}
+#endif
 
 
 bool MonoClass::Enabled = 0;
@@ -89,10 +98,10 @@ MonoClass * MonoClass::PageUsage[MonoClass::MAX_MONO_PAGES];
 **	These are the IBM linedraw characters.
 */
 MonoClass::BoxDataType const MonoClass::CharData[MonoClass::COUNT] = {
-	{0xDA,0xC4,0xBF,0xB3,0xD9,0xC4,0xC0,0xB3},	// Single line
-	{0xD5,0xCD,0xB8,0xB3,0xBE,0xCD,0xD4,0xB3},	// Double horz.
-	{0xD6,0xC4,0xB7,0xBA,0xBD,0xC4,0xD3,0xBA},	// Double vert.
-	{0xC9,0xCD,0xBB,0xBA,0xBC,0xCD,0xC8,0xBA}		// Double horz and vert.
+	{(char)0xDA,(char)0xC4,(char)0xBF,(char)0xB3,(char)0xD9,(char)0xC4,(char)0xC0,(char)0xB3},	// Single line
+	{(char)0xD5,(char)0xCD,(char)0xB8,(char)0xB3,(char)0xBE,(char)0xCD,(char)0xD4,(char)0xB3},	// Double horz.
+	{(char)0xD6,(char)0xC4,(char)0xB7,(char)0xBA,(char)0xBD,(char)0xC4,(char)0xD3,(char)0xBA},	// Double vert.
+	{(char)0xC9,(char)0xCD,(char)0xBB,(char)0xBA,(char)0xBC,(char)0xCD,(char)0xC8,(char)0xBA}		// Double horz and vert.
 };
 
 
