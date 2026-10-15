@@ -1,6 +1,6 @@
 # S10 — Link & boot to main menu → **Milestone M1**
 
-**Status:** Not started · **Wave:** 4 · **Depends on:** S06, S07, S08, S09
+**Status:** In progress · **Wave:** 4 · **Depends on:** S06, S07, S08, S09
 
 ## Goal
 Link the executable, load the player's MIX files, and reach the main menu.
@@ -36,6 +36,13 @@ Suggested approach: get the **Windows (MSVC)** link working first (the Win32 API
 - `GBUFFER.CPP`, `ICONCACH.CPP`, `DDRAW.CPP`, `MOUSE.CPP` and `STARTUP.CPP` were rewired by S08 but reviewed only by hand, because they need
   S06's `windows.h`/`ddraw.h` shims to compile. Compile and check them first.
 - MSVC has not built the platform layer locally; check the first CI result.
+
+## Split (orchestrator, 2026-10-15)
+| Agent | Scope | Owns |
+|-------|-------|------|
+| **S10a**: link, templates | The 276 template instantiations; `ABS`/`MIN`/`MAX`/`Bound`; fixed-point operators | Template headers and their `.CPP`s (`VECTOR`, `CCPTR`, `JSHELL.H`, `FIXED`, …) |
+| **S10b**: link, platform | `WinMain` → `main`; Win32 file/registry/message APIs on Linux; remove old window code; stubs (movies, Winsock until S12, mono, asm leftovers, `DirectSoundCreate`); S08's integration list | `STARTUP`, `WINSTUB`, `RAWFILE`, `CDFILE`, `CODE/compat/`, new `CODE/stubs/` |
+| **S10c**: boot (after a+b) | Asset path, expansion detection, intro movie skip, crash fixing to the main menu, CI release artifacts, screenshot | Whatever booting needs |
 
 ## Tasks
 - [ ] Resolve every unresolved symbol, adding documented stubs where a feature is out of scope (movies, WOL, …).
