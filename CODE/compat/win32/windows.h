@@ -784,6 +784,8 @@ LRESULT WINAPI SendMessage(HWND, UINT, WPARAM, LPARAM);
 void WINAPI PostQuitMessage(int);
 BOOL WINAPI WaitMessage(void);
 int WINAPI MessageBox(HWND, LPCSTR text, LPCSTR caption, UINT type);
+INT_PTR WINAPI DialogBox(HINSTANCE, LPCSTR tmpl, HWND parent, DLGPROC);
+UINT WINAPI RegisterWindowMessage(LPCSTR);
 BOOL WINAPI MessageBeep(UINT);
 HDC WINAPI BeginPaint(HWND, LPPAINTSTRUCT);
 BOOL WINAPI EndPaint(HWND, PAINTSTRUCT const *);

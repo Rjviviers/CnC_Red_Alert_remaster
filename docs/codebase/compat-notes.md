@@ -183,3 +183,36 @@ real class. The `_WIN32` numbers were measured with MinGW-w64 (MSVC bit-field la
   from `<strings.h>`, giving odd errors such as "no post-increment operator for type" or
   "unresolved overloaded function type". Declare the variable before the loop.
 - **MinGW-only:** 14 files fail only with MinGW, because its `windows.h` does not define `min`/`max` in C++ (MSVC's does).
+
+## S06e notes
+
+From [the S06e log](../logs/2026-10-14-S06e-compile-group4.md) (`SLIDER`…`WSPUDP`).
+
+- **`bool` was `int` under Watcom (`WATCOM.H`: `typedef int bool`).** S06a's switch to the built-in `bool` changes more
+  than the size. Two traps:
+  - **Counters declared `bool`.** `ScenarioInit` is a *nesting counter*: `ScenarioInit++ … ScenarioInit--` brackets
+    nest (e.g. `SCENARIO.CPP` holds it across the whole load while `TACTION.CPP`, `UNIT.CPP`, `REINF.CPP` bump it
+    again). A real `bool` cannot be decremented, and making the `--` an `= false` would end the outer bracket early.
+    Fix: declare it `int` (`EXTERNS.H`; the definition in `GLOBALS.CPP` must follow). Code that saves it in a local
+    should use `int` too (`CRATE.CPP`, `SCENARIO.CPP` do; `CARRY.CPP:140` uses `bool oldscen` and squashes a count of 2
+    to 1).
+  - **Silent non-overrides.** A virtual declared with `bool` in the base and `int` in a derived class was one function
+    under Watcom and is now two: the derived one no longer overrides. `VESSEL.H` declared
+    `Take_Damage(..., int forced)` while `OBJECT.H`/`TECHNO.H` say `bool forced`, so `VesselClass::Take_Damage` was
+    never called through a base pointer. It compiled without a diagnostic. Fixed in `VESSEL.H`. A scan of every
+    `virtual` in `CODE/*.H` (parameter lists equal after `bool`→`int`) finds no other case. Out-of-line definitions
+    that still say `int forced` fail loudly ("no declaration matches"): change them to `bool`.
+- **`TBLACK` as a null `RemapControlType *`.** `Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, flags)` (the "set the
+  font" idiom) passes the enum constant `TBLACK` (0) as the colour-scheme pointer. An enumerator is not a null pointer
+  constant in C++11. Write `nullptr` for the pointer argument (`Fancy_Text_Print(TXT_NONE, 0, 0, nullptr, TBLACK,
+  flags)`); same value, same overload. Also in `EDIT.CPP`, `LIST.CPP`, `CONFDLG.CPP`, `LIST.H:280` (template).
+- **`virtual` on an out-of-line definition** (`virtual SliderClass::~SliderClass`): drop the keyword; the class
+  declaration already has it.
+- **A temporary passed to `FileClass &`** (`ini.Load(CCFileClass("IP.INI"), false)`): name the object first.
+  Same pattern in `INIT.CPP:251/258/2723`, `ENDING.CPP`, `INTRO.CPP`.
+- **`_export`** (Watcom/Borland 16-bit DLL export keyword) on `Windows_Procedure`: removed; Win32 ignored it and MSVC
+  rejects it.
+- **WinSock names on Linux.** `htonl`/`ntohl` came from `<windows.h>` → `<winsock.h>` on Windows; `UTRACKER.CPP` now
+  includes `<winsock.h>` itself. The stand-in `winsock.h` gained `LINGER`, the stand-in `windows.h` gained
+  `DialogBox` and `RegisterWindowMessage` (declared only, as usual). `WSPUDP.CPP` needs nothing else to compile:
+  `WSAAsyncSelect` is declared, never defined, so it is a link-time item for S12.
