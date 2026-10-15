@@ -183,3 +183,27 @@ real class. The `_WIN32` numbers were measured with MinGW-w64 (MSVC bit-field la
   from `<strings.h>`, giving odd errors such as "no post-increment operator for type" or
   "unresolved overloaded function type". Declare the variable before the loop.
 - **MinGW-only:** 14 files fail only with MinGW, because its `windows.h` does not define `min`/`max` in C++ (MSVC's does).
+
+## S06f notes
+
+Support libraries (`WIN32LIB/`, `WINVQ/`), session S06f ([log](../logs/2026-10-14-S06f-compile-libraries.md)). After S06f
+every C++ file in `win32lib`, `vqa32wp` and `vqm32wp` compiles with GCC `-m32`, and the three static libraries build.
+Removed files and the evidence are in [removed-code.md §7](removed-code.md#7-dead-or-shadowed-support-library-files-s06f).
+
+| File | Fix | Behaviour |
+|------|-----|-----------|
+| `WIN32LIB/MISC/DELAY.CPP`, `WIN32LIB/PALETTE/PALETTE.CPP`, `WIN32LIB/WW_WIN/WINDOWS.CPP`, `WIN32LIB/WW_WIN/WINHIDE.CPP`; component headers `WIN32LIB/SHAPE/SHAPE.H` (two bytes), `WIN32LIB/WW_WIN/WW_WIN.H` | Trailing DOS end-of-file byte (Ctrl-Z, 0x1A) removed, as S06a did for the shared headers | None |
+| `WIN32LIB/PALETTE/PALETTE.CPP:59`, `WIN32LIB/PALETTE/PALETTE.H:80` (component copy) | `extern "C" extern unsigned char CurrentPalette[]` → `extern "C" unsigned char CurrentPalette[]` (same fix S06a made in `WIN32LIB/INCLUDE/PALETTE.H`) | None |
+| `WIN32LIB/DRAWBUFF/ICONCACH.CPP:226` | `Invalidate_Cached_Icons` reused the `i` of the previous `for (int i ...)` (old Watcom scoping); second loop now declares `int i` | None (the first loop's `i` is dead after it) |
+| `WINVQ/VQA32/TASK.CPP` | Needed `GetPriorityClass`; declared in the stand-in `CODE/compat/win32/windows.h` next to `SetPriorityClass` | None. Declaration only: `VQA_Play` raises the process priority while a movie plays. When movies are stubbed (ADR-0005) or the player is ported, drop the `Get/SetPriorityClass` pair |
+| `WIN32LIB/SHAPE/GETSHAPE.CPP` | Compiled once its component `SHAPE.H` lost the Ctrl-Z bytes | None |
+
+Patterns:
+- **Component-directory header copies win over `WIN32LIB/INCLUDE/`.** The case shim puts a file's own directory first, so
+  `GETSHAPE.CPP` reads `WIN32LIB/SHAPE/SHAPE.H`, not `WIN32LIB/INCLUDE/SHAPE.H`. A fix made in `INCLUDE/` must also be made
+  in the copy (or the copy deleted). Still left with Ctrl-Z: `WIN32LIB/AUDIO/SOSRES.H` (S09's directory; it compiles because
+  nothing in `AUDIO/` includes it any more).
+- **Library copies shadowed by the game** (`KEYBOARD.CPP` vs `CODE/KEY.CPP`, `MONO.CPP` vs `CODE/MONOC.CPP`,
+  `IFF/WRITEPCX.CPP` vs `CODE/WRITEPCX.CPP`) are removed rather than fixed: the game's copy is the one that links.
+- **Code switched off by a `#define ... 0`** (`VQACAPTIONS_ON`, `VQAVIDEO_ON`, `VQAVESA_ON`) is not compiled in the callers,
+  so the implementing file can leave the build. The static library only pulls an object when something references it.

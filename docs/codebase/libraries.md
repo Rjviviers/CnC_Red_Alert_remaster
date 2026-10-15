@@ -7,6 +7,14 @@ Companion page: [assembly-inventory.md](assembly-inventory.md) (one row per asse
 > `WIN32LIB/SRCDEBUG/`, `EXAMPLE/`, `MOVIE/`, `WINCOMM/`, the `OLD/`/`TEST/` folders, `WINVQ/VPLAY32/`, `WINVQ/VQAVIEW/`
 > and the prebuilt HMI SOS libraries were deleted in S05. `PROFILE`, `MONO` and `PLAYCD` were kept for now
 > (outside the S05 brief; `PROFILE` and `PLAYCD` are still referenced by compiled game code). See [removed-code.md](removed-code.md).
+>
+> **Update from S06f (2026-10-14).** Out of the build: `WIN32LIB/MONO/` (deleted; the game's `CODE/MONOC.CPP` is the
+> copy that links), `KEYBOARD/KEYBOARD.CPP` (deleted; shadowed by `CODE/KEY.CPP`), `IFF/WRITELBM.CPP`, `IFF/WRITEPCX.CPP`,
+> `MISC/FINDARGV.CPP`, `MISC/IRANDOM.CPP`, `PALETTE/LOADPAL.CPP`, `PALETTE/MORPHPAL.CPP` (deleted; no callers),
+> `PROFILE/WPROFILE.CPP` + `APROFILE.ASM` (files kept until S10 removes the `Stop_Profiler` call in `WINSTUB.CPP`),
+> and in `WINVQ/` `VQA32/CAPTION.CPP`, `VQM32/VIDEO.CPP`, `VQM32/VESAVID.CPP` (files kept; their callers are compiled out by
+> `VQACAPTIONS_ON`/`VQAVIDEO_ON`/`VQAVESA_ON` = 0). Everything else in the three libraries compiles on GCC.
+> See [removed-code.md §7](removed-code.md#7-dead-or-shadowed-support-library-files-s06f). The tables below describe the original 1996 build.
 
 **Terms used on this page**
 
@@ -107,14 +115,14 @@ have no counterpart left, e.g. `VESA.ASM`, `KEYIREAL.ASM`, `TIMERA.ASM`).
 | KEYBOARD | `WWKeyboardClass` (Windows message keyboard queue) and `WWMouseClass` (software mouse cursor drawn into the surface, `WWMOUSE.ASM`) | Win32 messages, `GetCursorPos`-style APIs (**unverified** which) | `CODE/GSCREEN.CPP:475` `WWMouse->Draw_Mouse` | The game has its own `WWKeyboardClass` in `CODE/KEY.CPP` (object wins over library). Mouse: port or replace by an OS cursor (S08) |
 | MEM | `Alloc`/`Free`, `Mem_Copy` (memmove), `Force_VM_Page_In` (Win95 paging hint) | none | `CODE/2KEYFRAM.CPP:262` `Alloc`; `CODE/MAP.CPP:1292` `Mem_Copy` | Keep allocators, replace asm with `memmove`/no-op |
 | MISC | DirectDraw setup and palette (`DDRAW.CPP`: `Set_Video_Mode`, `Set_DD_Palette`), `Delay`, CRC, facing helpers, fading tables, clip helpers, random, byte swap, screen shake, CPU/OS detection | DirectDraw | `CODE/INIT.CPP:2083` `Set_Video_Mode`; `CODE/DISPLAY.CPP:408` `Build_Fading_Table` | Replace `DDRAW.CPP` with SDL (S08); port the few asm members that are pulled |
-| MONO | Monochrome debug display (MDA at `0xB0000`) | port I/O (`MONO/MONO.CPP:61` `#pragma aux output`) | `CODE/MONOC.CPP` is the game's own copy | Delete (debug hardware) |
+| MONO | Monochrome debug display (MDA at `0xB0000`) | port I/O (`MONO/MONO.CPP:61` `#pragma aux output`) | `CODE/MONOC.CPP` is the game's own copy | Delete (debug hardware). **Done in S06f** |
 | PALETTE | `Set_Palette`, palette fades/morphs, `CurrentPalette` (`PAL.ASM`) | via `Set_DD_Palette` | `CODE/EGOS.CPP:328` `Set_Palette` | Keep; port `PAL.ASM` (it is a 768-byte copy and a call) |
 | SHAPE | Shape buffer globals (`SHAPE.ASM`) and header helpers (`GETSHAPE.CPP`); the actual shape drawer is in `CODE/2KEYFBUF.ASM` | none | `CODE/INIT.CPP:3184` `Set_Shape_Buffer` | Keep; `SHAPE.ASM` becomes plain C++ globals |
 | TILE | Icon (terrain template) sets: `Get_Icon_Set_Map`, `Load_Icon_Set` | none | `CODE/MAP.CPP:1292`, `CODE/TEMPLATE.CPP:96` | Keep (pure C++) |
 | TIMER | `TimerClass`, `CountDownTimerClass`, `WinTimerClass` (the 60 Hz tick behind `TickCount`) | `timeSetEvent` (`TIMER/TIMERINI.CPP`) | 51 game files, e.g. `CODE/CCDDE.CPP:73` | Replace the backend with SDL timers (S08); frame pacing only, not simulation state |
 | WW_WIN | Text windows: `WindowList[]`, `Change_Window`, `Window_Print` | none | `CODE/CDATA.CPP:3181` `WindowList` | Keep |
 | WSA | WSA animations (`Open_Animation`, `Animate_Frame`) with XOR-delta frames (`XORDELTA.ASM`) | none | `CODE/MAPSEL.CPP:158`, `CODE/SCORE.CPP:427` | Keep; port `XORDELTA.ASM` |
-| PROFILE | Sampling profiler (`Start_Profiler`/`Stop_Profiler`) using a timer callback and `APROFILE.ASM` hooks | `timeSetEvent`, thread context | `CODE/WINSTUB.CPP:236` `Stop_Profiler` | Delete (developer tool) |
+| PROFILE | Sampling profiler (`Start_Profiler`/`Stop_Profiler`) using a timer callback and `APROFILE.ASM` hooks | `timeSetEvent`, thread context | `CODE/WINSTUB.CPP:236` `Stop_Profiler` | Delete (developer tool). **Out of the build since S06f**; S10 removes the call |
 | PLAYCD | CD drive detection (`GetCDClass`), Red Book audio (`RedBookClass`) | `GetLogicalDrives`/MCI (**unverified** which) | `CODE/CDFILE.CPP:281` `GetCDClass temp;` | Delete together with CD checks (S05 decides) |
 | WINCOMM | `WinModemClass`, `WinNullModemClass`: serial/modem play | Win32 comm API | `CODE/NULLDLG.CPP:1157` `new WinModemClass` | Delete (ADR 0005 drops modem play) |
 
