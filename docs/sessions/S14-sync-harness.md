@@ -14,6 +14,10 @@ Automatically detect simulation divergence, so we catch desyncs before players d
 - S06a: glibc's `BIG_ENDIAN` define had made Linux compile the big-endian `FIXED.H`/`DEFINES.H` layouts. This is now fixed and guarded
   by `#error`. Make sure the harness would have caught a bug of this kind (compare a Linux and a Windows replay once cross-checks exist).
 
+- S06c–e: `ScenarioInit` is a nesting counter and is `int` again; `VesselClass::Take_Damage` had silently stopped overriding its base
+  after the `bool` size change (fixed); `WWMessageBox::Process` stored a button index in a `bool` (fixed). The harness should include
+  scenarios with ships taking damage and scripted reinforcements (nested `ScenarioInit`).
+
 ## Tasks
 - [ ] Record and replay a game's events (the original `Queue_Record`/playback can be a starting point).
 - [ ] Log a per-frame CRC of the game state; a tool compares two logs and reports the first frame that differs.

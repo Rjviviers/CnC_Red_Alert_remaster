@@ -78,7 +78,7 @@ int WWMessageBox::Process(const char * msg, const char * b1txt, const char * b2t
 {
 #define BUFFSIZE (511)
 	char buffer[BUFFSIZE];
-	bool retval;
+	int retval;	// S06d: was bool (= int on Watcom); holds the button index 0, 1 or 2
 	bool process;								// loop while true
 	int selection;
 	bool pressed;
@@ -95,7 +95,7 @@ int WWMessageBox::Process(const char * msg, const char * b1txt, const char * b2t
 	if (b2txt != NULL && *b2txt == '\0') b2txt = NULL;
 	if (b3txt != NULL && *b3txt == '\0') b3txt = NULL;
 
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_TEXT);
+	Fancy_Text_Print(TXT_NONE, 0, 0, (RemapControlType *)NULL, TBLACK, TPF_TEXT);
 
 	/*
 	**	Examine the optional button parameters. Fetch the width and starting
@@ -130,7 +130,7 @@ int WWMessageBox::Process(const char * msg, const char * b1txt, const char * b2t
 	*/
 	buffer[BUFFSIZE-1] = 0;
 	strncpy(buffer, msg, BUFFSIZE-1);
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_TEXT);
+	Fancy_Text_Print(TXT_NONE, 0, 0, (RemapControlType *)NULL, TBLACK, TPF_TEXT);
 	int width;
 	int height;
 	int lines = Format_Window_String(buffer, 255 * RESFACTOR, width, height);
