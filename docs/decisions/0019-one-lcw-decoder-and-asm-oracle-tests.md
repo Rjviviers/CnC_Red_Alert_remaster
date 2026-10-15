@@ -1,6 +1,6 @@
 # ADR-0019: One LCW decoder; check asm ports against the original instructions in tests
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-14
 - **Session:** S07-D
 

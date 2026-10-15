@@ -1,6 +1,6 @@
 # ADR-0016: Drop the DirectDraw video-memory icon cache
 
-- **Status:** Proposed (carries out the removal planned in the S02 inventory, row 21, and the S07/S08 briefs)
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-14
 - **Session:** S07-A
 

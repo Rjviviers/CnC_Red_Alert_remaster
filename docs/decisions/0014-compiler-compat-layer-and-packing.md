@@ -1,6 +1,6 @@
 # ADR-0014: Compiler compatibility layer, Win32 stand-in headers for Linux, and struct packing
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-14
 - **Session:** S06a
 

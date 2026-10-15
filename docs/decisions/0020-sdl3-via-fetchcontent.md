@@ -1,6 +1,6 @@
 # ADR-0020: Get SDL3 with CMake FetchContent from a pinned release tarball
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-14
 - **Session:** S08
 

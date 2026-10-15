@@ -1,6 +1,6 @@
 # ADR-0015: No MinGW-w64 cross-compile job in CI (use it locally as a Windows-header check)
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-14
 - **Session:** S06a
 
