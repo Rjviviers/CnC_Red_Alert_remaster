@@ -442,3 +442,12 @@ every `strtrim`, `Count_Up_Print` (only `sprintf`s its format), `Load_Title_Scre
   the default build).
 - **`Platform_Message_Box` returns `bool`** (shown or not) and never shows a box on the `offscreen`/`dummy` video drivers
   (SDL would fall back to a native, blocking Win32 box on Windows).
+
+## Windows-only pitfalls (found when MSVC first built the whole game, 2026-10-15)
+- **Shadowing headers.** `#include "x.h"` searches the including file's own folder first. On Windows (case-insensitive) a stale copy of a
+  shared header next to a `.CPP` silently wins; on Linux it doesn't match the lower-case spelling. `WIN32LIB/INCLUDE` is the only copy of
+  each shared header now, and `scripts/check_shadow_headers.py` (run in CI) fails if a differing copy reappears.
+- **Watcom instantiation declarations** (`class Foo<Bar>;`) must stay under `#ifdef __WATCOMC__`: MSVC reports C2906, and GCC silently
+  accepts them.
+- MSVC lacks `PATH_MAX` (defined in `ra_compat.h`) and doesn't provide `SEEK_*` through `<io.h>`.
+- Calling conventions belong inside function-pointer declarators: `void (__cdecl *fp)(...)`, not `void __cdecl (*fp)(...)`.

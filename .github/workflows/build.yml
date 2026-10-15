@@ -48,6 +48,10 @@ jobs:
             libx11-dev:i386 libxext-dev:i386 libxrandr-dev:i386 libxcursor-dev:i386 \
             libxi-dev:i386 libxfixes-dev:i386 libasound2-dev:i386
 
+      # A stale header next to a .CPP silently replaces the shared one on Windows only (case-insensitive).
+      - name: Check for shadowing headers
+        run: python3 scripts/check_shadow_headers.py
+
       - name: Configure
         run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86
 
@@ -105,6 +109,10 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x86
+
+      # A stale header next to a .CPP silently replaces the shared one on Windows only (case-insensitive).
+      - name: Check for shadowing headers
+        run: python scripts/check_shadow_headers.py
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DRA_TARGET_ARCH=x86

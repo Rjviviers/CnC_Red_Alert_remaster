@@ -433,7 +433,7 @@ typedef struct _VQAData {
 	long (*Draw_Frame)(VQAHandle *vqa);
 	long (*Page_Flip)(VQAHandle *vqa);
 
-	void __cdecl (*UnVQ)(unsigned char *codebook, unsigned char *pointers,
+	void (__cdecl *UnVQ)(unsigned char *codebook, unsigned char *pointers,
 			unsigned char *buffer, unsigned long blocksperrow,
 			unsigned long numrows, unsigned long bufwidth);
 

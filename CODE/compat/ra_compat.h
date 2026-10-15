@@ -55,6 +55,9 @@
 #  ifndef cdecl
 #    define cdecl __cdecl
 #  endif
+#  ifndef PATH_MAX
+#    define PATH_MAX 260		/* MSVC has only _MAX_PATH (CDFILE.CPP uses PATH_MAX) */
+#  endif
 #else
 #  ifndef __cdecl
 #    define __cdecl

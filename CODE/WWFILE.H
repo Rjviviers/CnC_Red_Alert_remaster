@@ -47,6 +47,7 @@
 
 #include	<io.h>
 #include	<stddef.h>
+#include	<stdio.h>			// SEEK_CUR (MSVC does not get it from <io.h>)
 
 #ifndef READ
 #define READ 1

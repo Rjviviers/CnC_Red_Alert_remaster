@@ -102,6 +102,8 @@ class CCFileClass : public CDFileClass
 		CCFileClass (CCFileClass const & );
 };
 
+#ifdef __WATCOMC__		// Watcom "instantiate this template"; standard C++ reads it as an undefined specialization (MSVC C2906)
 class MixFileClass<CDFileClass>;
+#endif
 
 #endif
