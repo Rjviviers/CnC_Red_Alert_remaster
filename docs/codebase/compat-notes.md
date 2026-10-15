@@ -393,7 +393,52 @@ Link fixes outside the templates, session S10b ([log](../logs/2026-10-15-S10b-li
   any more. `MixFileClass::Offset` (`MIXFILE.CPP:538`) does `strupr((char *)filename)` on its argument, so
   `MFCD::Retrieve("FONT.FNT")` crashes (first seen when booting with a `REDALERT.INI` and no data files: `Init_Fonts`).
   Other `strupr` calls on caller strings: `INIT.CPP:1245` (argv: writable), `NETDLG.CPP`, `PROFILE.CPP`, `VERSION.CPP`.
-  For S10c: copy into a local buffer before upper-casing.
+  For S10c: copy into a local buffer before upper-casing. *(Done in S10c, see "S10c notes".)*
 - **Game sources outside `CODE/`** (`CODE/stubs/`, `CODE/compat/*.cpp`): a quoted `"function.h"` finds
   `WIN32LIB/INCLUDE/FUNCTION.H` first, and the case shim does not cover a new spelling until CMake is re-run. Include
   headers with their exact on-disk case (`<VQA32/VQAPLAY.H>`) or avoid the game's `FUNCTION.H`.
+
+## S10c notes
+Boot fixes, session S10c ([log](../logs/2026-10-15-S10c-boot.md), [ADR-0023](../decisions/0023-data-folder-and-first-run.md)).
+
+### Writable string literals (a class of crash)
+Watcom C++ 10.6 put string literals in writable memory, and the code relies on it in places: it modifies a string in
+place that can be a literal. GCC and MSVC put literals in read-only memory, so each such write is a SIGSEGV / access
+violation. There is no compiler switch for writable literals any more (GCC dropped `-fwritable-strings`), and the project
+does not want one: **copy the string into a buffer and modify the copy.**
+
+How the call sites were found (repeat this when porting more code):
+1. **Literal → `char *` conversions.** Compile every game source with `-Wwrite-strings` (the build uses `-fpermissive`,
+   which hides it) and list the warnings. 183 sites; each callee was checked for writes. Most are tables of names that
+   are only read (`EVENT.CPP` event names, `RADAR.CPP` file names copied with `strcpy`, the `INI_Name()` functions, ...).
+2. **`char const *` cast to `char *` and written.** `grep` for `strupr`, `strlwr`, `strrev`, `strtok`, `strtrim`
+   (`READLINE.CPP`), `Format_Window_String` (writes `\r` into its argument) and `(char *)` casts of parameters, and
+   direct writes (`*(p + n) = 'x'`, `p[n] = 'x'`) into pointers that come from literals.
+
+Fixed:
+
+| Where | What wrote into a literal | Fix |
+|-------|---------------------------|-----|
+| `MIXFILE.CPP` `MixFileClass::Offset` | `strupr((char *)filename)` on every MIX lookup name: `MFCD::Retrieve("12METFNT.FNT")`, `"stripna.shp"`, every `CCFileClass("…")` | Upper-case a local copy. **The first boot crash** (S10b, `Init_Fonts`). Side effect gone: the caller's buffer is no longer upper-cased |
+| `SIDEBAR.CPP` `Reload_Sidebar` | `*(sidename+4) = '1'` into `"SIDE?NA.SHP"` | Patch a local copy |
+| `INIT.CPP` `Init_CDROM_Access` | `Set_Search_Drives("?:\\")` (`strtok`s its argument; harmless without `;`, but fragile) | Local array |
+| `UDPADDR.CPP` | `Format_Window_String("IP Addresses", …)` | Local array |
+| `VERSION.CPP` (two functions, under `DEV_VERSION`/`NEVER`, not compiled) | `static char * date = __DATE__;` then `strupr`/`strtok` | `static char date[]` (and `time[]`) |
+
+Checked and safe (the string is a local or heap buffer): the other `strupr` calls (`INIT.CPP` argv and `Obfuscate`,
+`NETDLG.CPP`, `PROFILE.CPP`, `SESSION.CPP`), every `strtok` (INI/scenario parsing works on buffers read from files),
+every `strtrim`, `Count_Up_Print` (only `sprintf`s its format), `Load_Title_Screen`/`Read_PCX_File` (pass the name to
+`CCFileClass`, which now no longer writes), `WWDebugString` (does nothing), the `MSGLIST.CPP` `to = ""` (copied).
+
+### Other S10c changes
+- **`CDFileClass` search order** (`CDFILE.CPP`/`.H`): a bare `*.MIX` name is looked for in the search paths first;
+  everything else in the current directory first, as before. `RawPath` grew from 512 to 2048 bytes and both `strcat`s
+  into it and into the 260-byte path buffer are bounded.
+- **MIX header validation** (`MIXFILE.CPP` constructor): a file too short for a header, or whose header claims no
+  entries, a negative size, or more index/data than the file holds, is not registered (as if missing). Before, an empty
+  file left `alternate` uninitialised and allocated `new SubBlock[garbage]`.
+- **Asserts during start-up**: `Assert_Failure` (`WINSTUB.CPP`) also writes to stderr, and uses the platform message box
+  while the game fonts are not loaded (the game's dialog would have crashed). Asserts are compiled in (no `NDEBUG` in
+  the default build).
+- **`Platform_Message_Box` returns `bool`** (shown or not) and never shows a box on the `offscreen`/`dummy` video drivers
+  (SDL would fall back to a native, blocking Win32 box on Windows).

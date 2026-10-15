@@ -160,6 +160,14 @@ Step by step, with what each step depends on. File:line references are to the or
    received while messages are being pumped**, which S08 (event pump) and S12 (polled sockets) must keep in mind together.
 6. **Shutdown:** `WM_DESTROY` in `Windows_Procedure` → `Prog_End` (`STARTUP.CPP:843`): sound off, timers deleted.
 
+**In the port** (S10b/S10c): `WinMain` is a portable `main` ([platform-layer.md, "How `main` works"](platform-layer.md#how-main-works)).
+Before the window opens, `Boot_Setup_Data` creates `REDALERT.INI` if needed, sets the data search folders and checks
+for `REDALERT.MIX`/`MAIN.MIX` ([ADR-0023](../decisions/0023-data-folder-and-first-run.md)). The intro movie is skipped
+(`Play_Movie` returns at once), the CD checks always pass, and `[Intro] PlayIntro` is ignored, so every start goes
+`Init_Game` → main menu. Missing or damaged data found during `Init_*` is reported by `Boot_Data_Error` instead of an
+assert. The data files `Init_Game` loads, in order, are listed in [playing.md](../playing.md#the-order-the-game-loads-them).
+Without data the port gets as far as `Init_Bootstrap_Mixfiles` (window, timer, audio, keyboard and mouse are up).
+
 ## Feature switches
 
 Values are for the shipped Win32 build. "Uses" counts `#if`/`#ifdef`/`#ifndef`/`#elif` lines in `CODE/*.CPP|*.H` (lines / files).

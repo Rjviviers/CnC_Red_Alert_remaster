@@ -50,6 +50,11 @@
 **	For opening files to write, only the current directory is examined. The directory search order
 **	is controlled by the path list as submitted to Set_Search_Drives(). The format of the path
 **	string is the same as the DOS path string.
+**
+**	S10c: MIX files (a bare name ending in ".MIX") are looked up in the search paths FIRST and
+**	only then in the current directory, so the player's data folder wins over stray copies
+**	(docs/playing.md, ADR-0023). Every other file keeps the original order, so REDALERT.INI,
+**	saved games and other files the game writes in the current directory are read back from there.
 */
 class CDFileClass : public BufferIOFileClass
 {
@@ -96,7 +101,7 @@ class CDFileClass : public BufferIOFileClass
 		/*
 		** This is a copy of the unparsed search path list
 		*/
-		static char RawPath[512];
+		static char RawPath[2048];		// S10c: was 512; now holds the data folder, game folder and start folder
 
 		/*
 		** The drive letter of the current cd drive

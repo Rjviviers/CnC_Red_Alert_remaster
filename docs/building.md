@@ -235,6 +235,10 @@ add any new game library target there). Turn tests off with `-DRA_BUILD_TESTS=OF
 
 In CI, **failing unit tests fail the job**, unlike compile errors in the progress report.
 
+`s10c_boot_smoke` (S10c) is not a unit test but a script (`tests/s10c_boot_smoke.cmake`) that runs the real game
+headless (`SDL_VIDEO_DRIVER=offscreen`) without game data and checks that it exits cleanly with the "data missing"
+message. Because of it, `ra_tests` also builds the game.
+
 ## Continuous integration
 
 [`.github/workflows/build.yml`](../.github/workflows/build.yml) runs on every push and pull request:
@@ -245,9 +249,12 @@ In CI, **failing unit tests fail the job**, unlike compile errors in the progres
 | `windows-msvc-x86` | `windows-2022` | MSVC x86 (via `ilammy/msvc-dev-cmd`), Ninja |
 
 Each job configures (which fetches SDL3), **builds the platform layer** (`raplatform`, `platform_demo`; a
-failure fails the job), runs the progress tool,
+failure fails the job), **builds the game** (`redalert` → `ra95` / `ra95.exe`, since S10c; a link failure fails the
+job), runs the progress tool,
 writes the totals and top errors to the job summary, and uploads `compile-progress.md`,
-`.json` and the per-file logs as an artifact (`compile-progress-<job>`). A job fails only if
+`.json` and the per-file logs as an artifact (`compile-progress-<job>`). It also uploads the program
+(`ra95-linux-x86`: a `.tar.gz` that keeps the executable bit; `ra95-windows-x86`: `ra95.exe` plus the Visual C++ runtime
+DLLs it imports) with [`packaging/README.txt`](../packaging/README.txt); how to run it is in [playing.md](playing.md). A job fails only if
 the build system is broken, never because game sources fail to compile.
 
 ## Appendix: the original build

@@ -9,6 +9,12 @@
 # error, compiler cannot be started) - never because game sources fail to
 # compile. The source lists in cmake/RASources.cmake are hand-maintained
 # (ADR-0012), so there is no generated-file check any more.
+#
+# Since S10c both jobs also build the game itself (ra95 / ra95.exe; a link failure
+# fails the job), run the boot smoke test with the unit tests (ctest
+# s10c_boot_smoke: the game, headless, without data, must exit cleanly with the
+# "data missing" message), and upload the program as a downloadable artifact with
+# packaging/README.txt. No game data is ever included (ADR-0006); see docs/playing.md.
 
 name: build
 
@@ -49,6 +55,10 @@ jobs:
       - name: Build platform layer
         run: cmake --build build --target raplatform platform_demo
 
+      # S10c: the game links; a link error fails the job.
+      - name: Build the game (ra95)
+        run: cmake --build build --target redalert
+
       - name: Compile progress
         run: python3 scripts/compile_progress.py --build-dir build --no-configure
 
@@ -69,6 +79,21 @@ jobs:
             build/compile-progress-logs/
           if-no-files-found: warn
 
+      # Artifacts are zipped without file permissions, so the program goes in a tar.gz
+      # that keeps its executable bit.
+      - name: Package ra95
+        run: |
+          mkdir -p dist/ra95-linux-x86
+          cp build/ra95 packaging/README.txt dist/ra95-linux-x86/
+          tar -czf dist/ra95-linux-x86.tar.gz -C dist ra95-linux-x86
+
+      - name: Upload ra95
+        uses: actions/upload-artifact@v4
+        with:
+          name: ra95-linux-x86
+          path: dist/ra95-linux-x86.tar.gz
+          if-no-files-found: error
+
   windows-msvc-x86:
     name: Windows (MSVC, Win32)
     runs-on: windows-2022
@@ -87,6 +112,10 @@ jobs:
       # New code (platform layer, S08) must always build: this step fails the job.
       - name: Build platform layer
         run: cmake --build build --target raplatform platform_demo
+
+      # S10c: the first real Windows link of the game; a link error fails the job.
+      - name: Build the game (ra95.exe)
+        run: cmake --build build --target redalert
 
       - name: Compile progress
         run: python scripts/compile_progress.py --build-dir build --no-configure
@@ -107,3 +136,30 @@ jobs:
             build/compile-progress.json
             build/compile-progress-logs/
           if-no-files-found: warn
+
+      # SDL is linked statically (ADR-0020). The Visual C++ runtime DLLs that ra95.exe
+      # imports (dumpbin /dependents) are copied from the toolset's redistributable folder.
+      - name: Package ra95.exe
+        shell: pwsh
+        run: |
+          $out = "dist/ra95-windows-x86"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item build/ra95.exe, packaging/README.txt $out
+          $deps = dumpbin /nologo /dependents build\ra95.exe | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '\.dll$' }
+          Write-Host "ra95.exe imports: $($deps -join ', ')"
+          $crt = Get-ChildItem -Path (Join-Path $env:VCToolsRedistDir "x86") -Directory -Filter "Microsoft.VC*.CRT" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $crt) { Write-Warning "Visual C++ redistributable folder not found under VCToolsRedistDir='$env:VCToolsRedistDir'" }
+          foreach ($d in $deps) {
+            if ($crt -and (Test-Path (Join-Path $crt.FullName $d))) {
+              Copy-Item (Join-Path $crt.FullName $d) $out
+              Write-Host "bundled $d"
+            }
+          }
+          Get-ChildItem $out
+
+      - name: Upload ra95.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: ra95-windows-x86
+          path: dist/ra95-windows-x86/
+          if-no-files-found: error

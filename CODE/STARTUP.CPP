@@ -34,6 +34,8 @@
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
  *   Prog_End -- Cleans up library systems in prep for game exit.                              *
+ *   Boot_Setup_Data -- First-run REDALERT.INI, data folder and data check (S10c).             *
+ *   Boot_Data_Error -- Reports a data problem found during initialisation and exits (S10c).   *
  *   main -- Initial startup routine (preps library systems).                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -41,6 +43,7 @@
 #include	<conio.h>
 #include	<io.h>
 #include	"platform.h"		// S10b: SDL platform layer (platform/platform.h)
+#include	"port/ra_boot.h"	// S10c: data folder, first-run INI, data check (ADR-0023)
 
 #ifdef MCIMPEG // Denzil 6/15/98
 #include "mcimovie.h"
@@ -61,6 +64,14 @@ void Read_Setup_Options(RawFileClass *config_file);
 bool VideoBackBufferAllowed = true;
 
 const char* Game_Registry_Key();
+
+/*
+**	S10c: where the game looks for its data (see Boot_Setup_Data and docs/playing.md).
+*/
+static RABootSearchList BootSearch;
+static bool Boot_Setup_Data(bool have_data_option, bool data_option_empty, char const * data_option,
+							char const * start_dir, char const * game_dir);
+void Boot_Data_Error(char const * detail);
 
 #if (ENGLISH)
 #define WINDOW_NAME		"Red Alert"
@@ -120,26 +131,44 @@ int main(int argc, char * argv[])
 	}
 
 	/*
-	**	Change directory to where the executable is located, as the original did. Handle
-	**	the case where there is no path attached to argv[0].
+	**	S10c: take the data folder option out of the command line before the game's own
+	**	parser sees it (Parse_Command_Line upper-cases every argument, and its "-CD" test
+	**	would match inside a path). A relative folder is relative to where the game was
+	**	started, so remember that before changing directory.
 	*/
-	if (argc > 0 && argv[0] != NULL) {
-		char drive[_MAX_DRIVE];
-		char path[_MAX_PATH];
-		char dir[_MAX_DRIVE + _MAX_PATH];
-		_splitpath(argv[0], drive, path, NULL, NULL);
-		strcpy(dir, drive);
-		strcat(dir, path);
-		size_t len = strlen(dir);
-		while (len > 1 && (dir[len-1] == '\\' || dir[len-1] == '/') && dir[len-2] != ':') {
-			dir[--len] = '\0';
+	char start_dir[RA_BOOT_PATH_MAX] = "";
+	RA_Boot_Current_Dir(start_dir, sizeof(start_dir));
+
+	char data_option[RA_BOOT_PATH_MAX] = "";
+	bool data_option_empty = false;
+	bool have_data_option = RA_Boot_Take_Data_Option(&argc, argv, data_option, sizeof(data_option), &data_option_empty);
+
+	/*
+	**	Change directory to where the executable is located, as the original did, so
+	**	REDALERT.INI and saved games live next to it. S10c: the folder comes from the OS
+	**	(/proc/self/exe, GetModuleFileName), which also works when the game was started
+	**	through PATH; argv[0] is only the fallback.
+	*/
+	char game_dir[RA_BOOT_PATH_MAX] = "";
+	if (RA_Boot_Executable_Dir(argc > 0 ? argv[0] : NULL, game_dir, sizeof(game_dir))) {
+		if (chdir(game_dir) != 0) {
+			strcpy(game_dir, start_dir);
 		}
-		if (dir[0]) {
-			chdir(dir);
-		}
+	} else {
+		strcpy(game_dir, start_dir);
 	}
 
 	if (Parse_Command_Line(argc, argv)) {
+
+		/*
+		**	S10c: create REDALERT.INI on the first run, find the data folder and check that
+		**	the data files are there, before the window opens. On a problem the player gets a
+		**	message that says what is missing and where the game looked, and the game exits.
+		*/
+		if (!Boot_Setup_Data(have_data_option, data_option_empty, data_option, start_dir, game_dir)) {
+			Platform_Shutdown();
+			return(EXIT_FAILURE);
+		}
 
 		WindowsTimer = new WinTimerClass(60, FALSE);
 
@@ -214,24 +243,14 @@ int main(int argc, char * argv[])
 			ini.Load(cfile);
 
 			/*
-			**	Check for forced intro movie run disabling. If the conquer
-			**	configuration file says "no", then don't run the intro.
+			**	S10c: [Intro] PlayIntro is no longer read or written. In the original it was
+			**	missing (= yes) on the first run after installing, which set IsFromInstall: the
+			**	intro movie played and the game went straight into the first Allied mission
+			**	without showing the main menu. Movies are not played in this port (ADR-0005) and
+			**	the main menu is where multiplayer starts, so every start goes to the menu.
+			**	(The original's hidden "from install" command-line switch still sets the flag.)
 			*/
-			if (!Special.IsFromInstall) {
-				Special.IsFromInstall = ini.Get_Bool("Intro", "PlayIntro", true);
-			}
 			SlowPalette = ini.Get_Bool("Options", "SlowPalette", false);
-
-			/*
-			** Regardless of whether we should run it or not, here we're
-			** gonna change it to say "no" in the future.
-			*/
-			if (Special.IsFromInstall) {
-				BreakoutAllowed = true;
-//				BreakoutAllowed = false;
-				ini.Put_Bool("Intro", "PlayIntro", false);
-				ini.Save(cfile);
-			}
 
 			/*
 			**	If the intro is being run for the first time, then don't
@@ -261,7 +280,8 @@ int main(int argc, char * argv[])
 		} else {
 			/*
 			** No REDALERT.INI. The original printed this and waited for a key (with no
-			** window, so effectively forever under Windows 95).
+			** window, so effectively forever under Windows 95). S10c: Boot_Setup_Data creates
+			** the file, so this is only reached if it disappeared again in between.
 			*/
 			Platform_Message_Box(TEXT_SHORT_TITLE, TEXT_SETUP_FIRST);
 		}
@@ -276,6 +296,164 @@ int main(int argc, char * argv[])
 	Platform_Shutdown();
 	return(EXIT_SUCCESS);
 }
+
+/***********************************************************************************************
+ * Boot_Setup_Data -- First-run REDALERT.INI, data folder and data check (S10c).               *
+ *                                                                                             *
+ *    Creates REDALERT.INI with documented defaults if there is none, works out the folders    *
+ *    to search (data folder from -data= or [Data] Path=, then the game folder, then the       *
+ *    folder the game was started from), registers them with CCFileClass, and checks that     *
+ *    the files the game cannot start without are there. See docs/playing.md and ADR-0023.    *
+ *                                                                                             *
+ * INPUT:   have_data_option  -- -data was on the command line                                 *
+ *          data_option_empty -- ... but without a folder                                      *
+ *          data_option       -- the folder as typed                                           *
+ *          start_dir         -- the current directory at start-up                             *
+ *          game_dir          -- the executable's folder (now the current directory)           *
+ *                                                                                             *
+ * OUTPUT:  true to carry on; false after a message has been shown (the caller exits).         *
+ *=============================================================================================*/
+static void Boot_Report(char const * text)
+{
+	/*
+	**	A message box for the player; the same text on stderr for logs. (When no box can be
+	**	shown, headless or offscreen, the platform layer writes it to stderr itself.)
+	*/
+	fflush(stderr);
+	if (Platform_Message_Box(WINDOW_NAME, text)) {
+		fprintf(stderr, "%s: %s\n", WINDOW_NAME, text);
+	}
+	fflush(stderr);
+}
+
+static bool Boot_Setup_Data(bool have_data_option, bool data_option_empty, char const * data_option,
+							char const * start_dir, char const * game_dir)
+{
+	char message[4096];
+
+	/*
+	**	First run: write a REDALERT.INI with defaults (RA_Boot_Default_Config).
+	*/
+	int created = RA_Boot_Ensure_Config(CONFIG_FILE_NAME);
+	if (created < 0) {
+		snprintf(message, sizeof(message),
+			"Could not create %s in %s (%s).\n\nThe game keeps its settings next to the "
+			"executable: make that folder writable, or copy the game to a folder you can write to.",
+			CONFIG_FILE_NAME, game_dir, strerror(errno));
+		Boot_Report(message);
+		return(false);
+	}
+	if (created > 0) {
+		fprintf(stderr, "Red Alert: created %s with default settings in %s\n", CONFIG_FILE_NAME, game_dir);
+	}
+
+	/*
+	**	The data folder: the command line wins over the INI.
+	*/
+	char data_dir[RA_BOOT_PATH_MAX] = "";
+	char const * data_label = "data folder";
+	if (have_data_option) {
+		if (data_option_empty) {
+			Boot_Report("-data needs a folder, for example: -data=/path/to/redalert");
+			return(false);
+		}
+		if (!RA_Boot_Make_Absolute(data_option, start_dir, data_dir, sizeof(data_dir))) {
+			Boot_Report("The -data folder name is too long.");
+			return(false);
+		}
+		data_label = "data folder, from -data";
+	} else {
+		RawFileClass cfile(CONFIG_FILE_NAME);
+		INIClass ini;
+		ini.Load(cfile);
+		char path[RA_BOOT_PATH_MAX] = "";
+		ini.Get_String("Data", "Path", "", path, sizeof(path));
+		if (path[0] != '\0') {
+			if (!RA_Boot_Make_Absolute(path, game_dir, data_dir, sizeof(data_dir))) {
+				Boot_Report("The [Data] Path folder name in REDALERT.INI is too long.");
+				return(false);
+			}
+			data_label = "data folder, from REDALERT.INI";
+		}
+	}
+
+	if (data_dir[0] != '\0' && !RA_Boot_Is_Directory(data_dir)) {
+		snprintf(message, sizeof(message),
+			"The data folder does not exist:\n  %s\n(%s)\n\nPoint -data= or Path= in the [Data] section "
+			"of REDALERT.INI at the folder that holds your Red Alert .MIX files. See docs/playing.md.",
+			data_dir, data_label);
+		Boot_Report(message);
+		return(false);
+	}
+
+	RA_Boot_Search_Init(&BootSearch);
+	RA_Boot_Search_Add(&BootSearch, data_dir, data_label);
+	RA_Boot_Search_Add(&BootSearch, game_dir, "game folder");
+	RA_Boot_Search_Add(&BootSearch, start_dir, "start-up folder");
+
+	/*
+	**	Hand the list to the file system. CDFileClass looks for MIX files in these folders
+	**	in this order, and for other files in the current directory first (CDFILE.H).
+	**	Set_Search_Drives takes the string apart with strtok, so it gets a copy.
+	*/
+	static char search[sizeof(BootSearch.Dir) + RA_BOOT_MAX_DIRS];
+	if (RA_Boot_Search_String(&BootSearch, search, sizeof(search)) && search[0] != '\0') {
+		CCFileClass::Set_Search_Drives(search);
+	}
+
+	for (int i = 0; i < BootSearch.Count; i++) {
+		fprintf(stderr, "Red Alert: data search %d: %s (%s)%s\n", i + 1, BootSearch.Dir[i], BootSearch.Label[i],
+			RA_Boot_Is_Directory(BootSearch.Dir[i]) ? "" : " - does not exist");
+	}
+
+	/*
+	**	The files the game cannot start without.
+	*/
+	if (!RA_Boot_Check_Required(&BootSearch, message, sizeof(message))) {
+		Boot_Report(message);
+		return(false);
+	}
+
+	char found[RA_BOOT_PATH_MAX];
+	for (int r = 0; r < RA_Boot_Required_Count; r++) {
+		if (RA_Boot_Find(&BootSearch, RA_Boot_Required_Files[r].Name, found, sizeof(found)) >= 0) {
+			fprintf(stderr, "Red Alert: found %s\n", found);
+		}
+	}
+	fprintf(stderr, "Red Alert: Counterstrike (%s): %s\n", RA_BOOT_COUNTERSTRIKE_MIX,
+		RA_Boot_Find(&BootSearch, RA_BOOT_COUNTERSTRIKE_MIX, NULL, 0) >= 0 ? "found" : "not found");
+	fprintf(stderr, "Red Alert: Aftermath (%s): %s\n", RA_BOOT_AFTERMATH_MIX,
+		RA_Boot_Find(&BootSearch, RA_BOOT_AFTERMATH_MIX, NULL, 0) >= 0 ? "found" : "not found");
+	return(true);
+}
+
+
+/***********************************************************************************************
+ * Boot_Data_Error -- Reports a data problem found during initialisation and exits (S10c).     *
+ *                                                                                             *
+ *    Called by the Init_* code (INIT.CPP) when a data file it cannot do without is missing    *
+ *    or unreadable after the start-up check passed (for example a damaged REDALERT.MIX).      *
+ *    Shows the problem and the folders searched, then exits through Emergency_Exit.           *
+ *                                                                                             *
+ * INPUT:   detail -- what is wrong, one or two sentences                                      *
+ *                                                                                             *
+ * OUTPUT:  does not return                                                                    *
+ *=============================================================================================*/
+void Boot_Data_Error(char const * detail)
+{
+	char message[4096];
+	snprintf(message, sizeof(message), "%s\n\nFolders searched, in this order:\n", detail ? detail : "");
+	for (int i = 0; i < BootSearch.Count; i++) {
+		char line[RA_BOOT_PATH_MAX + 64];
+		snprintf(line, sizeof(line), "  %d. %s (%s)\n", i + 1, BootSearch.Dir[i], BootSearch.Label[i]);
+		strncat(message, line, sizeof(message) - strlen(message) - 1);
+	}
+	strncat(message, "\nYour data files may be incomplete or damaged: copy them again from your Red Alert "
+		"installation. See docs/playing.md.", sizeof(message) - strlen(message) - 1);
+	Boot_Report(message);
+	Emergency_Exit(EXIT_FAILURE);
+}
+
 
 /* Initialize DirectDraw and surfaces */
 bool InitDDraw(void)

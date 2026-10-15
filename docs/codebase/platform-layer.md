@@ -227,6 +227,10 @@ yet (S06/S07), so these pieces are left. They are listed in boot order. File:lin
 14. *(Done in S10b: the call went with `Windows_Procedure`.)* **Profiler** (`WINSTUB.CPP:236` `Stop_Profiler`, `WIN32LIB/PROFILE`): uses `timeSetEvent`. Delete it (developer tool, libraries.md). *(S06f took `WPROFILE.CPP`/`APROFILE.ASM` out of the build; the `Stop_Profiler()` call in `WINSTUB.CPP` is now unresolved and must be deleted.)*
 
 Still open after S10b: 10 (icon cache), the rest of 11, 12 (S12) and 13 (video options).
+S10c checked them against the boot path: none of the four is needed to reach the main menu (10 and 11 are dead code
+paths, 12 is LAN, 13 is a preference; the defaults are windowed, FIT, 4:3), so they stay open.
+S10c changed `Platform_Message_Box` to return whether a box was shown, and to show none on the `offscreen`/`dummy`
+video drivers (stderr only), so headless runs and CI never wait on a dialog.
 
 ## How `main` works
 
@@ -237,14 +241,20 @@ with `/ENTRY:mainCRTStartup` because the target is still a `WIN32_EXECUTABLE`). 
 2. `Install_Platform_Callbacks()` (`WINSTUB.CPP`): the focus callback `On_Focus_Change` (what `WM_ACTIVATEAPP` did),
    the poll hook `Quit_Poll_Hook` (window closed → `Emergency_Exit(EXIT_SUCCESS)`), and the focus-loss function
    pointers `Create_Main_Window` used to set.
-3. The RAM check (`Ram_Free`, always 64 MB), then `chdir` to the executable's directory, as the original did
-   (`_splitpath(argv[0])`). **S10c**: the asset-path setting will have to decide whether this stays.
-4. `Parse_Command_Line(argc, argv)` with the real `argv`. Then `WinTimerClass(60)`, `KeyboardClass`, the compressed-shape
-   check and the disk-space warning (now a plain message box; the game continues, as "yes" did).
-5. `REDALERT.INI` (`CONFIG_FILE_NAME`, found case-insensitively). Missing: message box "Run SETUP program first",
-   exit code 0 (the original waited for a key without a window). Present: `Read_Private_Config_Struct`,
-   `Read_Setup_Options`, `Audio_Init(NULL, …)`, `InitDDraw()` (window via `Set_Video_Mode`, `VisiblePage`/`HiddenPage`,
-   `SeenBuff`/`HidPage`), `GameInFocus = true`, mouse, CD drive (none), intro flag, `Main_Game`.
+3. The RAM check (`Ram_Free`, always 64 MB). *(S10c)* Remember the current directory (the start-up folder), take
+   `-data=<folder>` out of `argv` (`RA_Boot_Take_Data_Option`, `CODE/port/ra_boot.cpp`), then `chdir` to the
+   executable's directory, as the original did; the directory now comes from `/proc/self/exe` / `GetModuleFileName`,
+   with `argv[0]` only as a fallback.
+4. `Parse_Command_Line(argc, argv)`. *(S10c)* Then `Boot_Setup_Data` (`STARTUP.CPP`): create `REDALERT.INI` with defaults
+   if missing, set the search list (data folder, game folder, start-up folder) with `CCFileClass::Set_Search_Drives`,
+   and check for `REDALERT.MIX` and `MAIN.MIX`. A problem → message box + stderr, exit code 1, before any window opens
+   ([ADR-0023](../decisions/0023-data-folder-and-first-run.md), [playing.md](../playing.md)). Then `WinTimerClass(60)`,
+   `KeyboardClass`, the compressed-shape check and the disk-space warning (now a plain message box; the game
+   continues, as "yes" did).
+5. `REDALERT.INI` (`CONFIG_FILE_NAME`, found case-insensitively; it exists now, so "Run SETUP program first" is only
+   reached if it vanished meanwhile): `Read_Private_Config_Struct`, `Read_Setup_Options`, `Audio_Init(NULL, …)`,
+   `InitDDraw()` (window via `Set_Video_Mode`, `VisiblePage`/`HiddenPage`, `SeenBuff`/`HidPage`), `GameInFocus = true`,
+   mouse, CD drive (none), `SlowPalette` (S10c: `[Intro] PlayIntro` is ignored), `Main_Game`.
 6. On return: `Game_Shutdown(false)` (the old `WM_DESTROY` body: `Prog_End`, icon cache, pages, `Reset_Video_Mode`,
    then `Platform_Shutdown`).
 

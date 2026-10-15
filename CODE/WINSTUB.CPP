@@ -465,6 +465,8 @@ void Assert_Failure (char *expression, int line, char *file)
 	Mono_Printf("%s", assertbuf);
 
 	WWDebugString(assertbuf);
+	fputs(assertbuf, stderr);		// S10c: visible in a terminal / CI log
+	fflush(stderr);
 
 	/*
 	** S10b: GetLocalTime + mmioOpen/mmioWrite became time/localtime + fopen. (The original
@@ -483,7 +485,15 @@ void Assert_Failure (char *expression, int line, char *file)
 		fclose(handle);
 	}
 
-	WWMessageBox().Process(assertbuf);
+	/*
+	**	S10c: the game's message box draws with the game font; before the fonts are loaded
+	**	(an assert during start-up) use the platform's message box instead of crashing.
+	*/
+	if (Font8Ptr != NULL) {
+		WWMessageBox().Process(assertbuf);
+	} else {
+		Platform_Message_Box("Red Alert", assertbuf);
+	}
 //	WWMessageBox().Process("Red Alert demo timed out - Aborting");
 	//Get_Key();
 
