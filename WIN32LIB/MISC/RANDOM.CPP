@@ -44,8 +44,10 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 /*
-** C++ linkage, to match the only declaration, "extern long RandNumb;" in CODE/INIT.CPP.
-** (The asm exported it with C linkage. With GCC/Clang both are the same symbol; with MSVC they
-** are not, and no asm is left that needs the C name.) Initial value as in the asm's DATASEG.
+** C linkage, like the asm's export and the declaration in CODE/INIT.CPP (inside extern "C").
+** With GCC/Clang C and C++ linkage give the same variable symbol; with MSVC they do not, and the
+** C++ definition left INIT.CPP's _RandNumb unresolved (CI run 40). Initial value as in the asm's DATASEG.
 */
+extern "C" {
 long RandNumb = 0x12349876L;
+}

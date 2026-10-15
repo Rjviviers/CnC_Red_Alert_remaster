@@ -458,6 +458,8 @@ every `strtrim`, `Count_Up_Print` (only `sprintf`s its format), `Load_Title_Scre
   non-dependent names in templates that are declared later, extra member qualification) into warnings, so Linux CI stayed green while
   Windows failed. It was removed on 2026-10-15; keep it out. To find all MSVC-only `int * fixed` ambiguities at once, temporarily add a
   deleted `operator*(unsigned short, fixed const &)` to `FIXED.H` and build on GCC.
+- **Linkage of global variables.** GCC/Clang give a global *variable* the same symbol with C or C++ linkage; MSVC mangles C++ ones.
+  A variable declared `extern "C"` anywhere must be *defined* inside `extern "C"` too (`RandNumb`, CI run 40). Linux CI cannot catch this.
 - **Sockets:** use `ra_socklen_t` (`WSPROTO.H`) for `getsockopt`/`recvfrom`/`accept` length arguments.
 - **Templates in `LIST.H`/`DROP.H`** call global helpers that `FUNCTION.H` declares only after including them. Their prototypes are
   repeated at the top of those headers; keep them in sync with `FUNCTION.H`.

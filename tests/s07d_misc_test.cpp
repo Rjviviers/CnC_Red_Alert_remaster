@@ -10,7 +10,7 @@ extern "C" void Mem_Copy(void const *source, void *dest, unsigned long bytes_to_
 extern "C" long Reverse_Long(long number);
 extern "C" short Reverse_Short(short number);
 extern "C" long Swap_Long(long number);
-extern long RandNumb;       // same declaration as CODE/INIT.CPP
+extern "C" long RandNumb;   // same declaration as CODE/INIT.CPP
 
 // ---------------------------------------------------------------------------------------------
 // Mem_Copy: memmove with (source, dest, size) argument order; no-op for NULL or source == dest.
