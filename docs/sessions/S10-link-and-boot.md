@@ -43,6 +43,8 @@ Suggested approach: get the **Windows (MSVC)** link working first (the Win32 API
 - [ ] Skip or stub the intro movies (ADR-0005). S05 did **not** stub movie playback; it is still to do here.
 - [ ] Detect whether the Counterstrike/Aftermath MIX files are present (ADR-0011).
 - [ ] Visually check the ported shape renderer against the original game (S07-B): stealth tank, aircraft shadows, fading, remapped house colours.
+- [ ] Check whether icon/template data is freed and reloaded (e.g. on a theater change). If it is, reset the
+  `Init_Stamps` address cache there (see "Icon-set cache is keyed by address" in [surface-primitives.md](../codebase/surface-primitives.md)).
 - [ ] Fix startup crashes until the main menu shows and responds to the mouse.
 - [ ] CI produces downloadable builds for Windows and Linux.
 

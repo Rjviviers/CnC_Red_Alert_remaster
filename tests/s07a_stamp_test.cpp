@@ -25,6 +25,10 @@ struct IconSet {
         std::memcpy(&mem[header], pixels, data);
         std::memcpy(&mem[header + data], trans, count);
         std::memcpy(&mem[header + data + count], map, map_size);
+        // Init_Stamps caches the last icon set by ADDRESS (as STAMP.ASM did). A new set can be allocated
+        // where a previous test's freed set lived (MSVC's heap does this), and would then be drawn with
+        // the old header. Forget the cache so every test starts clean.
+        LastIconset = NULL;
     }
 
     const void *ptr() const { return &mem[0]; }
