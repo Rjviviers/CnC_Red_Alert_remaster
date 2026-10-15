@@ -209,7 +209,7 @@ yet (S06/S07), so these pieces are left. They are listed in boot order. File:lin
    `Windows_Procedure`, as can the unused `KeyState[256]` member (only after checking nothing depends on the layout; `KEY.H` is
    not read by asm). `KEY.H` still includes `<windows.h>` only for VK codes, which it defines itself. `WWKeyboardClass::Down` has
    no return type (`KEY.CPP`, implicit int, S06). The library copy `WIN32LIB/KEYBOARD/KEYBOARD.CPP` (a second `WWKeyboardClass`
-   with its own message pump; the game's `KEY.CPP` wins at link time) should be dropped from `RA_WIN32LIB_CXX_SOURCES`.
+   with its own message pump; the game's `KEY.CPP` wins at link time) should be dropped from `RA_WIN32LIB_CXX_SOURCES`. *(Done in S06f: removed and deleted.)*
 9. **MPEG movies.** `CONQUER.CPP:2468-2610` (`Play_Movie` under `MPEGMOVIE`/`DVD`) uses `DirectDrawObject`, `PaletteSurface` and
    `PalettePtr` directly for the DVD MPEG player (`mpgdll`, not in the repo). With S08 these are `NULL`. Turn `MPEGMOVIE` off
    (VQA movies are unaffected) or remove that path.
@@ -224,4 +224,4 @@ yet (S06/S07), so these pieces are left. They are listed in boot order. File:lin
 13. **Options.** Read fullscreen/scale/aspect preferences (for example `[Video] Fullscreen=`, `Scale=`, `AspectCorrect=` in
     `REDALERT.INI`) in `Read_Setup_Options` and pass them through a `PlatformVideoConfig`. `Set_Video_Mode` currently uses the defaults:
     windowed, FIT, 4:3.
-14. **Profiler** (`WINSTUB.CPP:236` `Stop_Profiler`, `WIN32LIB/PROFILE`): uses `timeSetEvent`. Delete it (developer tool, libraries.md).
+14. **Profiler** (`WINSTUB.CPP:236` `Stop_Profiler`, `WIN32LIB/PROFILE`): uses `timeSetEvent`. Delete it (developer tool, libraries.md). *(S06f took `WPROFILE.CPP`/`APROFILE.ASM` out of the build; the `Stop_Profiler()` call in `WINSTUB.CPP` is now unresolved and must be deleted.)*

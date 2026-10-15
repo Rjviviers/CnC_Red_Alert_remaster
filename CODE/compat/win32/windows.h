@@ -852,6 +852,7 @@ HANDLE WINAPI GetCurrentProcess(void);
 DWORD WINAPI GetCurrentProcessId(void);
 BOOL WINAPI SetThreadPriority(HANDLE, int);
 int WINAPI GetThreadPriority(HANDLE);
+DWORD WINAPI GetPriorityClass(HANDLE);
 BOOL WINAPI SetPriorityClass(HANDLE, DWORD);
 DWORD WINAPI SuspendThread(HANDLE);
 DWORD WINAPI ResumeThread(HANDLE);
