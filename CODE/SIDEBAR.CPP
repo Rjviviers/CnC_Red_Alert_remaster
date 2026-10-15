@@ -410,7 +410,12 @@ void SidebarClass::Reload_Sidebar(void)
 		houseloaded = PlayerPtr->ActLike;
 	}
 
-	char * sidename = sidebarnames[houseloaded];
+	/*
+	**	S10c: patch the digit into a copy. The original wrote into the string literal
+	**	itself, which faults on compilers that keep literals read-only (compat-notes.md).
+	*/
+	char sidename[_MAX_FNAME+_MAX_EXT];
+	strcpy(sidename, sidebarnames[houseloaded]);
 	*(sidename+4) = '1';
 	SidebarShape = (void*)MFCD::Retrieve(sidename);
 	*(sidename+4) = '2';

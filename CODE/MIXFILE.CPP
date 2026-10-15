@@ -210,6 +210,12 @@ MixFileClass<T>::MixFileClass(char const * filename, PKey const * key) :
 	int got = straw->Get(&alternate, sizeof(alternate));
 
 	/*
+	**	S10c: a file too short to hold a header (an empty or truncated copy) is treated like
+	**	a missing one instead of reading an uninitialised header.
+	*/
+	if (got != sizeof(alternate)) return;
+
+	/*
 	**	Detect if this is an extended mixfile. If so, then see if it is encrypted
 	**	and/or has a message digest attached. Otherwise, just retrieve the
 	**	plain mixfile header.
@@ -232,6 +238,22 @@ MixFileClass<T>::MixFileClass(char const * filename, PKey const * key) :
 
 	Count = fileheader.count;
 	DataSize = fileheader.size;
+
+	/*
+	**	S10c: reject a header that cannot describe this file (corrupt, truncated, or not a
+	**	MIX file at all): no entries, a negative size, or an index plus data larger than the
+	**	file. The object is then not registered, exactly as if the file were missing, so the
+	**	start-up checks can report it (docs/playing.md) instead of crashing on it later.
+	*/
+	{
+		long filesize = file.Size();
+		if (Count <= 0 || DataSize < 0 || filesize <= 0 ||
+				(long)(Count * sizeof(SubBlock)) > filesize || DataSize > filesize) {
+			Count = 0;
+			DataSize = 0;
+			return;
+		}
+	}
 //BGMono_Printf("Mixfileclass %s DataSize: %08x   \n",filename,DataSize);Get_Key();
 	/*
 	**	Load up the offset control array. If RAM is exhausted, then the mixfile is invalid.
@@ -535,7 +557,20 @@ assert(filename != NULL);//BG
 	/*
 	**	Create the key block that will be used to binary search for the file.
 	*/
-	long crc = Calculate_CRC(strupr((char *)filename), strlen(filename));
+	/*
+	**	S10c: upper-case a copy. The original did strupr((char *)filename) on the caller's
+	**	string, which faults when that string is a literal (MFCD::Retrieve("FONT.FNT"),
+	**	"stripna.shp", ...): Watcom put literals in writable memory, GCC/MSVC do not
+	**	(docs/codebase/compat-notes.md, "S10c notes"). The CRC is the same; the caller's
+	**	buffer is just no longer upper-cased as a side effect.
+	*/
+	char upper[_MAX_PATH];
+	size_t namelen = strlen(filename);
+	if (namelen >= sizeof(upper)) namelen = sizeof(upper) - 1;
+	memcpy(upper, filename, namelen);
+	upper[namelen] = '\0';
+	strupr(upper);
+	long crc = Calculate_CRC(upper, namelen);
 	SubBlock key;
 	key.CRC = crc;
 

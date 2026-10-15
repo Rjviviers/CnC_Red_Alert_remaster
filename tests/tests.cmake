@@ -117,3 +117,18 @@ ra_add_test(NAME s06b_coord_test
 ra_add_test(NAME s10b_file_test
             SOURCES tests/s10b_file_test.cpp CODE/compat/ra_file.cpp
             INCLUDES CODE/compat)
+# --- S10c ---
+# Start-up helpers: -data option, search list, required-file check, first-run REDALERT.INI (ADR-0023).
+ra_add_test(NAME s10c_boot_test
+            SOURCES tests/s10c_boot_test.cpp CODE/port/ra_boot.cpp CODE/compat/ra_file.cpp
+            INCLUDES CODE/port CODE/compat)
+# Boot smoke test: the real game, headless, without game data, must exit cleanly with the
+# "data missing" message (tests/s10c_boot_smoke.cmake). Builds the game as part of ra_tests.
+if(TARGET redalert)
+  add_test(NAME s10c_boot_smoke
+           COMMAND ${CMAKE_COMMAND} -DRA95=$<TARGET_FILE:redalert>
+                   -DWORK=${CMAKE_CURRENT_BINARY_DIR}/s10c_boot_smoke
+                   -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/s10c_boot_smoke.cmake)
+  set_tests_properties(s10c_boot_smoke PROPERTIES TIMEOUT 180)
+  add_dependencies(ra_tests redalert)
+endif()

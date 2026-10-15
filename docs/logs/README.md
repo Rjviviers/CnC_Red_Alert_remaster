@@ -5,6 +5,7 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-15 | S10c — Boot towards the main menu (no data) | [log](2026-10-15-S10c-boot.md) |
 | 2026-10-15 | S10b — Link: platform entry point, Win32 replacements, stubs | [log](2026-10-15-S10b-link-platform.md) |
 | 2026-10-15 | S10a — Link: template instantiations | [log](2026-10-15-S10a-link-templates.md) |
 | 2026-10-15 | Waves 2–3 review & merge | [log](2026-10-15-wave2-3-review.md) |

@@ -55,7 +55,7 @@ CDFileClass::SearchDriveType * CDFileClass::First = 0;
 
 int  CDFileClass::CurrentCDDrive = 0;
 int  CDFileClass::LastCDDrive = 0;
-char CDFileClass::RawPath[512] = {0};
+char CDFileClass::RawPath[2048] = {0};
 
 CDFileClass::CDFileClass(char const *filename) :
 	IsDisabled(false)
@@ -369,8 +369,11 @@ int CDFileClass::Set_Search_Drives(char * pathlist)
 	** Check for the case where RawPath was passed in.
 	*/
 	if (pathlist != RawPath) {
-		strcat (RawPath, ";");
-		strcat (RawPath, pathlist);
+		/* S10c: bounded; the original strcat could overrun RawPath with long paths. */
+		if (strlen(RawPath) + 1 + strlen(pathlist) < sizeof(RawPath)) {
+			strcat (RawPath, ";");
+			strcat (RawPath, pathlist);
+		}
 	}
 
 	char const * ptr = strtok(pathlist, ";");
@@ -567,7 +570,20 @@ char const * CDFileClass::Set_Name(char const *filename)
 	**	no multi-drive search path.
 	*/
 	BufferIOFileClass::Set_Name(filename);
-	if (IsDisabled || !First || BufferIOFileClass::Is_Available()) return(File_Name());
+	if (IsDisabled || !First) return(File_Name());
+
+	/*
+	**	S10c: a bare MIX file name is searched for in the search paths first (the data folder,
+	**	then the game folder, then the start-up folder; see STARTUP.CPP and ADR-0023), and
+	**	only then in the current directory. Everything else keeps the original order.
+	*/
+	bool search_first = false;
+	{
+		size_t len = strlen(filename);
+		search_first = (len > 4 && stricmp(filename + len - 4, ".MIX") == 0 &&
+			strpbrk(filename, "\\/:") == NULL);
+	}
+	if (!search_first && BufferIOFileClass::Is_Available()) return(File_Name());
 
 	/*
 	**	Attempt to find the file first. Check the current directory. If not found there, then
@@ -582,6 +598,10 @@ char const * CDFileClass::Set_Name(char const *filename)
 		/*
 		**	Build a pathname to search for.
 		*/
+		if (strlen(srch->Path) + strlen(filename) >= sizeof(path)) {		// S10c: bounded
+			srch = (SearchDriveType *)srch->Next;
+			continue;
+		}
 		strcpy(path, srch->Path);
 		strcat(path, filename);
 

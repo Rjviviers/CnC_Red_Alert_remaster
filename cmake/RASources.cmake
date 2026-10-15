@@ -236,6 +236,8 @@ set(RA_GAME_CXX_SOURCES
     CODE/stubs/movie_stubs.cpp
     CODE/stubs/win32_stubs.cpp
     CODE/stubs/winsock_stubs.cpp
+    # Added in S10c (ADR-0023, docs/playing.md): data folder, first-run REDALERT.INI, data check.
+    CODE/port/ra_boot.cpp
 )
 
 # Game: TASM sources (listed, not compiled yet; see session S07)

@@ -104,8 +104,10 @@ void Platform_Show_System_Cursor(bool show);
 /* Keep the OS cursor inside the window (the original clipped it to the screen). */
 void Platform_Set_Mouse_Clip(bool clip);
 
-/* Simple blocking message box (replaces Win32 MessageBox for errors). */
-void Platform_Message_Box(const char *title, const char *text);
+/* Simple blocking message box (replaces Win32 MessageBox for errors). If no box can be shown
+ * (no display, or SDL_VIDEO_DRIVER is offscreen/dummy) the text goes to stderr instead and
+ * false is returned (S10c). */
+bool Platform_Message_Box(const char *title, const char *text);
 
 /* ---------------------------------------------------------------------------
 ** Input. Events are translated to the game's own key codes: Windows virtual-key

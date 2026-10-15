@@ -88,6 +88,7 @@ extern bool bNoMovies;
 **	Function prototypes for this module **
 *****************************************/
 static void Play_Intro(bool sequenced=false);
+extern void Boot_Data_Error(char const * detail);		// STARTUP.CPP (S10c): report a data problem and exit
 static void Init_Color_Remaps(void);
 static void Init_Heaps(void);
 static void Init_Expansion_Files(void);
@@ -1253,6 +1254,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 			**	and then exit.
 			*/
 			puts(TEXT_OPTIONS);
+			puts("  -data=<folder>  folder that holds the Red Alert data files (.MIX); see docs/playing.md");	// S10c
 			return(false);
 		}
 
@@ -2182,6 +2184,14 @@ static void Init_Fonts(void)
 	FontLEDPtr = MFCD::Retrieve("LED.FNT");
 	VCRFontPtr = MFCD::Retrieve("VCR.FNT");
 	TypeFontPtr = MFCD::Retrieve("8POINT.FNT");    //("TYPE.FNT"); //VG 10/17/96
+
+	/*
+	**	S10c: every dialog needs these; without them the first text drawn would crash.
+	*/
+	if (Font8Ptr == NULL || Metal12FontPtr == NULL || Font6Ptr == NULL) {
+		Boot_Data_Error("The game fonts (8POINT.FNT, 12METFNT.FNT, 6POINT.FNT) were not found. "
+			"They are in LOCAL.MIX/HIRES.MIX inside REDALERT.MIX.");
+	}
 }
 
 
@@ -2235,7 +2245,8 @@ static void Init_CDROM_Access(void)
 		int error;
 
 		do {
-			error = CCFileClass::Set_Search_Drives("?:\\");
+			char cdpath[] = "?:\\";		// S10c: Set_Search_Drives strtok()s its argument; not a literal
+			error = CCFileClass::Set_Search_Drives(cdpath);
 			switch (error) {
 				case 1:
 					VisiblePage.Clear();
@@ -2301,13 +2312,22 @@ static void Init_Bootstrap_Mixfiles(void)
 	int temp = RequiredCD;
 	RequiredCD = -2;
 
+	/*
+	**	S10c: the asserts below became checks. With asserts compiled in, a missing file
+	**	ended in Assert_Failure, which needs the fonts that have not been loaded yet; without
+	**	them the game carried on and crashed on the first NULL font. Now a missing or damaged
+	**	file that the game cannot do without is reported (Boot_Data_Error), and HIRES1.MIX,
+	**	which only adds Aftermath art, is reported on stderr and skipped, like EXPAND*.MIX.
+	**	STARTUP.CPP has already checked that REDALERT.MIX (or LOCAL.MIX) is present.
+	*/
+
 
 #ifdef FIXIT_CSII	//	Ok. ajw
 	CCFileClass file2("EXPAND2.MIX");
 	if (file2.Is_Available()) {
 		new MFCD("EXPAND2.MIX", &FastKey);
 		bool ok = MFCD::Cache("EXPAND2.MIX");
-		assert(ok);
+		if (!ok) fprintf(stderr, "Red Alert: EXPAND2.MIX (Aftermath) is damaged; Aftermath content is not available\n");
 	}
 #endif
 
@@ -2315,7 +2335,7 @@ static void Init_Bootstrap_Mixfiles(void)
 	bool ok1;
 	new MFCD("HIRES1.MIX", &FastKey);
 	ok1 = MFCD::Cache("HIRES1.MIX");
-	assert(ok1);
+	if (!ok1) fprintf(stderr, "Red Alert: HIRES1.MIX (Aftermath-era interface art) not found or damaged; continuing without it\n");
 #endif
 
 #ifdef FIXIT_ANTS	//	Ok. ajw
@@ -2323,7 +2343,7 @@ static void Init_Bootstrap_Mixfiles(void)
 	if (file.Is_Available()) {
 		new MFCD("EXPAND.MIX", &FastKey);
 		bool ok = MFCD::Cache("EXPAND.MIX");
-		assert(ok);
+		if (!ok) fprintf(stderr, "Red Alert: EXPAND.MIX (Counterstrike) is damaged; Counterstrike content is not available\n");
 	}
 #endif
 
@@ -2335,11 +2355,17 @@ static void Init_Bootstrap_Mixfiles(void)
 	*/
 	new MFCD("LOCAL.MIX", &FastKey);			// Cached.
 	bool ok = MFCD::Cache("LOCAL.MIX");
-	assert(ok);
+	if (!ok) {
+		Boot_Data_Error("LOCAL.MIX could not be read. It is normally inside REDALERT.MIX; "
+			"REDALERT.MIX may be damaged or from a different game.");
+	}
 
 	new MFCD("HIRES.MIX", &FastKey);
 	ok = MFCD::Cache("HIRES.MIX");
-	assert(ok);
+	if (!ok) {
+		Boot_Data_Error("HIRES.MIX could not be read. It is normally inside REDALERT.MIX; "
+			"REDALERT.MIX may be damaged or from a different game.");
+	}
 
 	new MFCD("NCHIRES.MIX", &FastKey);		//Non-cached hires stuff incl VQ palettes
 
@@ -2371,6 +2397,9 @@ static void Init_Secondary_Mixfiles(void)
 {
 	MainMix = new MFCD("MAIN.MIX", &FastKey);
 	assert(MainMix != NULL);
+	if (!CCFileClass("MAIN.MIX").Is_Available()) {			// S10c: report, as for REDALERT.MIX
+		fprintf(stderr, "Red Alert: MAIN.MIX not found; using loose CONQUER.MIX etc. if present\n");
+	}
 
 	//Denzil extract mixfile
 	#ifdef DENZIL_MIXEXTRACT
@@ -2433,6 +2462,23 @@ static void Init_Secondary_Mixfiles(void)
 	new MFCD("SOUNDS.MIX", &FastKey);			// Cached.
 	new MFCD("RUSSIAN.MIX", &FastKey);			// Cached.
 	new MFCD("ALLIES.MIX", &FastKey);			// Cached.
+
+	/*
+	**	S10c: say which of these were found (stderr), so a player with incomplete data can
+	**	see what is missing. CONQUER.MIX holds the game art: without it the game cannot run.
+	*/
+	static char const * const _secondary[] = {
+		"CONQUER.MIX", "GENERAL.MIX", "SCORES.MIX", "SPEECH.MIX", "SOUNDS.MIX", "RUSSIAN.MIX", "ALLIES.MIX"
+	};
+	for (int index = 0; index < ARRAY_SIZE(_secondary); index++) {
+		if (!CCFileClass(_secondary[index]).Is_Available()) {
+			fprintf(stderr, "Red Alert: %s not found (normally inside MAIN.MIX)\n", _secondary[index]);
+		}
+	}
+	if (!CCFileClass("CONQUER.MIX").Is_Available()) {
+		Boot_Data_Error("CONQUER.MIX (the game art) was not found. It is normally inside MAIN.MIX; "
+			"MAIN.MIX may be missing, damaged or from a different game.");
+	}
 }
 
 

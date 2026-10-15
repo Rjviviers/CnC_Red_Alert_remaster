@@ -45,15 +45,15 @@ Suggested approach: get the **Windows (MSVC)** link working first (the Win32 API
 | **S10c**: boot (after a+b) | Asset path, expansion detection, intro movie skip, crash fixing to the main menu, CI release artifacts, screenshot | Whatever booting needs |
 
 ## Tasks
-- [ ] Resolve every unresolved symbol, adding documented stubs where a feature is out of scope (movies, WOL, …).
-- [ ] Asset path configuration: the player points the game at their Red Alert data folder (CLI flag + INI). Document it in `docs/playing.md`.
-- [ ] Skip or stub the intro movies (ADR-0005). S05 did **not** stub movie playback; it is still to do here.
-- [ ] Detect whether the Counterstrike/Aftermath MIX files are present (ADR-0011).
-- [ ] Visually check the ported shape renderer against the original game (S07-B): stealth tank, aircraft shadows, fading, remapped house colours.
+- [x] Resolve every unresolved symbol, adding documented stubs where a feature is out of scope (movies, WOL, …). *(S10a + S10b: links on Linux with 0 unresolved; the first Windows link runs in CI since S10c.)*
+- [x] Asset path configuration: the player points the game at their Red Alert data folder (CLI flag + INI). Document it in `docs/playing.md`. *(S10c: `-data=<folder>`, `[Data] Path=`, first-run `REDALERT.INI`, data check; [ADR-0023](../decisions/0023-data-folder-and-first-run.md).)*
+- [x] Skip or stub the intro movies (ADR-0005). S05 did **not** stub movie playback; it is still to do here. *(S10b stubbed the VQA player; S10c: `Play_Movie` returns at once, `[Intro] PlayIntro` is ignored.)*
+- [x] Detect whether the Counterstrike/Aftermath MIX files are present (ADR-0011). *(S10c: `EXPAND.MIX` = Counterstrike, `EXPAND2.MIX` = Aftermath.)*
+- [ ] Visually check the ported shape renderer against the original game (S07-B): stealth tank, aircraft shadows, fading, remapped house colours. *(Needs the owner's data.)*
 - [ ] Check whether icon/template data is freed and reloaded (e.g. on a theater change). If it is, reset the
   `Init_Stamps` address cache there (see "Icon-set cache is keyed by address" in [surface-primitives.md](../codebase/surface-primitives.md)).
-- [ ] Fix startup crashes until the main menu shows and responds to the mouse.
-- [ ] CI produces downloadable builds for Windows and Linux.
+- [ ] Fix startup crashes until the main menu shows and responds to the mouse. *(S10c: every crash reachable without data is fixed (writable string literals, empty/damaged MIX files, asserts before fonts); without data the game reaches `Init_Bootstrap_Mixfiles` and exits cleanly. The rest needs the owner's data: see the S10c log, "Next steps".)*
+- [x] CI produces downloadable builds for Windows and Linux. *(S10c: artifacts `ra95-linux-x86`, `ra95-windows-x86`; boot smoke test in ctest.)*
 
 ## Done when
 **M1:** a CI-built binary reaches the main menu. The session log includes a screenshot.

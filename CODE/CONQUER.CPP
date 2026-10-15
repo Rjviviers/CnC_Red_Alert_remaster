@@ -2308,6 +2308,16 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 	if (Debug_Map) {
 		return;
 	}
+
+	/*
+	**	S10c: movies are not played in this port (ADR-0005; the VQA player is stubbed, see
+	**	docs/codebase/stubs.md). Return here, as the original did when the movie file was
+	**	missing, so nothing waits: no palette fade to black, no theme change, and no
+	**	assert(vqa != NULL) on the stubbed VQA_Alloc.
+	*/
+	if (name != NULL) {
+		return;
+	}
 	#ifdef CHEAT_KEYS
 	//	Mono_Printf("A\n");
 	#endif	//CHEAT_KEYS
@@ -3719,6 +3729,14 @@ bool Force_CD_Available( int cd_desired )				//	ajw
 	if (cd_desired == CD_LOCAL) return(true);
 
 	/*
+	**	S10c: there are no CDs in this port. All data comes from the data folder (STARTUP.CPP,
+	**	docs/playing.md), so every CD is "available"; the insert-CD dialogs are never shown.
+	**	A file that is really missing is reported where it is loaded.
+	*/
+	(void)cd_desired;
+	return(true);
+
+	/*
 	** Find out if the CD in the current drive is the one we are looking for
  	*/
 	current_drive = CCFileClass::Get_CD_Drive();
@@ -4797,19 +4815,14 @@ bool Is_Counterstrike_Installed (void)
 	static bool	bAlreadyChecked = false;
 	static bool bInstalled = false;
 
+	/*
+	**	S10c (ADR-0011): Counterstrike is installed when its MIX file, EXPAND.MIX, is in the
+	**	data folders (or inside a registered MIX file). The installer's registry value
+	**	"CStrikeInstalled" is gone with the installer. The answer is cached like the original's.
+	*/
 	if( !bAlreadyChecked )
 	{
-		HKEY hKey;
-		if( RegOpenKeyEx( HKEY_LOCAL_MACHINE, Game_Registry_Key(), 0, KEY_READ, &hKey ) != ERROR_SUCCESS )
-			return false;
-		DWORD dwValue;
-		DWORD dwBufSize = sizeof( DWORD );
-		if( RegQueryValueEx( hKey, "CStrikeInstalled", 0, NULL, (LPBYTE)&dwValue, &dwBufSize ) != ERROR_SUCCESS )
-			bInstalled = false;
-		else
-			bInstalled = (bool)dwValue;			//	(Presumably true, if it's there...)
-
-		RegCloseKey( hKey );
+		bInstalled = CCFileClass("EXPAND.MIX").Is_Available();
 		bAlreadyChecked = true;
 	}
 	return bInstalled;
@@ -4827,19 +4840,13 @@ bool Is_Aftermath_Installed (void)
 	static bool	bAlreadyChecked = false;
 	static bool bInstalled = false;
 
+	/*
+	**	S10c (ADR-0011): Aftermath is installed when its MIX file, EXPAND2.MIX, is in the data
+	**	folders (or inside a registered MIX file). Was the registry value "AftermathInstalled".
+	*/
 	if( !bAlreadyChecked )
 	{
-		HKEY hKey;
-		if( RegOpenKeyEx( HKEY_LOCAL_MACHINE, Game_Registry_Key(), 0, KEY_READ, &hKey ) != ERROR_SUCCESS )
-			return false;
-		DWORD dwValue;
-		DWORD dwBufSize = sizeof( DWORD );
-		if( RegQueryValueEx( hKey, "AftermathInstalled", 0, NULL, (LPBYTE)&dwValue, &dwBufSize ) != ERROR_SUCCESS )
-			bInstalled = false;
-		else
-			bInstalled = (bool)dwValue;			//	(Presumably true, if it's there...)
-
-		RegCloseKey( hKey );
+		bInstalled = CCFileClass("EXPAND2.MIX").Is_Available();
 		bAlreadyChecked = true;
 	}
 	return bInstalled;

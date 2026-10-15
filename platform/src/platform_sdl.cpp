@@ -513,11 +513,20 @@ void Platform_Set_Mouse_Clip(bool clip)
 }
 
 
-void Platform_Message_Box(const char *title, const char *text)
+bool Platform_Message_Box(const char *title, const char *text)
 {
-	if (!SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title ? title : "Red Alert", text ? text : "", State.Window)) {
+	/*
+	 * S10c: no box on the headless video drivers. SDL would still fall back to the native
+	 * message box (Win32 MessageBox on Windows), which blocks a CI job or a server waiting for
+	 * a click nobody can give. SDL_VIDEO_DRIVER is read as a hint.
+	 */
+	const char *driver = SDL_GetHint(SDL_HINT_VIDEO_DRIVER);
+	bool headless = driver && (strstr(driver, "offscreen") || strstr(driver, "dummy"));
+	if (headless || !SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title ? title : "Red Alert", text ? text : "", State.Window)) {
 		fprintf(stderr, "%s: %s\n", title ? title : "Red Alert", text ? text : "");
+		return false;
 	}
+	return true;
 }
 
 
