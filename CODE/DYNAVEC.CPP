@@ -156,7 +156,7 @@ template<class T>
 int DynamicVectorClass<T>::Add(T const & object)
 {
 	if (ActiveCount >= Length()) {
-		if ((IsAllocated || !VectorMax) && GrowthStep > 0) {
+		if ((this->IsAllocated || !this->VectorMax) && GrowthStep > 0) {
 			if (!Resize(Length() + GrowthStep)) {
 
 				/*
@@ -202,7 +202,7 @@ template<class T>
 int DynamicVectorClass<T>::Add_Head(T const & object)
 {
 	if (ActiveCount >= Length()) {
-		if ((IsAllocated || !VectorMax) && GrowthStep > 0) {
+		if ((this->IsAllocated || !this->VectorMax) && GrowthStep > 0) {
 			if (!Resize(Length() + GrowthStep)) {
 
 				/*

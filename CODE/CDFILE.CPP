@@ -88,6 +88,9 @@ extern int Get_CD_Index (int cd_drive, int timeout);
  * HISTORY:                                                                                    *
  *   09/22/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
+#ifndef _HARDERR_FAIL
+#define _HARDERR_FAIL	3		// Watcom <dos.h> value; the handler is never installed outside DOS.
+#endif
 int harderr_handler(unsigned int , unsigned int , unsigned int *)
 {
 	return(_HARDERR_FAIL);

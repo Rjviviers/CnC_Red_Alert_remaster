@@ -3024,8 +3024,9 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	/*
 	**	Find top edge of the shape.
 	*/
-	for (int y = 0; y <= ylimit; y++) {
-		for (int x = 0; x <= xlimit; x++) {
+	int x, y;
+	for (y = 0; y <= ylimit; y++) {
+		for (x = 0; x <= xlimit; x++) {
 			if (shape[y*width + x] != 0) {
 				rect.Y = y;
 				rect.X = x;
@@ -3039,7 +3040,7 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	**	Find bottom edge of the shape.
 	*/
 	for (y = ylimit; y >= rect.Y; y--) {
-		for (int x = xlimit; x >= 0; x--) {
+		for (x = xlimit; x >= 0; x--) {
 			if (shape[y*width + x] != 0) {
 				rect.Height = (y-rect.Y)+1;
 				xlimit = x;
@@ -3052,7 +3053,7 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	/*
 	**	Find left edge of the shape.
 	*/
-	for (int x = 0; x < rect.X; x++) {
+	for (x = 0; x < rect.X; x++) {
 		for (y = rect.Y; y < rect.Y+rect.Height; y++) {
 			if (shape[y*width + x] != 0) {
 				rect.X = x;
