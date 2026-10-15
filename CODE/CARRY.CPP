@@ -137,7 +137,7 @@ bool CarryoverClass::Create(void) const
 	}
 
 	if (techno) {
-		bool oldscen = ScenarioInit;
+		int oldscen = ScenarioInit;		// ScenarioInit is a nesting counter (int); see S06e log
 		techno->Strength = Strength;
 		if (RTTI == RTTI_INFANTRY) {
 			ScenarioInit = 0;

@@ -156,9 +156,9 @@ void Check_For_Focus_Loss(void)
 
 
 
-extern BOOL InMovie;
+extern bool InMovie;
 
-long FAR PASCAL _export Windows_Procedure(HWND hwnd, UINT message, UINT wParam, LONG lParam)
+long FAR PASCAL Windows_Procedure(HWND hwnd, UINT message, UINT wParam, LONG lParam)
 {
 
 	int	low_param = LOWORD(wParam);
@@ -469,7 +469,7 @@ void Window_Dialog_Box(HANDLE  hinst, LPCTSTR  lpszTemplate, HWND  hwndOwner, DL
 	** until the dialog box is closed.
 	*/
 
-	DialogBox(hinst, lpszTemplate, hwndOwner, dlgprc);
+	DialogBox((HINSTANCE)hinst, lpszTemplate, hwndOwner, dlgprc);
 	while (GetMessage(&msg, NULL, 0, 0) && !AllDone) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);

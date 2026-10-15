@@ -47,6 +47,9 @@ typedef struct in_addr * LPIN_ADDR;
 typedef struct hostent HOSTENT;
 typedef struct hostent * PHOSTENT;
 typedef struct hostent * LPHOSTENT;
+typedef struct linger LINGER;
+typedef struct linger * PLINGER;
+typedef struct linger * LPLINGER;
 
 #define WSADESCRIPTION_LEN	256
 #define WSASYS_STATUS_LEN	128

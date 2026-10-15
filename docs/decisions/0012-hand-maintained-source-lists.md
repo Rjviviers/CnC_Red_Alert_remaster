@@ -1,6 +1,6 @@
 # ADR-0012: Hand-maintained CMake source lists
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-14
 - **Session:** S05
 

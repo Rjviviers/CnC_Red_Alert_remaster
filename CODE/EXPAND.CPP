@@ -370,10 +370,11 @@ bool Expansion_Dialog(void)
 	CCFileClass file;
 	char buffer[128], buffer2[128];
 	char * sbuffer = (char*)_ShapeBuffer;
+	int index;
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98 - Though disgusted.
-	for (int index = 20; index < (36+18); index++) {
+	for (index = 20; index < (36+18); index++) {
 #else
-	for (int index = 20; index < 36; index++) {
+	for (index = 20; index < 36; index++) {
 #endif
 
 #ifndef CS_DEBUG

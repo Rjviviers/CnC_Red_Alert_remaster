@@ -302,7 +302,7 @@ extern long							SidebarRedraws;
 extern DMonoType					MonoPage;
 extern bool							GameActive;
 extern bool							SpecialFlag;
-extern int								ScenarioInit;		// Was bool (= int under Watcom); used as a nesting counter (++/--).
+extern int							ScenarioInit;	// Nesting counter (++/--); was "bool" = int under Watcom.
 extern HouseClass *				PlayerPtr;
 extern PaletteClass 				CCPalette;
 extern PaletteClass 				BlackPalette;

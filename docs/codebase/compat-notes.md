@@ -183,3 +183,60 @@ real class. The `_WIN32` numbers were measured with MinGW-w64 (MSVC bit-field la
   from `<strings.h>`, giving odd errors such as "no post-increment operator for type" or
   "unresolved overloaded function type". Declare the variable before the loop.
 - **MinGW-only:** 14 files fail only with MinGW, because its `windows.h` does not define `min`/`max` in C++ (MSVC's does).
+
+## S06e notes
+
+From [the S06e log](../logs/2026-10-14-S06e-compile-group4.md) (`SLIDER`…`WSPUDP`).
+
+- **`bool` was `int` under Watcom (`WATCOM.H`: `typedef int bool`).** S06a's switch to the built-in `bool` changes more
+  than the size. Two traps:
+  - **Counters declared `bool`.** `ScenarioInit` is a *nesting counter*: `ScenarioInit++ … ScenarioInit--` brackets
+    nest (e.g. `SCENARIO.CPP` holds it across the whole load while `TACTION.CPP`, `UNIT.CPP`, `REINF.CPP` bump it
+    again). A real `bool` cannot be decremented, and making the `--` an `= false` would end the outer bracket early.
+    Fix: declare it `int` (`EXTERNS.H`; the definition in `GLOBALS.CPP` must follow). Code that saves it in a local
+    should use `int` too (`CRATE.CPP`, `SCENARIO.CPP` do; `CARRY.CPP:140` uses `bool oldscen` and squashes a count of 2
+    to 1).
+  - **Silent non-overrides.** A virtual declared with `bool` in the base and `int` in a derived class was one function
+    under Watcom and is now two: the derived one no longer overrides. `VESSEL.H` declared
+    `Take_Damage(..., int forced)` while `OBJECT.H`/`TECHNO.H` say `bool forced`, so `VesselClass::Take_Damage` was
+    never called through a base pointer. It compiled without a diagnostic. Fixed in `VESSEL.H`. A scan of every
+    `virtual` in `CODE/*.H` (parameter lists equal after `bool`→`int`) finds no other case. Out-of-line definitions
+    that still say `int forced` fail loudly ("no declaration matches"): change them to `bool`.
+- **`TBLACK` as a null `RemapControlType *`.** `Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, flags)` (the "set the
+  font" idiom) passes the enum constant `TBLACK` (0) as the colour-scheme pointer. An enumerator is not a null pointer
+  constant in C++11. Write `nullptr` for the pointer argument (`Fancy_Text_Print(TXT_NONE, 0, 0, nullptr, TBLACK,
+  flags)`); same value, same overload. Also in `EDIT.CPP`, `LIST.CPP`, `CONFDLG.CPP`, `LIST.H:280` (template).
+- **`virtual` on an out-of-line definition** (`virtual SliderClass::~SliderClass`): drop the keyword; the class
+  declaration already has it.
+- **A temporary passed to `FileClass &`** (`ini.Load(CCFileClass("IP.INI"), false)`): name the object first.
+  Same pattern in `INIT.CPP:251/258/2723`, `ENDING.CPP`, `INTRO.CPP`.
+- **`_export`** (Watcom/Borland 16-bit DLL export keyword) on `Windows_Procedure`: removed; Win32 ignored it and MSVC
+  rejects it.
+- **WinSock names on Linux.** `htonl`/`ntohl` came from `<windows.h>` → `<winsock.h>` on Windows; `UTRACKER.CPP` now
+  includes `<winsock.h>` itself. The stand-in `winsock.h` gained `LINGER`, the stand-in `windows.h` gained
+  `DialogBox` and `RegisterWindowMessage` (declared only, as usual). `WSPUDP.CPP` needs nothing else to compile:
+  `WSAAsyncSelect` is declared, never defined, so it is a link-time item for S12.
+## S06c notes
+Patterns found while fixing `EXPAND`…`MAP` ([log](../logs/2026-10-14-S06c-compile-group2.md)).
+- **`bool` counters:** with Watcom, `bool` was `typedef int`, so some "flags" are really nesting counters.
+  `ScenarioInit` is incremented/decremented in nested pairs (`BUILDING.CPP` does `++` inside an outer `++`), so S06c
+  changed it back to `int` (`EXTERNS.H`, `GLOBALS.CPP`) instead of rewriting `++`/`--` as `= true`/`= false`, which would
+  end the outer section early. Before fixing a `bool++`, check whether the variable is used as a counter.
+- **Out-of-line definition says `int`, header says `bool`:** `Take_Damage(..., int forced)` in `FOOT.CPP`/`INFANTRY.CPP`
+  (also `UNIT.CPP`) and `WWKeyboardClass::Down` with no return type (implicit `int`). Make the definition match the header.
+- **Temporaries passed to `T &`:** `Load(FileStraw(file))`, `RuleINI.Load(CCFileClass("RULES.INI"), false)`. Use a named
+  local just before the call; the object dies at the end of the block instead of the statement, which makes no difference
+  for these (the straw/pipe closes the file itself when it is done).
+- **Static member specialisations:** `template<> int bignum::Error = 0;` and
+  `template<> FixedIHeapClass * CCPtr<AircraftClass>::Heap = &Aircraft;` (Watcom accepted `template<class T>` or nothing).
+  A specialised static data member **without an initialiser is only a declaration**: write `template<> bignum bignum::Remainder{};`.
+- **Specialising a template for a private nested type:** C++14 checks access in a namespace-scope `template<>`
+  definition. `HouseClass::BuildChoiceClass` was moved to a `public:` section (no layout change).
+- **Pointer to enum:** `(HousesType)House` on a pointer is ill-formed; `(HousesType)(intptr_t)House` (save-game pointer
+  coding in `IOOBJ.CPP`).
+- **`switch` on `long` with a too-large `case` constant:** `case PARM_INSTALL:` (0xD95C68A2) is a narrowing error in a
+  converted constant expression. `case (long)PARM_INSTALL:` gives the value Watcom used.
+- **Enum `0` as a null pointer:** `Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, ...)` passed `TBLACK` (0) for the
+  `RemapControlType *` argument; use `NULL`. The same call is in `LIST.H:280` (a template, not instantiated) and `EDIT.CPP:92`.
+- **Member written in a `const` function:** `FootClass::Greatest_Threat() const` clears `IsScanLimited`; Watcom allowed it.
+  Fixed with `const_cast<FootClass *>(this)` (the objects live in non-const heaps).

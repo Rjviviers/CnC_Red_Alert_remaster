@@ -848,7 +848,10 @@ class HouseClass {
 		/*
 		**	This structure is used to record a build request as determined by
 		**	the house AI processing. Higher priority build requests take precidence.
+		**	Public (S06c) so HOUSE.CPP can write the template<> specialisations of
+		**	TFixedIHeapClass<BuildChoiceClass> at namespace scope (C++14 checks access there).
 		*/
+	public:
 		struct BuildChoiceClass {
 			static void * operator new(size_t, void * ptr) {return(ptr);};
 			UrgencyType	Urgency;			// The urgency of the build request.
@@ -861,6 +864,7 @@ class HouseClass {
 			void Code_Pointers(void) {};
 			void Decode_Pointers(void) {};
 		};
+	private:
 
 		static TFixedIHeapClass<BuildChoiceClass> BuildChoice;
 

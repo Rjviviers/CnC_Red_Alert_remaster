@@ -248,14 +248,16 @@ bool Init_Game(int , char * [])
 	/*
 	**	Find and process any rules for this game.
 	*/
-	if (RuleINI.Load(CCFileClass("RULES.INI"), false)) {
+	CCFileClass rulesfile("RULES.INI");
+	if (RuleINI.Load(rulesfile, false)) {
 		Rule.Process(RuleINI);
 	}
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 	//  Aftermath runtime change 9/29/98
 	//	This is safe to do, as only rules for aftermath units are included in this ini.
 	if (Is_Aftermath_Installed() == true) {
-		if (AftermathINI.Load(CCFileClass("AFTRMATH.INI"), false)) {
+		CCFileClass aftermathfile("AFTRMATH.INI");
+		if (AftermathINI.Load(aftermathfile, false)) {
 			Rule.Process(AftermathINI);
 		}
 	}
@@ -1308,7 +1310,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 			/*
 			** Special flag - is C&C being run from the install program?
 			*/
-			case PARM_INSTALL:
+			case (long)PARM_INSTALL:		// S06c: 0xD95C68A2 does not fit in long; Watcom wrapped it the same way
 				Special.IsFromInstall = true;
 // If uncommented, will disable the <ESC> key during the first movie run.
 //				BreakoutAllowed = false;
@@ -1600,7 +1602,8 @@ long Obfuscate(char const * string)
 	**	Ensure that only visible ASCII characters compose the key phrase. This
 	**	discourages the direct forced illegal character input method of attack.
 	*/
-	for (int index = 0; index < length; index++) {
+	int index;
+	for (index = 0; index < length; index++) {
 		if (!isgraph(buffer[index])) {
 			buffer[index] = 'A' + (index%26);
 		}
@@ -1924,7 +1927,8 @@ static void Init_Color_Remaps(void)
 			ptr[color] = color;
 		}
 
-		for (int index = 0; index < 16; index++) {
+		int index;
+		for (index = 0; index < 16; index++) {
 			ptr[HidPage.Get_Pixel(index, 0)] = HidPage.Get_Pixel(index, pcolor);
 		}
 		for (index = 0; index < 6; index++) {
@@ -2720,7 +2724,8 @@ static void Init_Bulk_Data(void)
 	**	Fetch the tutorial message data.
 	*/
 	INIClass ini;
-	ini.Load(CCFileClass("TUTORIAL.INI"));
+	CCFileClass tutorialfile("TUTORIAL.INI");
+	ini.Load(tutorialfile);
 	for (int index = 0; index < ARRAY_SIZE(TutorialText); index++) {
 		TutorialText[index] = NULL;
 
