@@ -24,3 +24,4 @@ Numbers are never reused. To change an accepted decision, write a new ADR that s
 | [0019](0019-one-lcw-decoder-and-asm-oracle-tests.md) | One LCW decoder; check asm ports against the original instructions in tests | Accepted |
 | [0020](0020-sdl3-via-fetchcontent.md) | Get SDL3 with CMake FetchContent from a pinned release tarball | Accepted |
 | [0021](0021-explicit-template-instantiation.md) | Explicit template instantiation in the defining `.CPP`, defined stand-ins for Watcom "instantiation declarations" | Accepted |
+| [0022](0022-portable-file-io-and-win32-replacements.md) | Portable file I/O on C runtime descriptors, one Win32 shim module, and no VQA player in the link | Proposed |

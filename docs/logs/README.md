@@ -5,6 +5,7 @@ File name: `YYYY-MM-DD-SNN-short-title.md`.
 
 | Date | Session | Log |
 |------|---------|-----|
+| 2026-10-15 | S10b — Link: platform entry point, Win32 replacements, stubs | [log](2026-10-15-S10b-link-platform.md) |
 | 2026-10-15 | S10a — Link: template instantiations | [log](2026-10-15-S10a-link-templates.md) |
 | 2026-10-15 | Waves 2–3 review & merge | [log](2026-10-15-wave2-3-review.md) |
 | 2026-10-14 | S06b — Compile fixes, group 1 (AIRCRAFT–EVENT) | [log](2026-10-14-S06b-compile-group1.md) |

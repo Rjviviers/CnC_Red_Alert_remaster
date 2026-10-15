@@ -40,6 +40,7 @@
 #include	"function.h"
 #include	<conio.h>
 #include	<io.h>
+#include	"platform.h"		// S10b: SDL platform layer (platform/platform.h)
 
 #ifdef MCIMPEG // Denzil 6/15/98
 #include "mcimovie.h"
@@ -51,8 +52,10 @@ void Print_Error_End_Exit(char * string);
 void Print_Error_Exit(char * string);
 
 //WinTimerClass * WinTimer;
-extern void Create_Main_Window ( HANDLE instance , int command_show , int width , int height);
-HINSTANCE	ProgramInstance;
+HINSTANCE	ProgramInstance;		// S10b: always NULL (no WinMain instance any more)
+bool InitDDraw(void);					// S10b: was declared in FUNCTION.H under MPEGMOVIE
+extern void Install_Platform_Callbacks(void);	// WINSTUB.CPP (S10b)
+extern void Game_Shutdown(bool shutdown_network);	// WINSTUB.CPP (S10b)
 void Check_Use_Compressed_Shapes (void);
 void Read_Setup_Options(RawFileClass *config_file);
 bool VideoBackBufferAllowed = true;
@@ -90,151 +93,57 @@ const char* Game_Registry_Key();
  * HISTORY:                                                                                    *
  *   03/20/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-//int PASCAL WinMain(HINSTANCE, HINSTANCE, char *, int )
-int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int command_show )
-
+/*
+** S10b: WinMain became a portable main (docs/codebase/platform-layer.md, "How main works").
+** Gone with it: the hand-made argv split, the "playing off the network" check, the
+** _dos_getdrive/_dos_setdrive drive juggling, the Win32 window class and window
+** (Create_Main_Window), the one-second Sleep that proved the timer ticks, and the
+** PostMessage(WM_DESTROY) + ReadyToQuit wait loop at shutdown (Game_Shutdown in WINSTUB.CPP
+** now does the WM_DESTROY work directly). The non-MPEGMOVIE copy of InitDDraw that used
+** to sit inline here is gone too: InitDDraw below is the only video set-up.
+*/
+int main(int argc, char * argv[])
 {
+	/*
+	** The platform layer (SDL) comes first: message boxes, the window and input need it.
+	*/
+	if (!Platform_Init()) {
+		Platform_Message_Box(WINDOW_NAME, Platform_Last_Error());
+		return(EXIT_FAILURE);
+	}
+	Install_Platform_Callbacks();
 
-	#ifndef MPEGMOVIE // Denzil 6/10/98
-	DDSCAPS	surface_capabilities;
-	#endif
-
-
-//printf("in program.\n");getch();
-//printf("ram free = %ld\n",Ram_Free(MEM_NORMAL));getch();
 	if (Ram_Free(MEM_NORMAL) < 7000000) {
-		printf (TEXT_NO_RAM);
-
-
-#if (0)
-
-		/*
-		** Take a stab at finding out how much memory there is available.
-		*/
-
-		for ( int mem = 13*1024*1024 ; mem >0 ; mem -=1024 ) {
-			temp_mem = malloc (mem);
-			if (temp_mem){
-				free (temp_mem);
-				printf ("Memory available: %d", mem);
-				break;
-			}
-		}
-
-		getch();
-#endif	//(0)
+		Platform_Message_Box(TEXT_SHORT_TITLE, TEXT_NO_RAM);
+		Platform_Shutdown();
 		return(EXIT_FAILURE);
 	}
 
-
-	if (strstr(command_line, "f:\\projects\\c&c0") != NULL ||
-			strstr(command_line, "F:\\PROJECTS\\C&C0") != NULL) {
-		MessageBox(0, "Playing off of the network is not allowed.", "Red Alert", MB_OK|MB_ICONSTOP);
-		return(EXIT_FAILURE);
-	}
-
-	int		argc;				//Command line argument count
-	unsigned	command_scan;
-	char		command_char;
-	char *	argv[20];		//Pointers to command line arguments
-	char		path_to_exe[132];
-
-	ProgramInstance = instance;
-
 	/*
-	** Get the full path to the .EXE
+	**	Change directory to where the executable is located, as the original did. Handle
+	**	the case where there is no path attached to argv[0].
 	*/
-	GetModuleFileName (instance, &path_to_exe[0], 132);
-
-	/*
-	** First argument is supposed to be a pointer to the .EXE that is running
-	**
-	*/
-	argc=1;							//Set argument count to 1
-	argv[0]=&path_to_exe[0];	//Set 1st command line argument to point to full path
-
-	/*
-	** Get pointers to command line arguments just like if we were in DOS
-	**
-	** The command line we get is cr/zero? terminated.
-	**
-	*/
-
-	command_scan=0;
-
-	do {
-		/*
-		** Scan for non-space character on command line
-		*/
-		do {
-			command_char = *( command_line+command_scan++ );
-		} while ( command_char==' ' );
-
-		if ( command_char!=0 && command_char != 13 ) {
-			argv[argc++]=command_line+command_scan-1;
-
-			/*
-			** Scan for space character on command line
-			*/
-			do {
-				command_char = *( command_line+command_scan++ );
-			} while ( command_char!=' ' && command_char != 0 && command_char!=13 );
-		*( command_line+command_scan-1 ) = 0;
+	if (argc > 0 && argv[0] != NULL) {
+		char drive[_MAX_DRIVE];
+		char path[_MAX_PATH];
+		char dir[_MAX_DRIVE + _MAX_PATH];
+		_splitpath(argv[0], drive, path, NULL, NULL);
+		strcpy(dir, drive);
+		strcat(dir, path);
+		size_t len = strlen(dir);
+		while (len > 1 && (dir[len-1] == '\\' || dir[len-1] == '/') && dir[len-2] != ':') {
+			dir[--len] = '\0';
 		}
-
-	} while ( command_char != 0 && command_char != 13 && argc<20 );
-
-
-	/*
-	**	Remember the current working directory and drive.
-	*/
-	unsigned olddrive;
-	char oldpath[PATH_MAX];
-	getcwd(oldpath, sizeof(oldpath));
-	_dos_getdrive(&olddrive);
-
-	/*
-	**	Change directory to the where the executable is located. Handle the
-	**	case where there is no path attached to argv[0].
-	*/
-	char drive[_MAX_DRIVE];
-	char path[_MAX_PATH];
-	unsigned drivecount;
-	_splitpath(argv[0], drive, path, NULL, NULL);
-	if (!drive[0]) {
-		drive[0] = ('A' + olddrive)-1;
+		if (dir[0]) {
+			chdir(dir);
+		}
 	}
-	if (!path[0]) {
-		strcpy(path, ".");
-	}
-	_dos_setdrive(toupper((drive[0])-'A')+1, &drivecount);
-	if (path[strlen(path)-1] == '\\') {
-		path[strlen(path)-1] = '\0';
-	}
-	chdir(path);
-
 
 	if (Parse_Command_Line(argc, argv)) {
 
-
-
 		WindowsTimer = new WinTimerClass(60, FALSE);
 
-		int time_test = WindowsTimer->Get_System_Tick_Count();
-		Sleep (1000);
-		if (WindowsTimer->Get_System_Tick_Count() == time_test){
-			MessageBox(0, TEXT_ERROR_TIMER, TEXT_SHORT_TITLE, MB_OK|MB_ICONSTOP);
-			return(EXIT_FAILURE);
-		}
 		RawFileClass cfile(CONFIG_FILE_NAME);
-
-
-#ifdef NEVER
-		Keyboard->IsLibrary = true;
-		if (Debug_Flag) {
-			Keyboard_Attributes_On(DEBUGINT);
-		}
-#endif
 
 		Keyboard = new KeyboardClass();
 
@@ -244,136 +153,42 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 		Check_Use_Compressed_Shapes();
 
 		/*
-		** If there is not enough disk space free, don't allow the product to run.
+		** If there is not enough disk space free, warn. (The original asked yes/no;
+		** the platform message box only has OK, so the game carries on, as "yes" did.)
 		*/
 		if (Disk_Space_Available() < INIT_FREE_DISK_SPACE) {
-
 			char	disk_space_message [512];
 			sprintf (disk_space_message, TEXT_CRITICALLY_LOW, (INIT_FREE_DISK_SPACE) / (1024 * 1024));
-			int reply = MessageBox(NULL, disk_space_message, TEXT_SHORT_TITLE, MB_ICONQUESTION|MB_YESNO);
-			if (reply == IDNO) {
-				if ( WindowsTimer )
-					delete WindowsTimer;
-				return (EXIT_FAILURE);
-			}
+			Platform_Message_Box(TEXT_SHORT_TITLE, disk_space_message);
 		}
 
 		if (cfile.Is_Available()) {
 
 			Read_Private_Config_Struct(cfile, &NewConfig);
 
-
 			/*
 			** Set the options as requested by the ccsetup program
 			*/
 			Read_Setup_Options( &cfile );
 
-			Create_Main_Window( instance , command_show , ScreenWidth , ScreenHeight );
+			/*
+			** MainWindow stays NULL: the platform layer owns the window (Set_Video_Mode).
+			*/
 			SoundOn = Audio_Init ( MainWindow , 16 , false , 11025*2 , 0 );
 
-
-			#ifdef MPEGMOVIE // Denzil 6/10/98
-			if (!InitDDraw())
+			if (!InitDDraw()) {
+				Game_Shutdown(false);
 				return (EXIT_FAILURE);
-			#else
-			BOOL video_success = FALSE;
+			}
+
 			/*
-			** Set 640x400 video mode. If its not available then try for 640x480
+			** WM_ACTIVATEAPP used to arrive when the window was created. The platform only
+			** reports changes (the focus callback), so start "in focus"; otherwise the mouse
+			** cursor would not draw until the window had lost and regained focus.
 			*/
-			if (ScreenHeight == 400) {
-				if (Set_Video_Mode (MainWindow, ScreenWidth, ScreenHeight, 8)) {
-					video_success = TRUE;
-				} else {
-					if (Set_Video_Mode (MainWindow, ScreenWidth, 480, 8)) {
-						video_success = TRUE;
-						ScreenHeight = 480;
-					}
-				}
-			} else {
-				if (Set_Video_Mode (MainWindow, ScreenWidth, ScreenHeight, 8)) {
-					video_success = TRUE;
-				}
-			}
+			GameInFocus = true;
+			AllSurfaces.Set_Surface_Focus(TRUE);
 
-			if (!video_success) {
-				MessageBox(MainWindow, TEXT_VIDEO_ERROR, TEXT_SHORT_TITLE, MB_ICONEXCLAMATION|MB_OK);
-				if (WindowsTimer) delete WindowsTimer;
-				//if (Palette) delete Palette;
-				return (EXIT_FAILURE);
-			}
-
-			if (ScreenWidth==320) {
-				VisiblePage.Init( ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)0);
-				ModeXBuff.Init( ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)(GBC_VISIBLE | GBC_VIDEOMEM));
-			} else {
-				VisiblePage.Init( ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)(GBC_VISIBLE | GBC_VIDEOMEM));
-
-				/*
-				** Check that we really got a video memory page. Failure is fatal.
-				*/
-				memset (&surface_capabilities, 0, sizeof(surface_capabilities));
-				VisiblePage.Get_DD_Surface()->GetCaps(&surface_capabilities);
-				if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY) {
-					/*
-					** Aaaarrgghh!
-					*/
-					WWDebugString(TEXT_DDRAW_ERROR);WWDebugString("\n");
-					MessageBox(MainWindow, TEXT_DDRAW_ERROR, TEXT_SHORT_TITLE, MB_ICONEXCLAMATION|MB_OK);
-					if (WindowsTimer) delete WindowsTimer;
-					return (EXIT_FAILURE);
-				}
-
-				/*
-				** If we have enough left then put the hidpage in video memory unless...
-				**
-				** If there is no blitter then we will get better performance with a system
-				** memory hidpage
-				**
-				** Use a system memory page if the user has specified it via the ccsetup program.
-				*/
-				unsigned video_memory = Get_Free_Video_Memory();
-				unsigned video_capabilities = Get_Video_Hardware_Capabilities();
-				if (video_memory < ScreenWidth*ScreenHeight ||
-						(! (video_capabilities & VIDEO_BLITTER)) ||
-						(video_capabilities & VIDEO_NO_HARDWARE_ASSIST) ||
-						!VideoBackBufferAllowed) {
-					HiddenPage.Init (ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)0);
-				} else {
-					//HiddenPage.Init (ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)0);
-					HiddenPage.Init (ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)GBC_VIDEOMEM);
-
-					/*
-					** Make sure we really got a video memory hid page. If we didnt then things
-					** will run very slowly.
-					*/
-					memset (&surface_capabilities, 0, sizeof(surface_capabilities));
-					HiddenPage.Get_DD_Surface()->GetCaps(&surface_capabilities);
-					if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY) {
-
-						/*
-						** Oh dear, big trub. This must be an IBM crAptiva or something similarly cruddy.
-						** We must redo the Hidden Page as system memory.
-						*/
-						AllSurfaces.Remove_DD_Surface(HiddenPage.Get_DD_Surface());  // Remove the old surface from the AllSurfaces list
-						HiddenPage.Get_DD_Surface()->Release();
-						HiddenPage.Init (ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)0);
-					} else {
-						VisiblePage.Attach_DD_Surface(&HiddenPage);
-					}
-				}
-			}
-
-			ScreenHeight = 400;
-
-			if (VisiblePage.Get_Height() == 480) {
-				SeenBuff.Attach(&VisiblePage, 0, 40, 640, 400);
-				HidPage.Attach(&HiddenPage, 0, 40, 640, 400);
-			} else {
-				SeenBuff.Attach(&VisiblePage, 0, 0, 640, 400);
-				HidPage.Attach(&HiddenPage, 0, 0, 640, 400);
-			}
-			#endif // MPEGMOVIE - Denzil 6/10/98
-			
 			Options.Adjust_Variables_For_Resolution();
 
 			/*
@@ -431,43 +246,24 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 
 			Main_Game(argc, argv);
 
-			#ifdef MPEGMOVIE // Denzil 6/15/98
-			if (MpgSettings != NULL)
-				delete MpgSettings;
-	
-			#ifdef MCIMPEG
-			if (MciMovie != NULL)
-				delete MciMovie;
-			#endif
-			#endif
-			
 			VisiblePage.Clear();
 			HiddenPage.Clear();
 			Memory_Error_Exit = Print_Error_Exit;
 
 			/*
-			** Flag that this is a clean shutdown (not killed with Ctrl-Alt-Del)
+			** Flag that this is a clean shutdown, then do what the WM_DESTROY handler did.
 			*/
 			ReadyToQuit = 1;
-
-			/*
-			** Post a message to our message handler to tell it to clean up.
-			*/
-			PostMessage(MainWindow, WM_DESTROY, 0, 0);
-
-			/*
-			** Wait until the message handler has dealt with the message
-			*/
-			do
-			{
-				Keyboard->Check();
-			}while (ReadyToQuit == 1);
+			Game_Shutdown(false);
 
 			return (EXIT_SUCCESS);
 
 		} else {
-			puts(TEXT_SETUP_FIRST);
-			Keyboard->Get();
+			/*
+			** No REDALERT.INI. The original printed this and waited for a key (with no
+			** window, so effectively forever under Windows 95).
+			*/
+			Platform_Message_Box(TEXT_SHORT_TITLE, TEXT_SETUP_FIRST);
 		}
 
 		if (WindowsTimer) {
@@ -476,17 +272,14 @@ int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int 
 		}
 
 	}
-	/*
-	**	Restore the current drive and directory.
-	*/
+
+	Platform_Shutdown();
 	return(EXIT_SUCCESS);
 }
-
 
 /* Initialize DirectDraw and surfaces */
 bool InitDDraw(void)
 	{
-	DDSCAPS	surface_capabilities;
 	BOOL video_success = FALSE;
 
 	/* Set 640x400 video mode. If its not available then try for 640x480 */
@@ -515,10 +308,9 @@ bool InitDDraw(void)
 
 	if (!video_success)
 		{
-		MessageBox(MainWindow, TEXT_VIDEO_ERROR, TEXT_SHORT_TITLE, MB_ICONEXCLAMATION|MB_OK);
-
-		if (WindowsTimer)
-			delete WindowsTimer;
+		/* S10b: platform message box; the caller (main) cleans up through Game_Shutdown,
+		 * which deletes WindowsTimer (deleting it here as well would free it twice). */
+		Platform_Message_Box(TEXT_SHORT_TITLE, TEXT_VIDEO_ERROR);
 
 		return false;
 		}
@@ -543,40 +335,11 @@ bool InitDDraw(void)
 		 *
 		 * Use a system memory page if the user has specified it via the ccsetup program.
 		 */
-		unsigned video_memory = Get_Free_Video_Memory();
-		unsigned video_capabilities = Get_Video_Hardware_Capabilities();
-
-		if (video_memory < ScreenWidth * ScreenHeight
-				|| (!(video_capabilities & VIDEO_BLITTER))
-				|| (video_capabilities & VIDEO_NO_HARDWARE_ASSIST)
-				|| !VideoBackBufferAllowed)
-			{
-			HiddenPage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)0);
-			}
-		else
-			{
-			HiddenPage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)GBC_VIDEOMEM);
-
-			/* Make sure we really got a video memory hid page. If we didnt then things
-			 * will run very slowly.
-			 */
-			memset(&surface_capabilities, 0, sizeof(surface_capabilities));
-			HiddenPage.Get_DD_Surface()->GetCaps(&surface_capabilities);
-			
-			if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY)
-				{
-				/* Oh dear, big trub. This must be an IBM crAptiva or something similarly cruddy.
-				 * We must redo the Hidden Page as system memory.
-				 */
-				AllSurfaces.Remove_DD_Surface(HiddenPage.Get_DD_Surface());  // Remove the old surface from the AllSurfaces list
-				HiddenPage.Get_DD_Surface()->Release();
-				HiddenPage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)0);
-				}
-			else
-				{
-				VisiblePage.Attach_DD_Surface(&HiddenPage);
-				}
-			}
+		/* S10b: the hidden page is always system memory. Get_Free_Video_Memory() is 0 and
+		 * there are no DirectDraw surfaces, so the old GBC_VIDEOMEM branch (GetCaps check,
+		 * Attach_DD_Surface) could never run and is removed. VideoBackBufferAllowed and the
+		 * capability queries are no longer consulted. */
+		HiddenPage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)0);
 		}
 
 	ScreenHeight = 400;
@@ -678,17 +441,10 @@ void Emergency_Exit ( int code )
 	ReadyToQuit = 3;
 
 	/*
-	** Post a message to our message handler to tell it to clean up.
+	** S10b: was PostMessage(MainWindow, WM_DESTROY) and a wait for the message handler.
+	** Do the WM_DESTROY work directly (ReadyToQuit 3 also shut the network down).
 	*/
-	PostMessage(MainWindow, WM_DESTROY, 0, 0);
-
-	/*
-	** Wait until the message handler has dealt with the message
-	*/
-	do
-	{
-		Keyboard->Check();
-	}while (ReadyToQuit == 3);
+	Game_Shutdown(true);
 
 
 

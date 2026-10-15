@@ -40,7 +40,8 @@
  * Functions:                                                                                  *
  *   Assert_Failure -- display the line and source file where a failed assert occurred         *
  *   Check_For_Focus_Loss -- check for the end of the focus loss                               *
- *   Create_Main_Window -- opens the MainWindow for C&C                                        *
+ *   Game_Shutdown -- what WM_DESTROY did (S10b; replaces Create_Main_Window/Windows_Procedure)*
+ *   Install_Platform_Callbacks -- focus callback and quit hook (S10b)                         *
  *   Focus_Loss -- this function is called when a library function detects focus loss          *
  *   Memory_Error_Handler -- Handle a possibly fatal failure to allocate memory                *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -48,12 +49,14 @@
 #include	"function.h"
 
 #include "WSProto.h"
+#include "platform.h"		// S10b: SDL platform layer (focus, quit, event pump)
 
 void output(short,short)
 {}
 
 
-unsigned long CCFocusMessage = WM_USER+50;	//Private message for receiving application focus
+// S10b: CCFocusMessage (a private window message) is gone; see Got_Focus.
+static void Got_Focus(void);
 extern	void VQA_PauseAudio(void);
 extern	void VQA_ResumeAudio(void);
 
@@ -112,18 +115,17 @@ void Focus_Restore(void)
 void Check_For_Focus_Loss(void)
 {
 	static BOOL	focus_last_time = 1;
-			 MSG	msg;
 
-
+	/*
+	** S10b: the two PeekMessage/GetMessage/DispatchMessage loops became platform pumps.
+	** GameInFocus is updated by the platform focus callback (On_Focus_Change below).
+	** While out of focus this pumps once and sleeps a little, then returns: callers that
+	** wait for focus loop around it (Main_Loop calls it every frame).
+	*/
 	if ( !GameInFocus ) {
 		Focus_Loss();
-		while ( PeekMessage( &msg, NULL, 0, 0, PM_NOREMOVE | PM_NOYIELD ) ) {
-	  		if (!GetMessage( &msg, NULL, 0, 0 ) ) {
-				return;
-			}
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
+		Platform_Pump_Events();
+		Platform_Sleep(10);
 	}
 
 	if (!focus_last_time && GameInFocus) {
@@ -133,17 +135,11 @@ void Check_For_Focus_Loss(void)
 		cd.Set(60*1);
 
 		do {
-			while (PeekMessage( &msg, NULL, 0, 0, PM_NOREMOVE )) {
-	  			if (!GetMessage( &msg, NULL, 0, 0 ) ) {
-					return;
-				}
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
-
+			Platform_Pump_Events();
+			Platform_Sleep(1);
 		} while (cd.Time());
 		VQA_ResumeAudio();
-		PostMessage (MainWindow, CCFocusMessage, 0, 0);
+		Got_Focus();			// was PostMessage (MainWindow, CCFocusMessage, 0, 0)
 //		AllSurfaces.Restore_Surfaces();
 //		VisiblePage.Clear();
 //		HiddenPage.Clear();
@@ -158,153 +154,96 @@ void Check_For_Focus_Loss(void)
 
 extern bool InMovie;
 
-long FAR PASCAL Windows_Procedure(HWND hwnd, UINT message, UINT wParam, LONG lParam)
+/***********************************************************************************************
+ * S10b: Windows_Procedure is gone. What its messages did now happens here:                   *
+ *                                                                                             *
+ *   CCFocusMessage          -> Got_Focus (called by Check_For_Focus_Loss)                     *
+ *   WM_ACTIVATEAPP          -> On_Focus_Change (platform focus callback)                      *
+ *   WM_DESTROY              -> Game_Shutdown (called directly at exit)                        *
+ *   SC_CLOSE (ignored)      -> Quit_Poll_Hook: closing the window now exits the game          *
+ *   SC_SCREENSAVE (blocked) -> SDL disables the screen saver while the window is open         *
+ *   keyboard/mouse messages -> the platform input queue (KEY.CPP Fill_Buffer_From_System)    *
+ *   Winsock async messages  -> nothing until S12's polled transport (PacketTransport)         *
+ *=============================================================================================*/
+static void Got_Focus(void)
 {
-
-	int	low_param = LOWORD(wParam);
-
-	if (message == CCFocusMessage) {
-		Start_Primary_Sound_Buffer(TRUE);
-		if (!InMovie) {
-			Theme.Stop();
-			Theme.Queue_Song(THEME_PICK_ANOTHER);
-		}
-		return(0);
+	Start_Primary_Sound_Buffer(TRUE);
+	if (!InMovie) {
+		Theme.Stop();
+		Theme.Queue_Song(THEME_PICK_ANOTHER);
 	}
-
-	/*
-	** Pass on any messages intended for the winsock message handler.
-	*/
-	if ( PacketTransport ) {
-		if ( message == (UINT) PacketTransport->Protocol_Event_Message() ) {
-			if ( PacketTransport->Message_Handler (hwnd, message, wParam, lParam) ){
-				return ( DefWindowProc (hwnd, message, wParam, lParam) );
-			}else{
-				return (0);
-			}
-		}
-	}
-
-	
-	/*
-	**	Pass this message through to the keyboard handler. If the message
-	**	was processed and requires no further action, then return with
-	**	this information.
-	*/
-	if (Keyboard->Message_Handler(hwnd, message, wParam, lParam)) {
-		return(1);
-	}
-
-	switch ( message ) {
-//		case WM_SYSKEYDOWN:
-//			Mono_Printf("wparam=%08X lparam=%08X\n", (long)wParam, (long)lParam);
-			// fall through
-
-//		case WM_MOUSEMOVE:
-//		case WM_KEYDOWN:
-//		case WM_SYSKEYUP:
-//		case WM_KEYUP:
-//		case WM_LBUTTONDOWN:
-//		case WM_LBUTTONUP:
-//		case WM_LBUTTONDBLCLK:
-//		case WM_MBUTTONDOWN:
-//		case WM_MBUTTONUP:
-//		case WM_MBUTTONDBLCLK:
-//		case WM_RBUTTONDOWN:
-//		case WM_RBUTTONUP:
-//		case WM_RBUTTONDBLCLK:
-//	 		Keyboard->Message_Handler(hwnd, message, wParam, lParam);
-//			return(0);
-
-			/*
-			** Windoze message says we have to shut down. Try and do it cleanly.
-			*/
-		case WM_DESTROY:
-			Prog_End();
-			Invalidate_Cached_Icons();
-			VisiblePage.Un_Init();
-			HiddenPage.Un_Init();
-			AllSurfaces.Release();
-			if (!InDebugger) Reset_Video_Mode();
-			Stop_Profiler();
-			PostQuitMessage( 0 );
-
-			/*
-			** If we are shutting down gracefully than flag that the message loop has finished.
-			** If this is a forced shutdown (ReadyToQuit == 0) then try and close down everything
-			** before we exit.
-			*/
-			switch (ReadyToQuit) {
-				case 1:
-					ReadyToQuit = 2;
-					break;
-
-				case 0:
-					Shutdown_Network();
-					ExitProcess(0);
-					break;
-				case 3:
-					Shutdown_Network();
-					ReadyToQuit = 2;
-					break;
-
-			}
-			return(0);
-
-		case WM_ACTIVATEAPP:
-			GameInFocus=(BOOL)wParam;
-			if (!GameInFocus) Focus_Loss();
-			AllSurfaces.Set_Surface_Focus (GameInFocus);
-			AllSurfaces.Restore_Surfaces();
-//			if (GameInFocus) {
-//				Restore_Cached_Icons();
-//				Map.Flag_To_Redraw(true);
-//				Start_Primary_Sound_Buffer(TRUE);
-//				if (WWMouse) WWMouse->Set_Cursor_Clip();
-//			}
-			return(0);
-#ifdef NEVER
-		case WM_ACTIVATE:
-			if (low_param == WA_INACTIVE) {
-				GameInFocus = FALSE;
-				Focus_Loss();
-			}
-			return(0);
-#endif	//NEVER
-
-
-		case WM_SYSCOMMAND:
-			switch ( wParam ) {
-
-				case SC_CLOSE:
-					/*
-					** Windows sent us a close message. Probably in response to Alt-F4. Ignore it by
-					** pretending to handle the message and returning true;
-					*/
-					return (0);
-
-				case SC_SCREENSAVE:
-					/*
-					** Windoze is about to start the screen saver. If we just return without passing
-					** this message to DefWindowProc then the screen saver will not be allowed to start.
-					*/
-					return (0);
-			}
-			break;
-
-
-	}
-
-
-
-	return DefWindowProc (hwnd, message, wParam, lParam);
 }
 
 
+/*
+** WM_ACTIVATEAPP: the platform layer calls this when the window gains or loses focus.
+*/
+static void On_Focus_Change(bool in_focus)
+{
+	GameInFocus = in_focus;
+	if (!GameInFocus) Focus_Loss();
+	AllSurfaces.Set_Surface_Focus (GameInFocus);
+	AllSurfaces.Restore_Surfaces();
+}
 
 
+/*
+** The window was closed (close button, Alt+F4, the desktop shutting down). The original
+** ignored SC_CLOSE; the port exits cleanly instead, the same way Emergency_Exit does. Runs
+** from the platform pump, which every input check reaches (Keyboard->Check()).
+*/
+static void Quit_Poll_Hook(void *)
+{
+	static bool quitting = false;
+	if (quitting || !Platform_Quit_Requested()) return;
+	quitting = true;
+	Emergency_Exit(EXIT_SUCCESS);
+}
 
 
+/***********************************************************************************************
+ * Install_Platform_Callbacks -- hook the game into the platform layer (S10b)                 *
+ *                                                                                             *
+ *    Called by main right after Platform_Init. Replaces the window class registration and    *
+ *    the focus-loss function pointers that Create_Main_Window set up.                        *
+ *=============================================================================================*/
+void Install_Platform_Callbacks(void)
+{
+	Platform_Set_Focus_Callback(On_Focus_Change);
+	Platform_Add_Poll_Hook(Quit_Poll_Hook, NULL);
+
+	Audio_Focus_Loss_Function = &Focus_Loss;
+	Misc_Focus_Loss_Function = &Focus_Loss;
+	Misc_Focus_Restore_Function = &Focus_Restore;
+	Gbuffer_Focus_Loss_Function = &Focus_Loss;
+}
+
+
+/***********************************************************************************************
+ * Game_Shutdown -- what the WM_DESTROY handler did, called directly (S10b)                   *
+ *                                                                                             *
+ *    The original posted WM_DESTROY to its own window and waited for the message loop to     *
+ *    run this. shutdown_network corresponds to ReadyToQuit 0/3 (forced or emergency exit).   *
+ *    Safe to call more than once.                                                             *
+ *=============================================================================================*/
+void Game_Shutdown(bool shutdown_network)
+{
+	static bool done = false;
+	if (done) return;
+	done = true;
+
+	Prog_End();
+	Invalidate_Cached_Icons();
+	VisiblePage.Un_Init();
+	HiddenPage.Un_Init();
+	AllSurfaces.Release();
+	if (!InDebugger) Reset_Video_Mode();
+	if (shutdown_network) {
+		Shutdown_Network();
+	}
+	ReadyToQuit = 2;
+	Platform_Shutdown();
+}
 HANDLE DebugFile = INVALID_HANDLE_VALUE;
 
 /***********************************************************************************************
@@ -361,178 +300,11 @@ void WWDebugString (char *string)
 
 
 
-/***********************************************************************************************
- * Create_Main_Window -- opens the MainWindow for C&C                                          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    instance -- handle to program instance                                            *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    10/10/95 4:08PM ST : Created                                                             *
- *=============================================================================================*/
-
-#define CC_ICON 1
-
-#if (ENGLISH)
-#define WINDOW_NAME		"Red Alert"
-#endif
-
-#if (FRENCH)
-#define WINDOW_NAME		"Alerte Rouge"
-#endif
-
-#if (GERMAN)
-#define WINDOW_NAME		"Alarmstufe Rot"
-#endif
-
-
-void Create_Main_Window ( HANDLE instance , int command_show , int width , int height )
-
-{
-	HWND        	hwnd ;
-	WNDCLASS    	wndclass ;
-	//
-	// Register the window class
-	//
-
-	wndclass.style         = CS_HREDRAW | CS_VREDRAW ;
-	wndclass.lpfnWndProc   = Windows_Procedure ;
-	wndclass.cbClsExtra    = 0 ;
-	wndclass.cbWndExtra    = 0 ;
-	wndclass.hInstance     = instance ;
-	wndclass.hIcon         = LoadIcon (instance, MAKEINTRESOURCE(CC_ICON)) ;
-	wndclass.hCursor       = NULL;
-	wndclass.hbrBackground = NULL;
-	wndclass.lpszMenuName  = WINDOW_NAME;	//NULL
-	wndclass.lpszClassName = WINDOW_NAME;
-
-	RegisterClass (&wndclass) ;
-
-
-	//
-	// Create our main window
-	//
-	hwnd = CreateWindowEx (
-							WS_EX_TOPMOST,
-							WINDOW_NAME,
-							WINDOW_NAME,
-							WS_POPUP, // Denzil | WS_MAXIMIZE,
-							0,
-							0,
-							// Denzil 5/18/98 - Making window fullscreen prevents other apps
-							// from getting WM_PAINT messages
-							GetSystemMetrics(SM_CXSCREEN), //width,
-							GetSystemMetrics(SM_CYSCREEN), //height,
-							// End Denzil
-							NULL,
-							NULL,
-							instance,
-							NULL );
-// Denzil
-width = width; height = height;
-// End
-
-	ShowWindow (hwnd, command_show );
-	ShowCommand = command_show;
-	UpdateWindow (hwnd);
-	SetFocus (hwnd);
-	MainWindow=hwnd;			//Save the handle to our main window
-	hInstance = instance;
-
-	CCFocusMessage = RegisterWindowMessage ("CC_GOT_FOCUS");
-
-	Audio_Focus_Loss_Function = &Focus_Loss;
-	Misc_Focus_Loss_Function = &Focus_Loss;
-	Misc_Focus_Restore_Function = &Focus_Restore;
-	Gbuffer_Focus_Loss_Function = &Focus_Loss;
-}
-
-
-void Window_Dialog_Box(HANDLE  hinst, LPCTSTR  lpszTemplate, HWND  hwndOwner, DLGPROC  dlgprc)
-{
-	MSG					msg;
-	/*
-	** Get rid of the Westwood mouse cursor because we are showing a
-	** dialog box and we want to have the right windows cursor showing
-	** for it.
-	*/
-	Hide_Mouse();
-	ShowCursor(TRUE);
-
-	/*
-	** Pop up the dialog box and then run a standard message handler
-	** until the dialog box is closed.
-	*/
-
-	DialogBox((HINSTANCE)hinst, lpszTemplate, hwndOwner, dlgprc);
-	while (GetMessage(&msg, NULL, 0, 0) && !AllDone) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-
-	/*
-	** Restore the westwood mouse cursor and get rid of the windows one
-	** because it is now time to restore back to the westwood way of
-	** doing things.
-	*/
-	ShowCursor(FALSE);
-	Show_Mouse();
-}
-
-
-
-typedef struct tColourList {
-
-	char	Red;
-	char	Green;
-	char	Blue;
-} ColourList;
-
-ColourList	ColourLookup[9]={
-	0,0,0,
-	63,0,0,
-	0,63,0,
-	0,0,63,
-	63,0,63,
-	63,63,0,
-	0,63,63,
-	32,32,32,
-	63,63,63
-};
-
-
-
-
-int	DebugColour=1;
-
-
-extern "C" void Set_Palette_Register(int number, int red, int green, int blue);
-#pragma off (unreferenced)
-void Colour_Debug (int call_number)
-{
-	//#if 0
-	//if (DebugColour==call_number || !call_number) {
-
-		//if (call_number) {
-		//	Wait_Vert_Blank();
-		//}
-
-		Set_Palette_Register (0,ColourLookup[call_number].Red ,
-										ColourLookup[call_number].Green,
-										ColourLookup[call_number].Blue);
-	//}
-	//#endif
-}
-
-#pragma on (unreferenced)
-
-
-
+/*
+** S10b: Create_Main_Window, Window_Dialog_Box (DialogBox + message loop) and
+** Colour_Debug (a 320-wide palette debug helper nothing called) are removed. The
+** platform layer owns the window (WIN32LIB/MISC/DDRAW.CPP Set_Video_Mode).
+*/
 
 
 BOOL Any_Locked (void)
@@ -685,8 +457,6 @@ void Assert_Failure (char *expression, int line, char *file)
 {
 	char	assertbuf[256];
 	char   timebuff[512];
-	SYSTEMTIME	time;
-
 	sprintf (assertbuf, "assert '%s' failed at line %d in module %s.\n", expression, line, file);
 
 	if (!MonoClass::Is_Enabled()) MonoClass::Enable();
@@ -696,34 +466,29 @@ void Assert_Failure (char *expression, int line, char *file)
 
 	WWDebugString(assertbuf);
 
-	GetLocalTime(&time);
-
-	sprintf (timebuff, "%02d/%02d/%04d %02d:%02d:%02d - %s", time.wMonth, time.wDay, time.wYear,
-																		time.wHour, time.wMinute, time.wSecond,
+	/*
+	** S10b: GetLocalTime + mmioOpen/mmioWrite became time/localtime + fopen. (The original
+	** mmioOpen without MMIO_CREATE/append rewrote ASSERT.TXT from the start each time.)
+	*/
+	time_t now = time(NULL);
+	struct tm * lt = localtime(&now);
+	sprintf (timebuff, "%02d/%02d/%04d %02d:%02d:%02d - %s", lt ? lt->tm_mon + 1 : 0, lt ? lt->tm_mday : 0,
+																		lt ? lt->tm_year + 1900 : 0,
+																		lt ? lt->tm_hour : 0, lt ? lt->tm_min : 0, lt ? lt->tm_sec : 0,
 																		assertbuf);
 
-
-	HMMIO handle = mmioOpen("ASSERT.TXT", NULL, MMIO_WRITE);
-	if (!handle) {
-		handle = mmioOpen("ASSERT.TXT", NULL, MMIO_CREATE | MMIO_WRITE);
-		//mmioClose(handle, 0);
-		//handle = mmioOpen("ASSERT.TXT", NULL, MMIO_WRITE);
-	}
-
+	FILE * handle = fopen("ASSERT.TXT", "wb");
 	if (handle) {
-
-		mmioWrite(handle, timebuff, strlen(timebuff));
-		mmioClose(handle, 0);
+		fwrite(timebuff, 1, strlen(timebuff), handle);
+		fclose(handle);
 	}
 
 	WWMessageBox().Process(assertbuf);
 //	WWMessageBox().Process("Red Alert demo timed out - Aborting");
 	//Get_Key();
 
-	Prog_End();
-	Invalidate_Cached_Icons();
-	PostQuitMessage( 0 );
-	ExitProcess(0);
+	Game_Shutdown(false);		// S10b: was Prog_End, Invalidate_Cached_Icons, PostQuitMessage
+	exit(0);					// S10b: was ExitProcess(0)
 }
 #endif
 
@@ -756,13 +521,12 @@ void Memory_Error_Handler(void)
 
 	ReadyToQuit = 1;
 
-	PostMessage(MainWindow, WM_DESTROY, 0, 0);
-	do
-	{
-		Keyboard->Check();
-	}while (ReadyToQuit == 1);
-
-	ExitProcess(0);
+	/*
+	** S10b: was PostMessage(MainWindow, WM_DESTROY) + a wait for the message handler, then
+	** ExitProcess(0).
+	*/
+	Game_Shutdown(false);
+	exit(0);
 }
 
 

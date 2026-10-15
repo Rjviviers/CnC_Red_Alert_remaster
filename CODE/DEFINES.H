@@ -134,7 +134,10 @@
 // Define DVD to turn on RADVD additions/changes - Denzil
 #ifdef DVD
 //#define INTERNET_OFF
-#define MPEGMOVIE
+// S10b: the DirectDraw MPEG (DVD) movie player is gone; movies are stubbed (ADR-0005,
+// CODE/stubs/movie_stubs.cpp). Without MPEGMOVIE, CONQUER.CPP's PlayMpegMovie path and
+// the MpgSettings object are not compiled.
+//#define MPEGMOVIE
 //#define MCIMPEG
 #endif
 
