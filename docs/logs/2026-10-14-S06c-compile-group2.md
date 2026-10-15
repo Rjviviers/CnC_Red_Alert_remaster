@@ -48,6 +48,16 @@ No ADR needed (0023 not used). `ScenarioInit` back to `int` rather than rewritin
   radio checks). This **restores the 1996 behaviour**: under Watcom `bool` was `typedef int`, and the code nests
   `ScenarioInit++ … ScenarioInit++ … -- … --` (e.g. `BUILDING.CPP` 1921–1928). A built-in `bool` would saturate at 1
   and drop to 0 at the first inner `--`. Not saved in save games or sent on the wire (only assigned in `SAVELOAD.CPP`).
+- **Check 1, `bool++`/`bool--` counters (orchestrator request):** the only `bool++`/`--` errors in these files were on
+  `ScenarioInit`, which is a counter and is now `int` in both `EXTERNS.H` and `GLOBALS.CPP:469` (the same choice S06e made).
+  No `bool` was rewritten to `true`/`false`.
+- **Check 2, overrides broken by `bool`/`int` parameter mismatches (orchestrator request):** all 16 files were compiled
+  with `-Woverloaded-virtual`. The only `bool`/`int` hidden-override hit is `VesselClass::Take_Damage(..., int)` vs
+  `FootClass::Take_Damage(..., bool)` in `VESSEL.H` (S06e's file, already fixed there). The `Take_Damage` overrides in
+  `FOOT`/`INFANTRY` are declared `bool` in their headers, and the `.CPP` definitions now match them. The other warnings
+  (`Overlap_List()` vs `Overlap_List(bool)`, `Remap_Table` const-ness, heap `ID`/`Logical_ID`, `operator=`, connection
+  `Send_Packet` overloads) are differences in the number of arguments or in const-ness that were already in the 1996
+  code. They were not caused by the `bool` size change.
 - **For-loop hoisting:** same semantics as Watcom's extended for-scope (the variable keeps its last value); no change.
   Touches `HOUSE.CPP` AI (`Expert_AI`, `AI_Unit`, `AI_Vessel`, `AI_Infantry`, `Recalc_Center`, `Find_Build_Location`),
   `MAP.CPP` (tiberium scan, `Zone_Span`, `Write_Binary`), `FOOT.CPP` trigger crossing, `INFANTRY.CPP` `Scatter`.
