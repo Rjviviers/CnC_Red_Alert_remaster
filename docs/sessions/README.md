@@ -15,7 +15,7 @@ The dependency graph is in the [roadmap](../roadmap.md).
 | S06 | [Compiler compatibility](S06-compiler-compat.md) | 3 | S05 | S07, S08, S09 | Done | [b](../logs/2026-10-14-S06b-compile-group1.md), [a](../logs/2026-10-14-S06a-shared-headers.md), [c](../logs/2026-10-14-S06c-compile-group2.md), [d](../logs/2026-10-14-S06d-compile-group3.md), [e](../logs/2026-10-14-S06e-compile-group4.md), [f](../logs/2026-10-14-S06f-compile-libraries.md) |
 | S07 | [Assembly → C++](S07-asm-to-cpp.md) | 3 | S02, S03 | S06, S08, S09 | Done (A–D + audio in S09) | [A](../logs/2026-10-14-S07A-surface-primitives.md), [B](../logs/2026-10-14-S07B-shape-renderer.md), [C](../logs/2026-10-14-S07C-text-palette-cursor.md), [D](../logs/2026-10-14-S07D-data-codecs.md) |
 | S08 | [Platform layer: video, input, timer](S08-platform-layer.md) | 3 | S01, S03, S05 | S06, S07, S09 | Done | [log](../logs/2026-10-14-S08-platform-layer.md) |
-| S09 | [Audio via SDL](S09-audio.md) | 3 | S02, S03, S05 | S06, S07, S08 | In review (SDL backend off) | [log](../logs/2026-10-14-S09-audio.md) |
+| S09 | [Audio via SDL](S09-audio.md) | 3 | S02, S03, S05 | S06, S07, S08 | In review (SDL backend on by default; playback not yet heard, so check in S10) | [log](../logs/2026-10-14-S09-audio.md) |
 | S10 | [Link & boot to main menu → **M1**](S10-link-and-boot.md) | 4 | S06, S07, S08, S09 | — | Not started | |
 | S11 | [Skirmish vs AI playable → **M2**](S11-skirmish.md) | 5 | S10 | S12 | Not started | |
 | S12 | [Portable UDP sockets](S12-portable-sockets.md) | 5 | S04, S10 | S11 | Not started | |

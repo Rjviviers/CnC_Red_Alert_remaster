@@ -5,6 +5,21 @@
 ## Goal
 Link the executable, load the player's MIX files, and reach the main menu.
 
+## Link status at the start of S10 (orchestrator, 2026-10-15)
+All 307 sources compile (GCC `-m32`). Linking `redalert` on Linux leaves **393 unresolved symbols**
+(full list: [`docs/codebase/link-unresolved-2026-10-15.txt`](../codebase/link-unresolved-2026-10-15.txt)):
+
+| Group | Count | What to do |
+|-------|------:|------------|
+| Template instantiations (`DynamicVectorClass<T>`, `CCPtr<T>`, …) | 276 | Watcom instantiated templates automatically. Move the member definitions into the headers, or add explicit instantiations |
+| Win32 API (`CreateFile`, `ReadFile`, `GetMessage`, registry, …) | 49 | On Windows, link the system libraries. On Linux, replace file I/O with portable code and remove the window, message-loop and registry code (S08's list) |
+| Movie / MPEG (`Mpg*`, `AudioUnzap`, `VQA_sosCODEC*`) | 7 | Stub, per ADR-0005 |
+| Winsock (`WSAAsyncSelect`, `WSAStartup`, …) | 6 | Temporary stubs, until S12 rewrites the transport |
+| DirectSound (`DirectSoundCreate`) | 1 | Remove the leftover call (audio goes through S09's backends) |
+| Other (asm leftovers `CPUType`/`Detect_MMX_Availability`/`Force_VM_Page_In`/`MCGA_*`/`UnVQ_4x2`, `Mono_*` debug output, `Stop_Profiler`, `ABS`/`MIN`/`MAX`/`Bound` templates, fixed-point operators, `main`) | 54 | Mostly stubs, or template definitions in headers. `main` comes from replacing `WinMain` (S08's list) |
+
+Suggested approach: get the **Windows (MSVC)** link working first (the Win32 API resolves there), then Linux.
+
 ## Inputs from S09
 - *(Update: S06a fixed the `_WIN32` problem and `RA_HAVE_SDL3` now defaults to ON. Test real playback in S10.)* Audio boots with the **null backend** by default. To get real sound, enable `-DRA_HAVE_SDL3=ON` (S09's `audio_sdl3.cpp`, linked to
   `SDL3::SDL3`). On 2026-10-14 it did **not** compile on Linux, because the build still defined `_WIN32` there, so SDL took its Windows

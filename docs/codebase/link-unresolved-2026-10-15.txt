@@ -1,0 +1,393 @@
+ABS(int)
+AudioUnzap
+Bound(int, int, int)
+CCPtr<AircraftTypeClass>::CCPtr(AircraftTypeClass*)
+CCPtr<AnimTypeClass>::CCPtr(AnimTypeClass*)
+CCPtr<BuildingTypeClass>::CCPtr(BuildingTypeClass*)
+CCPtr<BulletTypeClass>::CCPtr(BulletTypeClass*)
+CCPtr<FactoryClass>::CCPtr(FactoryClass*)
+CCPtr<HouseClass>::CCPtr(HouseClass*)
+CCPtr<HouseTypeClass>::CCPtr(HouseTypeClass*)
+CCPtr<InfantryTypeClass>::CCPtr(InfantryTypeClass*)
+CCPtr<OverlayTypeClass>::CCPtr(OverlayTypeClass*)
+CCPtr<SmudgeTypeClass>::CCPtr(SmudgeTypeClass*)
+CCPtr<TeamClass>::CCPtr(TeamClass*)
+CCPtr<TeamTypeClass>::CCPtr(TeamTypeClass*)
+CCPtr<TemplateTypeClass>::CCPtr(TemplateTypeClass*)
+CCPtr<TerrainTypeClass>::CCPtr(TerrainTypeClass*)
+CCPtr<TriggerClass>::CCPtr(TriggerClass*)
+CCPtr<TriggerTypeClass>::CCPtr(TriggerTypeClass*)
+CCPtr<UnitTypeClass>::CCPtr(UnitTypeClass*)
+CCPtr<VesselTypeClass>::CCPtr(VesselTypeClass*)
+CPUType
+CloseHandle
+CreateFile
+CreateWindowEx
+DefWindowProc
+DeleteFile
+Detect_MMX_Availability
+DialogBox
+DirectSoundCreate
+DispatchMessage
+DosDateTimeToFileTime
+DynamicVectorClass<BaseNodeClass>::Add(BaseNodeClass const&)
+DynamicVectorClass<BaseNodeClass>::DynamicVectorClass(unsigned int, BaseNodeClass const*)
+DynamicVectorClass<BaseNodeClass>::ID(BaseNodeClass const&)
+DynamicVectorClass<BaseNodeClass>::Resize(unsigned int, BaseNodeClass const*)
+DynamicVectorClass<EgoClass*>::Add(EgoClass* const&)
+DynamicVectorClass<EgoClass*>::Delete(int)
+DynamicVectorClass<EgoClass*>::DynamicVectorClass(unsigned int, EgoClass* const*)
+DynamicVectorClass<EgoClass*>::ID(EgoClass* const&)
+DynamicVectorClass<EgoClass*>::Resize(unsigned int, EgoClass* const*)
+DynamicVectorClass<FileEntryClass*>::Add(FileEntryClass* const&)
+DynamicVectorClass<FileEntryClass*>::DynamicVectorClass(unsigned int, FileEntryClass* const*)
+DynamicVectorClass<FileEntryClass*>::ID(FileEntryClass* const&)
+DynamicVectorClass<FileEntryClass*>::Resize(unsigned int, FileEntryClass* const*)
+DynamicVectorClass<MultiMission*>::Add(MultiMission* const&)
+DynamicVectorClass<MultiMission*>::DynamicVectorClass(unsigned int, MultiMission* const*)
+DynamicVectorClass<MultiMission*>::ID(MultiMission* const&)
+DynamicVectorClass<MultiMission*>::Resize(unsigned int, MultiMission* const*)
+DynamicVectorClass<NodeNameTag*>::Add(NodeNameTag* const&)
+DynamicVectorClass<NodeNameTag*>::Delete(NodeNameTag* const&)
+DynamicVectorClass<NodeNameTag*>::DynamicVectorClass(unsigned int, NodeNameTag* const*)
+DynamicVectorClass<NodeNameTag*>::ID(NodeNameTag* const&)
+DynamicVectorClass<NodeNameTag*>::Resize(unsigned int, NodeNameTag* const*)
+DynamicVectorClass<ObjectClass*>::Add(ObjectClass* const&)
+DynamicVectorClass<ObjectClass*>::Add_Head(ObjectClass* const&)
+DynamicVectorClass<ObjectClass*>::Delete(ObjectClass* const&)
+DynamicVectorClass<ObjectClass*>::DynamicVectorClass(unsigned int, ObjectClass* const*)
+DynamicVectorClass<ObjectClass*>::ID(ObjectClass* const&)
+DynamicVectorClass<ObjectClass*>::Resize(unsigned int, ObjectClass* const*)
+DynamicVectorClass<RemapControlType*>::Add(RemapControlType* const&)
+DynamicVectorClass<RemapControlType*>::Delete(int)
+DynamicVectorClass<RemapControlType*>::DynamicVectorClass(unsigned int, RemapControlType* const*)
+DynamicVectorClass<RemapControlType*>::ID(RemapControlType* const&)
+DynamicVectorClass<RemapControlType*>::Resize(unsigned int, RemapControlType* const*)
+DynamicVectorClass<TriggerClass*>::Add(TriggerClass* const&)
+DynamicVectorClass<TriggerClass*>::Delete(TriggerClass* const&)
+DynamicVectorClass<TriggerClass*>::Delete(int)
+DynamicVectorClass<TriggerClass*>::DynamicVectorClass(unsigned int, TriggerClass* const*)
+DynamicVectorClass<TriggerClass*>::ID(TriggerClass* const&)
+DynamicVectorClass<TriggerClass*>::Resize(unsigned int, TriggerClass* const*)
+DynamicVectorClass<WinsockInterfaceClass::tWinsockBufferType*>::Add(WinsockInterfaceClass::tWinsockBufferType* const&)
+DynamicVectorClass<WinsockInterfaceClass::tWinsockBufferType*>::Delete(int)
+DynamicVectorClass<WinsockInterfaceClass::tWinsockBufferType*>::DynamicVectorClass(unsigned int, WinsockInterfaceClass::tWinsockBufferType* const*)
+DynamicVectorClass<WinsockInterfaceClass::tWinsockBufferType*>::ID(WinsockInterfaceClass::tWinsockBufferType* const&)
+DynamicVectorClass<WinsockInterfaceClass::tWinsockBufferType*>::Resize(unsigned int, WinsockInterfaceClass::tWinsockBufferType* const*)
+DynamicVectorClass<char const*>::Add(char const* const&)
+DynamicVectorClass<char const*>::Delete(int)
+DynamicVectorClass<char const*>::DynamicVectorClass(unsigned int, char const* const*)
+DynamicVectorClass<char const*>::ID(char const* const&)
+DynamicVectorClass<char const*>::Resize(unsigned int, char const* const*)
+DynamicVectorClass<unsigned char*>::Add(unsigned char* const&)
+DynamicVectorClass<unsigned char*>::Delete(int)
+DynamicVectorClass<unsigned char*>::DynamicVectorClass(unsigned int, unsigned char* const*)
+DynamicVectorClass<unsigned char*>::ID(unsigned char* const&)
+DynamicVectorClass<unsigned char*>::Resize(unsigned int, unsigned char* const*)
+DynamicVectorClass<void*>::Add(void* const&)
+DynamicVectorClass<void*>::Delete(void* const&)
+DynamicVectorClass<void*>::DynamicVectorClass(unsigned int, void* const*)
+DynamicVectorClass<void*>::ID(void* const&)
+DynamicVectorClass<void*>::Resize(unsigned int, void* const*)
+ExitProcess
+FileTimeToDosDateTime
+FindFirstFile
+FindNextFile
+Force_VM_Page_In
+Generate_Prime(Straw&, int, Int<64> const*)
+GetCurrentProcess
+GetDriveType
+GetFileInformationByHandle
+GetFileSize
+GetLastError
+GetMessage
+GetModuleFileName
+GetPriorityClass
+GetSystemMetrics
+GetSystemTime
+GetVolumeInformation
+GlobalMemoryStatus
+LoadIcon
+MAX(int, int)
+MCGA_Blit
+MCGA_BufferCopy
+MIN(int, int)
+MIN(long, long)
+MessageBox
+MixFileClass<CCFileClass>::Cache(Buffer const*)
+MixFileClass<CCFileClass>::Cache(char const*, Buffer const*)
+MixFileClass<CCFileClass>::MixFileClass(char const*, PKey const*)
+MixFileClass<CCFileClass>::Offset(char const*, void**, MixFileClass<CCFileClass>**, long*, long*)
+MixFileClass<CCFileClass>::Retrieve(char const*)
+MixFileClass<CCFileClass>::~MixFileClass()
+Mono_Clear_Screen
+Mono_Draw_Rect
+Mono_Enable
+Mono_Print
+Mono_Set_Cursor
+MpgPause
+MpgPlay
+MpgResume
+MpgSetCallback
+OutputDebugString
+PeekMessage
+PostMessage
+PostQuitMessage
+ReadFile
+RegCloseKey
+RegOpenKeyEx
+RegQueryValueEx
+RegisterClass
+RegisterWindowMessage
+SendMessage
+SetErrorMode
+SetFilePointer
+SetFileTime
+SetFocus
+SetPriorityClass
+ShowCursor
+ShowWindow
+Sleep
+Stop_Profiler
+TFixedIHeapClass<AircraftClass>::Code_Pointers()
+TFixedIHeapClass<AircraftClass>::Decode_Pointers()
+TFixedIHeapClass<AircraftClass>::Load(Straw&)
+TFixedIHeapClass<AircraftClass>::Save(Pipe&) const
+TFixedIHeapClass<AircraftTypeClass>::Code_Pointers()
+TFixedIHeapClass<AircraftTypeClass>::Decode_Pointers()
+TFixedIHeapClass<AircraftTypeClass>::Load(Straw&)
+TFixedIHeapClass<AircraftTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<AnimClass>::Code_Pointers()
+TFixedIHeapClass<AnimClass>::Decode_Pointers()
+TFixedIHeapClass<AnimClass>::Load(Straw&)
+TFixedIHeapClass<AnimClass>::Save(Pipe&) const
+TFixedIHeapClass<AnimTypeClass>::Code_Pointers()
+TFixedIHeapClass<AnimTypeClass>::Decode_Pointers()
+TFixedIHeapClass<AnimTypeClass>::Load(Straw&)
+TFixedIHeapClass<AnimTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<BuildingClass>::Code_Pointers()
+TFixedIHeapClass<BuildingClass>::Decode_Pointers()
+TFixedIHeapClass<BuildingClass>::Load(Straw&)
+TFixedIHeapClass<BuildingClass>::Save(Pipe&) const
+TFixedIHeapClass<BuildingTypeClass>::Code_Pointers()
+TFixedIHeapClass<BuildingTypeClass>::Decode_Pointers()
+TFixedIHeapClass<BuildingTypeClass>::Load(Straw&)
+TFixedIHeapClass<BuildingTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<BulletClass>::Code_Pointers()
+TFixedIHeapClass<BulletClass>::Decode_Pointers()
+TFixedIHeapClass<BulletClass>::Load(Straw&)
+TFixedIHeapClass<BulletClass>::Save(Pipe&) const
+TFixedIHeapClass<BulletTypeClass>::Code_Pointers()
+TFixedIHeapClass<BulletTypeClass>::Decode_Pointers()
+TFixedIHeapClass<BulletTypeClass>::Load(Straw&)
+TFixedIHeapClass<BulletTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<FactoryClass>::Code_Pointers()
+TFixedIHeapClass<FactoryClass>::Decode_Pointers()
+TFixedIHeapClass<FactoryClass>::Load(Straw&)
+TFixedIHeapClass<FactoryClass>::Save(Pipe&) const
+TFixedIHeapClass<HouseClass>::Code_Pointers()
+TFixedIHeapClass<HouseClass>::Decode_Pointers()
+TFixedIHeapClass<HouseClass>::Load(Straw&)
+TFixedIHeapClass<HouseClass>::Save(Pipe&) const
+TFixedIHeapClass<HouseTypeClass>::Code_Pointers()
+TFixedIHeapClass<HouseTypeClass>::Decode_Pointers()
+TFixedIHeapClass<HouseTypeClass>::Load(Straw&)
+TFixedIHeapClass<HouseTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<InfantryClass>::Code_Pointers()
+TFixedIHeapClass<InfantryClass>::Decode_Pointers()
+TFixedIHeapClass<InfantryClass>::Load(Straw&)
+TFixedIHeapClass<InfantryClass>::Save(Pipe&) const
+TFixedIHeapClass<InfantryTypeClass>::Code_Pointers()
+TFixedIHeapClass<InfantryTypeClass>::Decode_Pointers()
+TFixedIHeapClass<InfantryTypeClass>::Load(Straw&)
+TFixedIHeapClass<InfantryTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<OverlayClass>::Code_Pointers()
+TFixedIHeapClass<OverlayClass>::Decode_Pointers()
+TFixedIHeapClass<OverlayClass>::Load(Straw&)
+TFixedIHeapClass<OverlayClass>::Save(Pipe&) const
+TFixedIHeapClass<OverlayTypeClass>::Code_Pointers()
+TFixedIHeapClass<OverlayTypeClass>::Decode_Pointers()
+TFixedIHeapClass<OverlayTypeClass>::Load(Straw&)
+TFixedIHeapClass<OverlayTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<SmudgeClass>::Code_Pointers()
+TFixedIHeapClass<SmudgeClass>::Decode_Pointers()
+TFixedIHeapClass<SmudgeClass>::Load(Straw&)
+TFixedIHeapClass<SmudgeClass>::Save(Pipe&) const
+TFixedIHeapClass<SmudgeTypeClass>::Code_Pointers()
+TFixedIHeapClass<SmudgeTypeClass>::Decode_Pointers()
+TFixedIHeapClass<SmudgeTypeClass>::Load(Straw&)
+TFixedIHeapClass<SmudgeTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<TeamClass>::Code_Pointers()
+TFixedIHeapClass<TeamClass>::Decode_Pointers()
+TFixedIHeapClass<TeamClass>::Load(Straw&)
+TFixedIHeapClass<TeamClass>::Save(Pipe&) const
+TFixedIHeapClass<TeamTypeClass>::Code_Pointers()
+TFixedIHeapClass<TeamTypeClass>::Decode_Pointers()
+TFixedIHeapClass<TeamTypeClass>::Load(Straw&)
+TFixedIHeapClass<TeamTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<TemplateClass>::Code_Pointers()
+TFixedIHeapClass<TemplateClass>::Decode_Pointers()
+TFixedIHeapClass<TemplateClass>::Load(Straw&)
+TFixedIHeapClass<TemplateClass>::Save(Pipe&) const
+TFixedIHeapClass<TemplateTypeClass>::Code_Pointers()
+TFixedIHeapClass<TemplateTypeClass>::Decode_Pointers()
+TFixedIHeapClass<TemplateTypeClass>::Load(Straw&)
+TFixedIHeapClass<TemplateTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<TerrainClass>::Code_Pointers()
+TFixedIHeapClass<TerrainClass>::Decode_Pointers()
+TFixedIHeapClass<TerrainClass>::Load(Straw&)
+TFixedIHeapClass<TerrainClass>::Save(Pipe&) const
+TFixedIHeapClass<TerrainTypeClass>::Code_Pointers()
+TFixedIHeapClass<TerrainTypeClass>::Decode_Pointers()
+TFixedIHeapClass<TerrainTypeClass>::Load(Straw&)
+TFixedIHeapClass<TerrainTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<TriggerClass>::Code_Pointers()
+TFixedIHeapClass<TriggerClass>::Decode_Pointers()
+TFixedIHeapClass<TriggerClass>::Load(Straw&)
+TFixedIHeapClass<TriggerClass>::Save(Pipe&) const
+TFixedIHeapClass<TriggerTypeClass>::Code_Pointers()
+TFixedIHeapClass<TriggerTypeClass>::Decode_Pointers()
+TFixedIHeapClass<TriggerTypeClass>::Load(Straw&)
+TFixedIHeapClass<TriggerTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<UnitClass>::Code_Pointers()
+TFixedIHeapClass<UnitClass>::Decode_Pointers()
+TFixedIHeapClass<UnitClass>::Load(Straw&)
+TFixedIHeapClass<UnitClass>::Save(Pipe&) const
+TFixedIHeapClass<UnitTypeClass>::Code_Pointers()
+TFixedIHeapClass<UnitTypeClass>::Decode_Pointers()
+TFixedIHeapClass<UnitTypeClass>::Load(Straw&)
+TFixedIHeapClass<UnitTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<VesselClass>::Code_Pointers()
+TFixedIHeapClass<VesselClass>::Decode_Pointers()
+TFixedIHeapClass<VesselClass>::Load(Straw&)
+TFixedIHeapClass<VesselClass>::Save(Pipe&) const
+TFixedIHeapClass<VesselTypeClass>::Code_Pointers()
+TFixedIHeapClass<VesselTypeClass>::Decode_Pointers()
+TFixedIHeapClass<VesselTypeClass>::Load(Straw&)
+TFixedIHeapClass<VesselTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<WarheadTypeClass>::Code_Pointers()
+TFixedIHeapClass<WarheadTypeClass>::Decode_Pointers()
+TFixedIHeapClass<WarheadTypeClass>::Load(Straw&)
+TFixedIHeapClass<WarheadTypeClass>::Save(Pipe&) const
+TFixedIHeapClass<WeaponTypeClass>::Code_Pointers()
+TFixedIHeapClass<WeaponTypeClass>::Decode_Pointers()
+TFixedIHeapClass<WeaponTypeClass>::Load(Straw&)
+TFixedIHeapClass<WeaponTypeClass>::Save(Pipe&) const
+TranslateMessage
+UnVQ_4x2
+UpdateWindow
+VQA_sosCODECDecompressData
+VQA_sosCODECInitStream
+VectorClass<BaseNodeClass>::Clear()
+VectorClass<BaseNodeClass>::ID(BaseNodeClass const*)
+VectorClass<BaseNodeClass>::operator=(VectorClass<BaseNodeClass> const&)
+VectorClass<BaseNodeClass>::operator==(VectorClass<BaseNodeClass> const&) const
+VectorClass<BaseNodeClass>::~VectorClass()
+VectorClass<CellClass>::Clear()
+VectorClass<CellClass>::ID(CellClass const&)
+VectorClass<CellClass>::ID(CellClass const*)
+VectorClass<CellClass>::Resize(unsigned int, CellClass const*)
+VectorClass<CellClass>::VectorClass(unsigned int, CellClass const*)
+VectorClass<CellClass>::operator=(VectorClass<CellClass> const&)
+VectorClass<CellClass>::operator==(VectorClass<CellClass> const&) const
+VectorClass<CellClass>::~VectorClass()
+VectorClass<EgoClass*>::Clear()
+VectorClass<EgoClass*>::ID(EgoClass* const*)
+VectorClass<EgoClass*>::operator=(VectorClass<EgoClass*> const&)
+VectorClass<EgoClass*>::operator==(VectorClass<EgoClass*> const&) const
+VectorClass<EgoClass*>::~VectorClass()
+VectorClass<FileEntryClass*>::Clear()
+VectorClass<FileEntryClass*>::ID(FileEntryClass* const*)
+VectorClass<FileEntryClass*>::operator=(VectorClass<FileEntryClass*> const&)
+VectorClass<FileEntryClass*>::operator==(VectorClass<FileEntryClass*> const&) const
+VectorClass<FileEntryClass*>::~VectorClass()
+VectorClass<MultiMission*>::Clear()
+VectorClass<MultiMission*>::ID(MultiMission* const*)
+VectorClass<MultiMission*>::operator=(VectorClass<MultiMission*> const&)
+VectorClass<MultiMission*>::operator==(VectorClass<MultiMission*> const&) const
+VectorClass<MultiMission*>::~VectorClass()
+VectorClass<NodeNameTag*>::Clear()
+VectorClass<NodeNameTag*>::ID(NodeNameTag* const*)
+VectorClass<NodeNameTag*>::operator=(VectorClass<NodeNameTag*> const&)
+VectorClass<NodeNameTag*>::operator==(VectorClass<NodeNameTag*> const&) const
+VectorClass<NodeNameTag*>::~VectorClass()
+VectorClass<ObjectClass*>::Clear()
+VectorClass<ObjectClass*>::ID(ObjectClass* const*)
+VectorClass<ObjectClass*>::operator=(VectorClass<ObjectClass*> const&)
+VectorClass<ObjectClass*>::operator==(VectorClass<ObjectClass*> const&) const
+VectorClass<ObjectClass*>::~VectorClass()
+VectorClass<RemapControlType*>::Clear()
+VectorClass<RemapControlType*>::ID(RemapControlType* const*)
+VectorClass<RemapControlType*>::operator=(VectorClass<RemapControlType*> const&)
+VectorClass<RemapControlType*>::operator==(VectorClass<RemapControlType*> const&) const
+VectorClass<RemapControlType*>::~VectorClass()
+VectorClass<TriggerClass*>::Clear()
+VectorClass<TriggerClass*>::ID(TriggerClass* const*)
+VectorClass<TriggerClass*>::operator=(VectorClass<TriggerClass*> const&)
+VectorClass<TriggerClass*>::operator==(VectorClass<TriggerClass*> const&) const
+VectorClass<TriggerClass*>::~VectorClass()
+VectorClass<WinsockInterfaceClass::tWinsockBufferType*>::Clear()
+VectorClass<WinsockInterfaceClass::tWinsockBufferType*>::ID(WinsockInterfaceClass::tWinsockBufferType* const*)
+VectorClass<WinsockInterfaceClass::tWinsockBufferType*>::operator=(VectorClass<WinsockInterfaceClass::tWinsockBufferType*> const&)
+VectorClass<WinsockInterfaceClass::tWinsockBufferType*>::operator==(VectorClass<WinsockInterfaceClass::tWinsockBufferType*> const&) const
+VectorClass<WinsockInterfaceClass::tWinsockBufferType*>::~VectorClass()
+VectorClass<char const*>::Clear()
+VectorClass<char const*>::ID(char const* const*)
+VectorClass<char const*>::VectorClass(VectorClass<char const*> const&)
+VectorClass<char const*>::operator=(VectorClass<char const*> const&)
+VectorClass<char const*>::operator==(VectorClass<char const*> const&) const
+VectorClass<char const*>::~VectorClass()
+VectorClass<unsigned char*>::Clear()
+VectorClass<unsigned char*>::ID(unsigned char* const*)
+VectorClass<unsigned char*>::operator=(VectorClass<unsigned char*> const&)
+VectorClass<unsigned char*>::operator==(VectorClass<unsigned char*> const&) const
+VectorClass<unsigned char*>::~VectorClass()
+VectorClass<void*>::Clear()
+VectorClass<void*>::ID(void* const*)
+VectorClass<void*>::operator=(VectorClass<void*> const&)
+VectorClass<void*>::operator==(VectorClass<void*> const&) const
+VectorClass<void*>::~VectorClass()
+VendorID
+WSAAsyncSelect
+WSACancelAsyncRequest
+WSACleanup
+WSAGetLastError
+WSAStartup
+WaitNoVB
+WaitVB
+WriteFile
+closesocket
+main
+operator&(DriveClass::TrackControlType, DriveClass::TrackControlType)
+operator&(EditClass::EditStyle, EditClass::EditStyle)
+operator&(ShapeFlags_Type, ShapeFlags_Type)
+operator&(TextPrintType, TextPrintType)
+operator&(ThreatType, ThreatType)
+operator++(AircraftType&, int)
+operator++(AnimType&, int)
+operator++(BulletType&, int)
+operator++(FacingType&, int)
+operator++(HousesType&, int)
+operator++(InfantryType&, int)
+operator++(LayerType&, int)
+operator++(OverlayType&, int)
+operator++(ScenarioVarEnum&, int)
+operator++(SmudgeType&, int)
+operator++(StructType&, int)
+operator++(TemplateType&, int)
+operator++(TerrainType&, int)
+operator++(TheaterType&, int)
+operator++(ThemeType&, int)
+operator++(UnitType&, int)
+operator++(VesselType&, int)
+operator|(DriveClass::TrackControlType, DriveClass::TrackControlType)
+operator|(GadgetClass::FlagEnum, GadgetClass::FlagEnum)
+operator|(ShapeFlags_Type, ShapeFlags_Type)
+operator|(TextPrintType, TextPrintType)
+operator|(ThreatType, ThreatType)
+operator~(GadgetClass::FlagEnum)
+operator~(ShapeFlags_Type)
+operator~(TextPrintType)
+operator~(ThreatType)
+timeKillEvent
+timeSetEvent
