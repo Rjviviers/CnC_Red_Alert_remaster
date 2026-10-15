@@ -630,3 +630,48 @@ void TFixedIHeapClass<T>::Decode_Pointers(void)
 		Ptr(i)->Decode_Pointers();
 	}
 }
+
+
+/*
+**	S10a (ADR-0021): explicit instantiations.
+**
+**	Watcom 10.6 generated the template members defined in this file for every
+**	instantiation it saw while compiling this module ("all the instantiations are declared
+**	in a header file this module includes"). Standard compilers only generate a template
+**	member where its body is visible, so every other module's use is an unresolved symbol
+**	unless it is instantiated here. List each type the game uses; a missing one shows up as
+**	an "undefined reference" at link time, never as a silent behaviour change.
+*/
+#ifndef __WATCOMC__
+template class TFixedIHeapClass<AircraftClass>;
+template class TFixedIHeapClass<AircraftTypeClass>;
+template class TFixedIHeapClass<AnimClass>;
+template class TFixedIHeapClass<AnimTypeClass>;
+template class TFixedIHeapClass<BuildingClass>;
+template class TFixedIHeapClass<BuildingTypeClass>;
+template class TFixedIHeapClass<BulletClass>;
+template class TFixedIHeapClass<BulletTypeClass>;
+template class TFixedIHeapClass<FactoryClass>;
+template class TFixedIHeapClass<HouseClass>;
+template class TFixedIHeapClass<HouseTypeClass>;
+template class TFixedIHeapClass<InfantryClass>;
+template class TFixedIHeapClass<InfantryTypeClass>;
+template class TFixedIHeapClass<OverlayClass>;
+template class TFixedIHeapClass<OverlayTypeClass>;
+template class TFixedIHeapClass<SmudgeClass>;
+template class TFixedIHeapClass<SmudgeTypeClass>;
+template class TFixedIHeapClass<TeamClass>;
+template class TFixedIHeapClass<TeamTypeClass>;
+template class TFixedIHeapClass<TemplateClass>;
+template class TFixedIHeapClass<TemplateTypeClass>;
+template class TFixedIHeapClass<TerrainClass>;
+template class TFixedIHeapClass<TerrainTypeClass>;
+template class TFixedIHeapClass<TriggerClass>;
+template class TFixedIHeapClass<TriggerTypeClass>;
+template class TFixedIHeapClass<UnitClass>;
+template class TFixedIHeapClass<UnitTypeClass>;
+template class TFixedIHeapClass<VesselClass>;
+template class TFixedIHeapClass<VesselTypeClass>;
+template class TFixedIHeapClass<WarheadTypeClass>;
+template class TFixedIHeapClass<WeaponTypeClass>;
+#endif

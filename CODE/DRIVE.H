@@ -38,6 +38,8 @@
 #ifndef DRIVE_H
 #define DRIVE_H
 
+#include	"enumops.h"		// S10a (ADR-0021): RA_ENUM_POSTINC / RA_ENUM_BITOPS
+
 #include	"foot.h"
 
 /****************************************************************************
@@ -203,9 +205,7 @@ class DriveClass : public FootClass
 		static TrackType const Track1[24];
 };
 
-inline DriveClass::TrackControlType operator |(DriveClass::TrackControlType, DriveClass::TrackControlType);
-inline DriveClass::TrackControlType operator &(DriveClass::TrackControlType, DriveClass::TrackControlType);
-inline DriveClass::TrackControlType operator ~(DriveClass::TrackControlType);
+RA_ENUM_BITOPS(DriveClass::TrackControlType)
 
 
 #endif

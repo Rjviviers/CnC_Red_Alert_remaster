@@ -92,6 +92,8 @@
 #ifndef GADGET_H
 #define GADGET_H
 
+#include	"enumops.h"		// S10a (ADR-0021): RA_ENUM_POSTINC / RA_ENUM_BITOPS
+
 #include "link.h"
 
 class ControlClass;
@@ -249,9 +251,7 @@ class GadgetClass : public LinkClass
 		virtual int Clicked_On(KeyNumType & key, unsigned flags, int x, int y);
 };
 
-inline GadgetClass::FlagEnum operator |(GadgetClass::FlagEnum, GadgetClass::FlagEnum);
-inline GadgetClass::FlagEnum operator &(GadgetClass::FlagEnum, GadgetClass::FlagEnum);
-inline GadgetClass::FlagEnum operator ~(GadgetClass::FlagEnum);
+RA_ENUM_BITOPS(GadgetClass::FlagEnum)
 
 
 #endif

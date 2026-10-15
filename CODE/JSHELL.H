@@ -38,6 +38,7 @@
 #ifndef JSHELL_H
 #define JSHELL_H
 
+#include	"enumops.h"		// S10a (ADR-0021): RA_ENUM_POSTINC / RA_ENUM_BITOPS
 
 #include	<assert.h>
 
@@ -134,9 +135,18 @@ T Bound(T original, T minval, T maxval)
 	if (original > maxval) return(maxval);
 	return(original);
 };
+#ifdef __WATCOMC__
 int Bound(signed int, signed int, signed int);
 unsigned Bound(unsigned, unsigned, unsigned);
 long Bound(long, long, long);
+#else
+// S10a (ADR-0021): Watcom read these bare declarations as requests to instantiate the
+// template above; standard C++ reads them as ordinary functions that are never defined.
+// Define each one as the template's body (same overload resolution, same result).
+inline int Bound(signed int original, signed int minval, signed int maxval) {return Bound<int>(original, minval, maxval);}
+inline unsigned Bound(unsigned original, unsigned minval, unsigned maxval) {return Bound<unsigned>(original, minval, maxval);}
+inline long Bound(long original, long minval, long maxval) {return Bound<long>(original, minval, maxval);}
+#endif
 
 template<class T>
 T _rotl(T X, int n)
@@ -157,9 +167,7 @@ T _rotl(T X, int n)
 **	The shape flags are likely to be "or"ed together and other such bitwise
 **	manipulations. These instatiated operator templates allow this.
 */
-inline ShapeFlags_Type operator |(ShapeFlags_Type, ShapeFlags_Type);
-inline ShapeFlags_Type operator &(ShapeFlags_Type, ShapeFlags_Type);
-inline ShapeFlags_Type operator ~(ShapeFlags_Type);
+RA_ENUM_BITOPS(ShapeFlags_Type)
 
 
 #ifdef __WATCOMC__

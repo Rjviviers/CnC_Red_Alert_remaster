@@ -112,8 +112,17 @@ template<class T> T ABS(T a)
 {
 	return (a < 0) ? -a : a;
 }
+#ifdef __WATCOMC__
 int ABS(int);
 long ABS(long);
+#else
+// S10a (ADR-0021): Watcom read a bare "int ABS(int);" next to the template as a request to
+// instantiate the template for that signature. Standard C++ reads it as an ordinary function
+// that is never defined (unresolved at link). Define each one as the template's body, so
+// overload resolution and results stay exactly as they compiled before.
+inline int ABS(int a) {return ABS<int>(a);}
+inline long ABS(long a) {return ABS<long>(a);}
+#endif
 
 // Returns the minimum of the two numbers.
 #ifdef MIN
@@ -123,9 +132,16 @@ template<class T> T MIN(T a, T b)
 {
 	return (b < a) ? b : a;
 };
+#ifdef __WATCOMC__
 short MIN(short, short);
 int MIN(int, int);
 long MIN(long, long);
+#else
+// S10a (ADR-0021): see ABS above.
+inline short MIN(short a, short b) {return MIN<short>(a, b);}
+inline int MIN(int a, int b) {return MIN<int>(a, b);}
+inline long MIN(long a, long b) {return MIN<long>(a, b);}
+#endif
 
 // Returns the maximum of the two numbers.
 #ifdef MAX
@@ -135,9 +151,16 @@ template<class T> T MAX(T a, T b)
 {
 	return (b > a) ? b : a;
 };
+#ifdef __WATCOMC__
 short MAX(short, short);
 int MAX(int, int);
 long MAX(long, long);
+#else
+// S10a (ADR-0021): see ABS above.
+inline short MAX(short a, short b) {return MAX<short>(a, b);}
+inline int MAX(int a, int b) {return MAX<int>(a, b);}
+inline long MAX(long a, long b) {return MAX<long>(a, b);}
+#endif
 #pragma option -Jgd
 
 // Returns the low word of a long

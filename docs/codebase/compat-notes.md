@@ -312,3 +312,57 @@ patterns above came up here too and were fixed the same way.
   `TYPE NAME;` + `for (NAME = ...`. Skip (and fix by hand) a `for` that is the body of an unbraced `if`/`else`, because
   a declaration inserted there would change what the `if` controls. Pass `-fdiagnostics-column-unit=byte` when reading
   GCC columns from a script: by default GCC counts a tab as up to 8 columns.
+
+## Templates
+Session S10a ([log](../logs/2026-10-15-S10a-link-templates.md), [ADR-0021](../decisions/0021-explicit-template-instantiation.md))
+made the template code link. Two Watcom habits produced 313 of the 393 unresolved symbols; both still matter whenever new code
+uses a template.
+
+**1. Template members defined in a `.CPP` are explicitly instantiated there.** Watcom generated the out-of-line members
+of a class template in the module that defined them, for every instantiation that module could see. GCC/MSVC only
+generate a member where its body is visible, so each defining file now ends with an `#ifndef __WATCOMC__` list:
+
+| Template | Bodies and instantiation list in | Types (2026-10-15) |
+|----------|-----------------------------------|--------------------|
+| `VectorClass<T>` | `CODE/VECTOR.CPP` | `BaseNodeClass`, `CellClass`, and the pointer types below |
+| `DynamicVectorClass<T>` | `CODE/DYNAVEC.CPP` | `BaseNodeClass`, `EgoClass *`, `FileEntryClass *`, `MultiMission *`, `NodeNameTag *`, `ObjectClass *`, `RemapControlType *`, `TriggerClass *`, `WinsockInterfaceClass::tWinsockBufferType *`, `char const *`, `unsigned char *`, `void *` |
+| `CCPtr<T>` | `CODE/CCPTR.CPP` | 18 classes (types, houses, teams, triggers, factories) |
+| `TFixedIHeapClass<T>` | `CODE/HEAP.CPP` | the 31 object/type heaps declared in `EXTERNS.H` |
+| `MixFileClass<T>` | `CODE/MIXFILE.CPP` | `CCFileClass` (`MFCD`) |
+
+- **Adding a use:** if the link reports `undefined reference to DynamicVectorClass<Foo *>::Add(...)`, add
+  `template class DynamicVectorClass<Foo *>;` to `DYNAVEC.CPP` **and** `template class VectorClass<Foo *>;` to
+  `VECTOR.CPP` (explicitly instantiating a derived class does not instantiate its base's members).
+- `DynamicVectorClass<T>` needs `VectorClass<T>` in the other list; `VectorClass<CellClass>` has no dynamic twin.
+- Whole-class instantiation also compiles members nobody calls (for example `CCPtr<T>::operator>` needs `T::Name()`).
+  If one does not compile for a new `T`, instantiate the needed members one by one for that `T` and comment why.
+- Templates whose members are all in the header (`LIST.H`, `DROP.H`, `FTIMER.H`, `INT.H`, `CCPtr`'s inline members,
+  `TFixedHeapClass`) need nothing.
+- Making these explicit surfaced two names from a dependent base that GCC only accepted with `-fpermissive`; they are now
+  `this->Length()` (`DYNAVEC.CPP`) and `this->Unlink()` (`MIXFILE.CPP`). Same members, same behaviour.
+- `MixFileClass<T>` deletes its buffers through `void *` (`delete Data;`); now that it is instantiated GCC warns
+  (`-Wdelete-incomplete`). It frees the memory without running a destructor, as under Watcom. Left alone.
+
+**2. A bare declaration next to a template is not an instantiation request.** Watcom read `int MIN(int, int);` beside
+`template<class T> T MIN(T, T)` as "generate the template for `int`". Standard C++ reads it as a separate, never-defined
+function that overload resolution *prefers* to the template. Removing the declarations would change which overload some
+calls pick, so they are **defined** instead, with the template's body:
+
+| Where | What | Non-Watcom version |
+|-------|------|--------------------|
+| `WIN32LIB/INCLUDE/WWSTD.H` | `ABS(int/long)`, `MIN`/`MAX(short/int/long)` | `inline int MIN(int a, int b) {return MIN<int>(a, b);}` (Watcom declarations kept under `__WATCOMC__`) |
+| `CODE/JSHELL.H` | `Bound(int/unsigned/long)` | same pattern |
+| `CODE/DEFINES.H`, `JSHELL.H`, `DRIVE.H`, `EDIT.H`, `GADGET.H` | 21 enum `operator++(T &, int)`, 6 enums with `\|`, `&`, `~` | `RA_ENUM_POSTINC(T)` / `RA_ENUM_BITOPS(T)` from `CODE/ENUMOPS.H`: the original declaration under Watcom, otherwise an inline definition copied verbatim from the `JSHELL.H` template |
+| `CODE/INT.H` | `friend Int<P> Generate_Prime(...)`, `friend Int<P> Gcd(...)` | befriend the templates: `template<class T> friend T Generate_Prime(Straw &, int, T const *);` |
+
+- New enum operators: write `RA_ENUM_POSTINC(MyEnum)` / `RA_ENUM_BITOPS(MyEnum)` after the enum, not a bare declaration.
+- Not changed (unused, so they cause no link error): `int swap(int, int); long swap(long, long);` in `WWSTD.H` (signatures
+  that cannot match the `swap(T &, T &)` template; a call `swap(int, int)` would pick them and fail to link),
+  `MemoryFlagType` operators in `CODE/WWALLOC.H` (header not included anywhere), `class MixFileClass<CDFileClass>;` in
+  `CCFILE.H` (the S06b "bare `class Tmpl<Args>;`" pattern; harmless while nothing uses that type), and
+  `WIN32LIB/MISC/WWSTD.H` (a stale copy not on any include path).
+- `ENUMOPS.H` is included as `"enumops.h"`, not `"ENUMOPS.H"`. Headers reached through a lower-case spelling are opened
+  from `build/case_shim/CODE/` (ADR-0008), so their own quoted includes are looked up there, and the shim only holds
+  spellings that do **not** match a file name on disk (`CODE/` itself is not on the include path). An exact-case
+  include from such a header fails with "No such file". Use the lower-case spelling, like the rest of the code, and
+  re-run CMake configure so the shim gets the new link.

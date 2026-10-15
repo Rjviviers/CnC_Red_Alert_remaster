@@ -74,3 +74,35 @@ bool CCPtr<T>::operator > (CCPtr<T> const & rvalue) const
 {
 	return (stricmp((*this)->Name(), rvalue->Name()) > 0);
 }
+
+
+/*
+**	S10a (ADR-0021): explicit instantiations.
+**
+**	Watcom 10.6 generated the template members defined in this file for every
+**	instantiation it saw while compiling this module ("all the instantiations are declared
+**	in a header file this module includes"). Standard compilers only generate a template
+**	member where its body is visible, so every other module's use is an unresolved symbol
+**	unless it is instantiated here. List each type the game uses; a missing one shows up as
+**	an "undefined reference" at link time, never as a silent behaviour change.
+*/
+#ifndef __WATCOMC__
+template class CCPtr<AircraftTypeClass>;
+template class CCPtr<AnimTypeClass>;
+template class CCPtr<BuildingTypeClass>;
+template class CCPtr<BulletTypeClass>;
+template class CCPtr<FactoryClass>;
+template class CCPtr<HouseClass>;
+template class CCPtr<HouseTypeClass>;
+template class CCPtr<InfantryTypeClass>;
+template class CCPtr<OverlayTypeClass>;
+template class CCPtr<SmudgeTypeClass>;
+template class CCPtr<TeamClass>;
+template class CCPtr<TeamTypeClass>;
+template class CCPtr<TemplateTypeClass>;
+template class CCPtr<TerrainTypeClass>;
+template class CCPtr<TriggerClass>;
+template class CCPtr<TriggerTypeClass>;
+template class CCPtr<UnitTypeClass>;
+template class CCPtr<VesselTypeClass>;
+#endif
