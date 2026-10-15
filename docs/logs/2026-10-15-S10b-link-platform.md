@@ -152,3 +152,4 @@ For S10c (boot):
 - **Fix:** with `must_exist`, the Windows branch now `stat`s the name and returns false if it's missing. The header comment says so too.
 - **Checked here:** Linux test passes; the Windows branch compiles and links with MinGW (i686), and the new binary contains the extra
   `stat` call. No Wine is available to run it, so CI on this push is the run-time check.
+- **Result:** CI run 33 on `ec4d96a` passed on both jobs (Windows MSVC and Linux GCC), including `s10b_file_test` on Windows.
