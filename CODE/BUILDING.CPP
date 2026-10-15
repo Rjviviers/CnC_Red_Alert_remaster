@@ -3524,7 +3524,7 @@ int BuildingClass::Mission_Deconstruction(void)
 						delete this;
 
 						if (unit->Unlimbo(place, DIR_SW)) {
-							unit->Strength = unit->Class_Of().MaxStrength * ratio;
+							unit->Strength = (int)unit->Class_Of().MaxStrength * ratio;
 
 							/*
 							**	Lift the move destination from the building and assign

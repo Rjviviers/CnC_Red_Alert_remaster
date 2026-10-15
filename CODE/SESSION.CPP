@@ -374,7 +374,7 @@ bool SessionClass::Am_I_Master(void)
  * HISTORY:                                                                *
  *   12/04/1995 BRR : Created.                                             *
  *=========================================================================*/
-SessionClass::Save(Pipe & file) const
+int SessionClass::Save(Pipe & file) const
 {
 #ifdef FIXIT_MULTI_SAVE
 	file.Put(&CommProtocol, sizeof(CommProtocol));

@@ -595,7 +595,7 @@ void AircraftClass::Read_INI(CCINIClass & ini)
 						delete air;
 					} else {
 
-						air->Strength = air->Class->MaxStrength * fixed(strength, 256);
+						air->Strength = (int)air->Class->MaxStrength * fixed(strength, 256);
 						if (air->Unlimbo(coord, dir)) {
 							air->Assign_Mission(AircraftClass::Mission_From_Name(strtok(NULL, ",\n\r")));
 						} else {

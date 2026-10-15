@@ -1552,7 +1552,7 @@ bool UnitClass::Try_To_Deploy(void)
 					**	Force the newly placed construction yard to be in the same strength
 					**	ratio as the MCV that deployed into it.
 					*/
-					building->Strength = Health_Ratio() * building->Class->MaxStrength;
+					building->Strength = Health_Ratio() * (int)building->Class->MaxStrength;
 
 					/*
 					** Force the MCV to drop any flag it was carrying.  This will also set

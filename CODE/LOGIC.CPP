@@ -286,7 +286,7 @@ void LogicClass::AI(void)
 		BEnd(BENCH_AI);
 
 		if (TimeQuake && obj != NULL && obj->IsActive && !obj->IsInLimbo && obj->Strength) {
-			int damage = obj->Class_Of().MaxStrength * Rule.QuakeDamagePercent;
+			int damage = (int)obj->Class_Of().MaxStrength * Rule.QuakeDamagePercent;
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 			if (TimeQuakeCenter) {
 				if(::Distance(obj->As_Target(),TimeQuakeCenter)/256 < MTankDistance) {

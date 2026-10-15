@@ -451,3 +451,6 @@ every `strtrim`, `Count_Up_Print` (only `sprintf`s its format), `Load_Title_Scre
   accepts them.
 - MSVC lacks `PATH_MAX` (defined in `ra_compat.h`) and doesn't provide `SEEK_*` through `<io.h>`.
 - Calling conventions belong inside function-pointer declarators: `void (__cdecl *fp)(...)`, not `void __cdecl (*fp)(...)`.
+- **`integer * fixed` can be ambiguous on MSVC** (C2666: the game's `operator*(int, fixed)` vs. the built-in `*` via
+  `fixed::operator unsigned()`). Cast the integer operand to `int`; that selects the operator GCC already uses. Check simulation files
+  with a before/after `objdump -d` comparison, as done on 2026-10-15.

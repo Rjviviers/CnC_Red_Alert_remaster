@@ -626,7 +626,7 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 							tech->Captured(House);
 						} else {
 #ifdef FIXIT_ENGINEER	//	checked - ajw 9/28/98
-							int damage = min( (tech->Techno_Type_Class()->MaxStrength) * EngineerDamage, tech->Strength-1);
+							int damage = min( (int)(tech->Techno_Type_Class()->MaxStrength) * EngineerDamage, tech->Strength-1);
 #else
 							int damage = min( (tech->Techno_Type_Class()->MaxStrength) / 3, tech->Strength-1);
 #endif

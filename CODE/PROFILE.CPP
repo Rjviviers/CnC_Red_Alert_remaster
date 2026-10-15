@@ -331,7 +331,7 @@ char * WWGetPrivateProfileString(char const * section, char const * entry, char 
 			/*
 			**	'next = end of section or end of file.
 			*/
-			next = strchr(workptr, '[');
+			next = (char*)strchr(workptr, '[');
 			for (;;) {
 				if (next) {
 
