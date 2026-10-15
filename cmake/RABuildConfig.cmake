@@ -174,8 +174,8 @@ function(ra_apply_build_settings target)
     endif()
   else()
     target_compile_options(${target} PRIVATE
-      -fsigned-char                          # Watcom /j
-      $<$<CXX_COMPILER_ID:GNU>:-fpermissive>) # downgrade some pre-standard errors to warnings
+      -fsigned-char)                         # Watcom /j
+    # No -fpermissive: it hid code that MSVC rejects (S10c). GCC must fail where MSVC fails.
     if(RA_PACK_STRUCTS)
       target_compile_options(${target} PRIVATE -fpack-struct=1)
     endif()

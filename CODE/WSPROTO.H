@@ -44,6 +44,13 @@
 */
 #include	<winsock.h>
 
+// Address-length type for getsockopt/recvfrom: int in Winsock, socklen_t in BSD sockets.
+#ifdef _WIN32
+typedef int ra_socklen_t;
+#else
+typedef socklen_t ra_socklen_t;
+#endif
+
 /*
 ** Misc defines
 */

@@ -42,6 +42,10 @@
 #include "shapebtn.h"
 #include "slider.h"
 
+// Declared in FUNCTION.H after this header; templates need them visible (two-phase lookup).
+void Draw_Box(int x, int y, int w, int h, BoxStyleEnum up, bool filled);
+void Fancy_Text_Print(int text, unsigned x, unsigned y, RemapControlType * fore, unsigned back, TextPrintType flag, ...);
+
 /*
 **	S06a: the template bodies below name SeenBuff, which EXTERNS.H declares later. Watcom
 **	looked such names up at instantiation; standard C++ needs them declared first.
@@ -277,7 +281,7 @@ TListClass<T>::TListClass(int id, int x, int y, int w, int h, TextPrintType flag
 	/*
 	**	Set the list box to a default state.
 	*/
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TextFlags);
+	Fancy_Text_Print(TXT_NONE, 0, 0, (RemapControlType *)NULL, TBLACK, TextFlags);	// Watcom took TBLACK (0) as a null pointer.
 	LineHeight = FontHeight+FontYSpacing-1;
 	LineCount = (h-1) / LineHeight;
 }

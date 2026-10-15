@@ -5088,7 +5088,7 @@ void BuildingClass::Read_INI(CCINIClass & ini)
 
 				if (b->Unlimbo(Cell_Coord(cell), facing)) {
 					strength = min(strength, 0x100);
-					strength = b->Class->MaxStrength * fixed(strength, 256);
+					strength = (int)b->Class->MaxStrength * fixed(strength, 256);
 					b->Strength = strength;
 					if (b->Strength > b->Class->MaxStrength-3) b->Strength = b->Class->MaxStrength;
 					b->IsALemon = false;

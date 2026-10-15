@@ -454,3 +454,10 @@ every `strtrim`, `Count_Up_Print` (only `sprintf`s its format), `Load_Title_Scre
 - **`integer * fixed` can be ambiguous on MSVC** (C2666: the game's `operator*(int, fixed)` vs. the built-in `*` via
   `fixed::operator unsigned()`). Cast the integer operand to `int`; that selects the operator GCC already uses. Check simulation files
   with a before/after `objdump -d` comparison, as done on 2026-10-15.
+- **No `-fpermissive` on GCC.** It turned errors MSVC rejects (implicit `int`, `const char *` → `char *`, `extern`-then-`static`,
+  non-dependent names in templates that are declared later, extra member qualification) into warnings, so Linux CI stayed green while
+  Windows failed. It was removed on 2026-10-15; keep it out. To find all MSVC-only `int * fixed` ambiguities at once, temporarily add a
+  deleted `operator*(unsigned short, fixed const &)` to `FIXED.H` and build on GCC.
+- **Sockets:** use `ra_socklen_t` (`WSPROTO.H`) for `getsockopt`/`recvfrom`/`accept` length arguments.
+- **Templates in `LIST.H`/`DROP.H`** call global helpers that `FUNCTION.H` declares only after including them. Their prototypes are
+  repeated at the top of those headers; keep them in sync with `FUNCTION.H`.

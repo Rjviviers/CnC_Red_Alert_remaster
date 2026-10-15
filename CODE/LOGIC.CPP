@@ -295,10 +295,10 @@ void LogicClass::AI(void)
 							damage = QuakeInfantryDamage;
 							break;
 						case RTTI_BUILDING:
-							damage = QuakeBuildingDamage * obj->Class_Of().MaxStrength;
+							damage = QuakeBuildingDamage * (int)obj->Class_Of().MaxStrength;
 							break;
 						default:
-							damage = QuakeUnitDamage * obj->Class_Of().MaxStrength;
+							damage = QuakeUnitDamage * (int)obj->Class_Of().MaxStrength;
 							break;
 					}
 					if (damage) {

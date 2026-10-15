@@ -310,7 +310,7 @@ long UDPInterfaceClass::Message_Handler(HWND, UINT message, UINT, LONG lParam)
 {
 	struct 	sockaddr_in addr;
 	int	 	rc;
-	int		addr_len;
+	ra_socklen_t	addr_len;
 	WinsockBufferType *packet;
 
 	/*

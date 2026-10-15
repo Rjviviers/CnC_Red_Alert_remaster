@@ -4702,7 +4702,7 @@ void UnitClass::Read_INI(CCINIClass & ini)
 					}
 
 					if (unit->Unlimbo(coord, dir)) {
-						unit->Strength = unit->Class->MaxStrength * fixed(strength, 256);
+						unit->Strength = (int)unit->Class->MaxStrength * fixed(strength, 256);
 						if (unit->Strength > unit->Class->MaxStrength-3) unit->Strength = unit->Class->MaxStrength;
 						if (Session.Type == GAME_NORMAL || unit->House->IsHuman) {
 							unit->Assign_Mission(mission);

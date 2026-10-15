@@ -95,9 +95,9 @@
 
 #if(VQAAUDIO_ON)
 #if(VQADIRECT_SOUND)
-void CALLBACK TimerCallback ( UINT event_id, UINT res1 , DWORD user, DWORD  res2, DWORD  res3 );
+void CALLBACK TimerCallback ( UINT event_id, UINT res1 , DWORD_PTR user, DWORD_PTR  res2, DWORD_PTR  res3 );
 BOOL Move_HMI_Audio_Block_To_Direct_Sound_Buffer (void);
-void CALLBACK AudioCallback ( UINT , UINT , DWORD , DWORD , DWORD );
+void CALLBACK AudioCallback ( UINT , UINT , DWORD_PTR , DWORD_PTR , DWORD_PTR );
 
 #else
 
@@ -1195,7 +1195,7 @@ void VQA_StopTimerInt(VQAHandleP *vqap)
 *
 ****************************************************************************/
 
-void CALLBACK TimerCallback (UINT , UINT , DWORD , DWORD , DWORD)
+void CALLBACK TimerCallback (UINT , UINT , DWORD_PTR , DWORD_PTR , DWORD_PTR)
 {
 	VQATickCount++;
 }
@@ -1753,7 +1753,7 @@ void VQA_ResumeAudio(void)
 *
 ****************************************************************************/
 
-void CALLBACK AudioCallback ( UINT, UINT, DWORD, DWORD, DWORD )
+void CALLBACK AudioCallback ( UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR )
 
 {
 	VQAAudio  	*audio;

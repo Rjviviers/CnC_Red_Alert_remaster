@@ -3375,7 +3375,7 @@ void InfantryClass::Read_INI(CCINIClass & ini)
 					}
 
 					if (infantry->Unlimbo(coord, dir)) {
-						infantry->Strength = infantry->Class_Of().MaxStrength * fixed(strength, 256);
+						infantry->Strength = (int)infantry->Class_Of().MaxStrength * fixed(strength, 256);
 						if (infantry->Strength > infantry->Class->MaxStrength-3) infantry->Strength = infantry->Class->MaxStrength;
 //						infantry->Strength = Fixed_To_Cardinal(infantry->Class_Of().MaxStrength, strength);
 						if (Session.Type == GAME_NORMAL || infantry->House->IsHuman) {

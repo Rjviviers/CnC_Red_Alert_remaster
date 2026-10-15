@@ -534,7 +534,7 @@ void WinsockInterfaceClass::Broadcast (void *buffer, int buffer_len)
 void WinsockInterfaceClass::Clear_Socket_Error(SOCKET socket)
 {
 	unsigned long error_code;
-	int length = 4;
+	ra_socklen_t length = 4;
 
 	getsockopt (socket, SOL_SOCKET, SO_ERROR, (char*)&error_code, &length);
 	error_code = 0;
