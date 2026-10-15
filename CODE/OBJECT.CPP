@@ -1212,7 +1212,7 @@ bool ObjectClass::Render(bool forced) const
 	CELL cell = Coord_Cell(coord);
 
 	if (Debug_Map || Debug_Unshroud || ((forced || IsToDisplay) && IsDown && !IsInLimbo)) {
-		IsToDisplay = false;
+		const_cast<ObjectClass *>(this)->IsToDisplay = false;	// S06d: Watcom allowed writing a member in a const function.
 
 		if (Map.Coord_To_Pixel(coord, x, y)) {
 
@@ -1556,7 +1556,7 @@ RadioMessageType ObjectClass::Receive_Message(RadioClass *, RadioMessageType mes
  *   12/27/1994 JLB : Trigger event processing for attacked or destroyed.                      *
  *   01/01/1995 JLB : Reduces damage greatly depending on range.                               *
  *=============================================================================================*/
-ResultType ObjectClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType ObjectClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(this != 0);
 	assert(IsActive);

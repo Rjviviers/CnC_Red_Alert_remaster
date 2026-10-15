@@ -91,7 +91,7 @@ flowchart TB
 
     classDef ms fill:#f9a825,color:#000,stroke:#f57f17
     classDef done fill:#2e7d32,color:#fff,stroke:#1b5e20
-    class S01,S02,S03,S04 done
+    class S01,S02,S03,S04,S05,S06,S07,S08,S09 done
 ```
 
 Green sessions are done. Highlighted sessions end in a milestone: **S10 → M1**, **S11 → M2**, **S15 → M3**.

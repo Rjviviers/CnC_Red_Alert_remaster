@@ -183,3 +183,132 @@ real class. The `_WIN32` numbers were measured with MinGW-w64 (MSVC bit-field la
   from `<strings.h>`, giving odd errors such as "no post-increment operator for type" or
   "unresolved overloaded function type". Declare the variable before the loop.
 - **MinGW-only:** 14 files fail only with MinGW, because its `windows.h` does not define `min`/`max` in C++ (MSVC's does).
+
+## S06e notes
+
+From [the S06e log](../logs/2026-10-14-S06e-compile-group4.md) (`SLIDER`…`WSPUDP`).
+
+- **`bool` was `int` under Watcom (`WATCOM.H`: `typedef int bool`).** S06a's switch to the built-in `bool` changes more
+  than the size. Two traps:
+  - **Counters declared `bool`.** `ScenarioInit` is a *nesting counter*: `ScenarioInit++ … ScenarioInit--` brackets
+    nest (e.g. `SCENARIO.CPP` holds it across the whole load while `TACTION.CPP`, `UNIT.CPP`, `REINF.CPP` bump it
+    again). A real `bool` cannot be decremented, and making the `--` an `= false` would end the outer bracket early.
+    Fix: declare it `int` (`EXTERNS.H`; the definition in `GLOBALS.CPP` must follow). Code that saves it in a local
+    should use `int` too (`CRATE.CPP`, `SCENARIO.CPP` do; `CARRY.CPP:140` uses `bool oldscen` and squashes a count of 2
+    to 1).
+  - **Silent non-overrides.** A virtual declared with `bool` in the base and `int` in a derived class was one function
+    under Watcom and is now two: the derived one no longer overrides. `VESSEL.H` declared
+    `Take_Damage(..., int forced)` while `OBJECT.H`/`TECHNO.H` say `bool forced`, so `VesselClass::Take_Damage` was
+    never called through a base pointer. It compiled without a diagnostic. Fixed in `VESSEL.H`. A scan of every
+    `virtual` in `CODE/*.H` (parameter lists equal after `bool`→`int`) finds no other case. Out-of-line definitions
+    that still say `int forced` fail loudly ("no declaration matches"): change them to `bool`.
+- **`TBLACK` as a null `RemapControlType *`.** `Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, flags)` (the "set the
+  font" idiom) passes the enum constant `TBLACK` (0) as the colour-scheme pointer. An enumerator is not a null pointer
+  constant in C++11. Write `nullptr` for the pointer argument (`Fancy_Text_Print(TXT_NONE, 0, 0, nullptr, TBLACK,
+  flags)`); same value, same overload. Also in `EDIT.CPP`, `LIST.CPP`, `CONFDLG.CPP`, `LIST.H:280` (template).
+- **`virtual` on an out-of-line definition** (`virtual SliderClass::~SliderClass`): drop the keyword; the class
+  declaration already has it.
+- **A temporary passed to `FileClass &`** (`ini.Load(CCFileClass("IP.INI"), false)`): name the object first.
+  Same pattern in `INIT.CPP:251/258/2723`, `ENDING.CPP`, `INTRO.CPP`.
+- **`_export`** (Watcom/Borland 16-bit DLL export keyword) on `Windows_Procedure`: removed; Win32 ignored it and MSVC
+  rejects it.
+- **WinSock names on Linux.** `htonl`/`ntohl` came from `<windows.h>` → `<winsock.h>` on Windows; `UTRACKER.CPP` now
+  includes `<winsock.h>` itself. The stand-in `winsock.h` gained `LINGER`, the stand-in `windows.h` gained
+  `DialogBox` and `RegisterWindowMessage` (declared only, as usual). `WSPUDP.CPP` needs nothing else to compile:
+  `WSAAsyncSelect` is declared, never defined, so it is a link-time item for S12.
+## S06c notes
+Patterns found while fixing `EXPAND`…`MAP` ([log](../logs/2026-10-14-S06c-compile-group2.md)).
+- **`bool` counters:** with Watcom, `bool` was `typedef int`, so some "flags" are really nesting counters.
+  `ScenarioInit` is incremented/decremented in nested pairs (`BUILDING.CPP` does `++` inside an outer `++`), so S06c
+  changed it back to `int` (`EXTERNS.H`, `GLOBALS.CPP`) instead of rewriting `++`/`--` as `= true`/`= false`, which would
+  end the outer section early. Before fixing a `bool++`, check whether the variable is used as a counter.
+- **Out-of-line definition says `int`, header says `bool`:** `Take_Damage(..., int forced)` in `FOOT.CPP`/`INFANTRY.CPP`
+  (also `UNIT.CPP`) and `WWKeyboardClass::Down` with no return type (implicit `int`). Make the definition match the header.
+- **Temporaries passed to `T &`:** `Load(FileStraw(file))`, `RuleINI.Load(CCFileClass("RULES.INI"), false)`. Use a named
+  local just before the call; the object dies at the end of the block instead of the statement, which makes no difference
+  for these (the straw/pipe closes the file itself when it is done).
+- **Static member specialisations:** `template<> int bignum::Error = 0;` and
+  `template<> FixedIHeapClass * CCPtr<AircraftClass>::Heap = &Aircraft;` (Watcom accepted `template<class T>` or nothing).
+  A specialised static data member **without an initialiser is only a declaration**: write `template<> bignum bignum::Remainder{};`.
+- **Specialising a template for a private nested type:** C++14 checks access in a namespace-scope `template<>`
+  definition. `HouseClass::BuildChoiceClass` was moved to a `public:` section (no layout change).
+- **Pointer to enum:** `(HousesType)House` on a pointer is ill-formed; `(HousesType)(intptr_t)House` (save-game pointer
+  coding in `IOOBJ.CPP`).
+- **`switch` on `long` with a too-large `case` constant:** `case PARM_INSTALL:` (0xD95C68A2) is a narrowing error in a
+  converted constant expression. `case (long)PARM_INSTALL:` gives the value Watcom used.
+- **Enum `0` as a null pointer:** `Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, ...)` passed `TBLACK` (0) for the
+  `RemapControlType *` argument; use `NULL`. The same call is in `LIST.H:280` (a template, not instantiated) and `EDIT.CPP:92`.
+- **Member written in a `const` function:** `FootClass::Greatest_Threat() const` clears `IsScanLimited`; Watcom allowed it.
+  Fixed with `const_cast<FootClass *>(this)` (the objects live in non-const heaps).
+## S06f notes
+Support libraries (`WIN32LIB/`, `WINVQ/`), session S06f ([log](../logs/2026-10-14-S06f-compile-libraries.md)). After S06f
+every C++ file in `win32lib`, `vqa32wp` and `vqm32wp` compiles with GCC `-m32`, and the three static libraries build.
+Removed files and the evidence are in [removed-code.md §7](removed-code.md#7-dead-or-shadowed-support-library-files-s06f).
+| File | Fix | Behaviour |
+|------|-----|-----------|
+| `WIN32LIB/MISC/DELAY.CPP`, `WIN32LIB/PALETTE/PALETTE.CPP`, `WIN32LIB/WW_WIN/WINDOWS.CPP`, `WIN32LIB/WW_WIN/WINHIDE.CPP`; component headers `WIN32LIB/SHAPE/SHAPE.H` (two bytes), `WIN32LIB/WW_WIN/WW_WIN.H` | Trailing DOS end-of-file byte (Ctrl-Z, 0x1A) removed, as S06a did for the shared headers | None |
+| `WIN32LIB/PALETTE/PALETTE.CPP:59`, `WIN32LIB/PALETTE/PALETTE.H:80` (component copy) | `extern "C" extern unsigned char CurrentPalette[]` → `extern "C" unsigned char CurrentPalette[]` (same fix S06a made in `WIN32LIB/INCLUDE/PALETTE.H`) | None |
+| `WIN32LIB/DRAWBUFF/ICONCACH.CPP:226` | `Invalidate_Cached_Icons` reused the `i` of the previous `for (int i ...)` (old Watcom scoping); second loop now declares `int i` | None (the first loop's `i` is dead after it) |
+| `WINVQ/VQA32/TASK.CPP` | Needed `GetPriorityClass`; declared in the stand-in `CODE/compat/win32/windows.h` next to `SetPriorityClass` | None. Declaration only: `VQA_Play` raises the process priority while a movie plays. When movies are stubbed (ADR-0005) or the player is ported, drop the `Get/SetPriorityClass` pair |
+| `WIN32LIB/SHAPE/GETSHAPE.CPP` | Compiled once its component `SHAPE.H` lost the Ctrl-Z bytes | None |
+Patterns:
+- **Component-directory header copies win over `WIN32LIB/INCLUDE/`.** The case shim puts a file's own directory first, so
+  `GETSHAPE.CPP` reads `WIN32LIB/SHAPE/SHAPE.H`, not `WIN32LIB/INCLUDE/SHAPE.H`. A fix made in `INCLUDE/` must also be made
+  in the copy (or the copy deleted). Still left with Ctrl-Z: `WIN32LIB/AUDIO/SOSRES.H` (S09's directory; it compiles because
+  nothing in `AUDIO/` includes it any more).
+- **Library copies shadowed by the game** (`KEYBOARD.CPP` vs `CODE/KEY.CPP`, `MONO.CPP` vs `CODE/MONOC.CPP`,
+  `IFF/WRITEPCX.CPP` vs `CODE/WRITEPCX.CPP`) are removed rather than fixed: the game's copy is the one that links.
+- **Code switched off by a `#define ... 0`** (`VQACAPTIONS_ON`, `VQAVIDEO_ON`, `VQAVESA_ON`) is not compiled in the callers,
+  so the implementing file can leave the build. The static library only pulls an object when something references it.
+## S06d notes
+Files MISSION … SKIRMDLG ([log](../logs/2026-10-14-S06d-compile-group3.md)). Reusable patterns:
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `static member function ... declared with type qualifiers` | Out-of-class definition of a `static` member carries a stray `const` (MISSION, MIXFILE). Watcom ignored it. | Drop the `const` on the definition. |
+| `no matching function for call to Fancy_Text_Print(int, int, int, ColorType, ColorType, ...)` | `TBLACK` (enumerator 0) passed as the `RemapControlType *` argument; only a literal 0 is a null pointer constant. | `(RemapControlType *)NULL`. Also in `EDIT.CPP` and `LIST.H`. |
+| `cannot bind non-const lvalue reference ... to an rvalue` | `ini.Load(CCFileClass("X"))`, `Read_Line(FileStraw(file), ...)` | Named local object (`CCFileClass file("X"); ini.Load(file)`). `INIClass::Load` opens and closes the file itself, so the longer lifetime changes nothing. |
+| `use of an operand of type 'bool' in 'operator--'` on `ScenarioInit` | A nesting counter declared `bool` (Watcom: `int`). | Declared `int` in `EXTERNS.H` (S06d). **Do not** rewrite the `++`/`--` as `= true/false`: nested calls would switch it off early. `GLOBALS.CPP` must define it as `int`. |
+| `no declaration matches ... Take_Damage(..., int)` | Header says `bool forced`, definition `int forced` (identical on Watcom). | Change the definition to `bool` when the parameter is only tested for truth. |
+| `assignment of member ... in read-only object` | Watcom allowed writing members in `const` functions (`ObjectClass::Render`'s `IsToDisplay`). | `const_cast<Class *>(this)->Member = ...;` in the `.CPP` (no header change; `mutable` on a bit-field would also work). |
+| `'Sub_Saturate' was not declared` | In-class `friend` functions of `fixed` are found only by ADL; `Sub_Saturate(1, 1)` has no `fixed` argument. | `Sub_Saturate(fixed(1), 1)`: same overload Watcom chose (int → unsigned beats int → fixed). |
+| `ambiguating new declaration of 'bool BGMessageBox'` | Definition says `bool`, `FUNCTION.H` says `int`. | Use the header's `int`. Check whether the function (or a local) really holds more than 0/1 (`BGMessageBox`'s `retval` holds 2 = "more"): then a `bool` would change behaviour. |
+| (no error) `bool retval; ... retval = 2;` | Watcom `bool` was `int`; a real `bool` silently turns 2 into 1 (`WWMessageBox::Process`). | Make it `int`. Grep every `bool` for `++`, `--`, `+=` and assignments of values above 1. |
+| (warning only) derived virtual no longer overrides | `bool` in the base, `int` in the derived declaration (`VesselClass::Take_Damage`). | Check with `-fsyntax-only -Woverloaded-virtual=2`. |
+| `'X' does not name a type` on `static _x = -1;` | Implicit `int` (RADAR). | `static int`. |
+| `#pragma aux output` (MONOC) | Watcom inline asm for MDA/6845 port I/O. | Kept under `#ifdef __WATCOMC__`; elsewhere a documented no-op `static inline` function. |
+Win32 stand-in additions (`CODE/compat/win32/windows.h`): `BY_HANDLE_FILE_INFORMATION` (SDK layout, inside the
+`pack(push, 8)` block), `GetFileInformationByHandle` (declaration), `FILE_ATTRIBUTE_TEMPORARY` (0x100),
+`SEM_FAILCRITICALERRORS` (1).
+
+## S06b notes
+Patterns found while fixing `AIRCRAFT`…`EVENT` ([log](../logs/2026-10-14-S06b-compile-group1.md)). The `bool` counter
+(`ScenarioInit`), `Take_Damage(..., int forced)`, `TBLACK`-as-pointer, temporaries-to-`T &` and `const`-member-write
+patterns above came up here too and were fixed the same way.
+- **`#pragma aux` in `COORD.CPP` (`calcx`/`calcy`, simulation code):** the asm stays under `#ifdef __WATCOMC__`; other
+  compilers include `CODE/compat/coord_aux.h` (self-contained, like `watcom_aux.h`). Only `AX` of the asm result is
+  defined (the upper half of `EAX` is caller garbage; the `and eax,0FFFFh` is commented out), and every caller adds the
+  result to a `short`, so the C++ returns those 16 bits sign-extended. `tests/s06b_coord_test.cpp` runs the original
+  instructions as GCC inline asm, **with random garbage in the upper half of `EAX`**, and compares the low 16 bits (and
+  `short += result`) exhaustively for every table value against every 16-bit distance, plus 2 000 000 random 16-bit pairs.
+- **Trap: a `//` comment ending in `\`** (common after `#pragma aux` blocks, e.g. `//	"and eax,0FFFFh" \`) splices the
+  *next* line into the comment. When wrapping such a block in `#ifdef __WATCOMC__`, leave a blank line before `#else`.
+- **Byte tables with values ≥ 0x80** (`char`/`signed char` sine/cosine tables): Watcom's `/j` made `char` signed, so
+  `0xfd` stored −3. Write `(signed char)0xfd` (same value, hex kept for review) and declare a plain-`char` table as
+  `signed char` so the value no longer depends on `-fsigned-char`. Checked mechanically: old and new tables parse to the
+  same 1024 numbers.
+- **`long` tables with values ≥ 0x80000000** (`CONST.CPP` cheat-code CRCs): `(long)0xE0792D6D`, the same bit pattern
+  Watcom stored.
+- **A bare `class Tmpl<Args>;`** (`FUNCTION.H`: `class DynamicVectorClass<EgoClass *>;` and five more): Watcom read it
+  as naming the instantiation; standard C++ reads it as declaring an explicit specialisation that is never defined, so
+  any object of that type is an "incomplete type" (`EgoList` in `EGOS.CPP`). Now `#ifdef __WATCOMC__`.
+- **Out-of-line members of a class template using a dependent base's members** (`DYNAVEC.CPP`: `IsAllocated`,
+  `VectorMax` of `VectorClass<T>`): `this->IsAllocated`.
+- **Watcom runtime constants** used by DOS-only code: `CDFILE.CPP`'s `harderr_handler` returns `_HARDERR_FAIL` (Watcom
+  `<dos.h>`: 3). Defined locally under `#ifndef`; the handler is never installed outside DOS.
+- **Member function named without a call:** `sprintf(txt, ..., house->Name)` (`EVENT.CPP`) passed the address of
+  `HouseClass::Name` to `%s` (printed garbage under Watcom). Now `house->Name()`. Message text only.
+- **For-loop hoisting, mechanically:** for each "was not declared" / "overloaded function" (`index`) error, find the
+  nearest preceding `for (TYPE NAME =` whose enclosing `{}` block contains the use (Watcom scope), and turn it into
+  `TYPE NAME;` + `for (NAME = ...`. Skip (and fix by hand) a `for` that is the body of an unbraced `if`/`else`, because
+  a declaration inserted there would change what the `if` controls. Pass `-fdiagnostics-column-unit=byte` when reading
+  GCC columns from a script: by default GCC counts a tab as up to 8 columns.

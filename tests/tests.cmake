@@ -107,3 +107,8 @@ ra_add_test(NAME s09_sound_api_test
                     WIN32LIB/AUDIO/SOSCODEC.CPP WIN32LIB/AUDIO/OLSOSDEC.CPP WIN32LIB/AUDIO/AUDUNCMP.CPP
                     WIN32LIB/AUDIO/audio_mixer.cpp WIN32LIB/AUDIO/audio_null.cpp
             INCLUDES WIN32LIB/AUDIO WIN32LIB/INCLUDE)
+# --- S06b ---
+# calcx/calcy from CODE/COORD.CPP (simulation code): C++ against the original instructions.
+ra_add_test(NAME s06b_coord_test
+            SOURCES tests/s06b_coord_test.cpp
+            INCLUDES CODE/compat)

@@ -1,6 +1,6 @@
 # S06 — Compiler compatibility: game code compiles
 
-**Status:** In progress · **Wave:** 3 · **Depends on:** S05 · **Parallel with:** S07, S08, S09
+**Status:** Done · **Wave:** 3 · **Depends on:** S05 · **Parallel with:** S07, S08, S09
 **Owns:** `CODE/*.CPP`/`*.H` (split by file group between agents; see below)
 
 ## Goal

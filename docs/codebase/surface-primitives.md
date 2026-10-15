@@ -82,6 +82,14 @@ nothing (the asm looped about 4 billion times), and `Linear_Scale_To_Linear` ret
 would have raised a divide fault. Overlap direction is decided with an unsigned address compare (the asm's was
 signed; it only differs for a buffer that straddles address `0x80000000`).
 
+### Icon-set cache is keyed by address (found 2026-10-15)
+`Init_Stamps` remembers the last icon set by its **pointer** (`LastIconset`) and skips re-reading the header if the
+pointer is unchanged, exactly like `STAMP.ASM`. If an icon set is freed and a *different* set is later loaded at the
+same address, it is drawn with the old width, height, count and map. The unit tests hit this on MSVC, whose heap reused
+a freed test buffer's address; the test helper now clears `LastIconset` for every new set.
+**For S10/S11:** check whether the game frees and reloads icon (template) data, e.g. on a theater change. If it does,
+reset `LastIconset` there (or call a reset helper) so a reload at the same address can't draw stale icons.
+
 ## For S08 (platform layer)
 
 - The video-memory icon cache is gone ([ADR-0016](../decisions/0016-drop-video-memory-icon-cache.md)).

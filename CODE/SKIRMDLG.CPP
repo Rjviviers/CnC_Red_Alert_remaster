@@ -475,7 +475,8 @@ int Com_Scenario_Dialog(bool skirmish)
 	Init scenario description list box
 	........................................................................*/
 	for (i = 0; i < Session.Scenarios.Count(); i++) {
-		for (int j = 0; EngMisStr[j] != NULL;  j++) {
+		int j;
+		for (j = 0; EngMisStr[j] != NULL;  j++) {
 			if (!strcmp(Session.Scenarios[i]->Description(), EngMisStr[j])) {
 #ifdef FIXIT_CSII	//	ajw Added Aftermath installed checks (before, it was assumed).
 			//	Add mission if it's available to us.
@@ -610,7 +611,7 @@ int Com_Scenario_Dialog(bool skirmish)
 
 				// init font variables
 
-				Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_CENTER | TPF_TEXT);
+				Fancy_Text_Print(TXT_NONE, 0, 0, (RemapControlType *)NULL, TBLACK, TPF_CENTER | TPF_TEXT);
 
 				/*...............................................................
 				Dialog & Field labels

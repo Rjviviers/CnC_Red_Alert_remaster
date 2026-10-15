@@ -47,6 +47,7 @@
 
 
 #include "function.h"
+#include <winsock.h>	// htonl/ntohl (on Windows already reached through <windows.h>)
 
 /*
 ** Define host to network to host functions for DOS
