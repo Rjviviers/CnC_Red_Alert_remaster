@@ -143,3 +143,12 @@ For S10c (boot):
   `SDL_VIDEO_DRIVER=offscreen SDL_AUDIO_DRIVER=dummy` prints "Red Alert: Run SETUP program first." and exits 0.
 - The Windows link (`/ENTRY:mainCRTStartup`, the Windows branch of `ra_file.cpp`) is first checked by CI on this push.
 - Behaviour changes accepted: closing the window exits the game; `GameInFocus` starts true.
+
+## CI fix after merge: `s10b_file_test` on MSVC (orchestrator, 2026-10-15)
+- **Symptom:** CI run 32 (Windows/MSVC) failed `s10b_file_test`, case `resolve_missing`: `RA_Resolve_Path(..., must_exist=true)`
+  returned true for a file that doesn't exist. Linux passed.
+- **Root cause:** the `_WIN32` branch of `RA_Resolve_Path` passed every name through and ignored `must_exist`. The POSIX branch
+  checks existence. A real bug, not a test problem: callers such as `RA_File_Open` (read) rely on it.
+- **Fix:** with `must_exist`, the Windows branch now `stat`s the name and returns false if it's missing. The header comment says so too.
+- **Checked here:** Linux test passes; the Windows branch compiles and links with MinGW (i686), and the new binary contains the extra
+  `stat` call. No Wine is available to run it, so CI on this push is the run-time check.

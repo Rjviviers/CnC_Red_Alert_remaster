@@ -19,7 +19,7 @@
 **	    case-insensitively against the directory's entries (first match in name order,
 **	    so the result does not depend on readdir order).
 **	On Windows names are passed through unchanged (the OS is already case-insensitive
-**	and accepts both separators).
+**	and accepts both separators); with must_exist, a missing name still returns false.
 **
 **	Handles are ints, -1 when closed (the value RawFileClass used in the DOS build).
 */

@@ -98,7 +98,14 @@ bool RA_Resolve_Path(char const * name, char * out, size_t out_size, bool must_e
 	if (len >= out_size) return false;
 
 #if defined(_WIN32)
-	(void)must_exist;
+	/*
+	**	Windows is already case-insensitive and accepts both separators: pass the name
+	**	through, but honour must_exist like the POSIX branch does.
+	*/
+	if (must_exist) {
+		struct stat st;
+		if (stat(name, &st) != 0) return false;
+	}
 	memcpy(out, name, len + 1);
 	return true;
 #else
