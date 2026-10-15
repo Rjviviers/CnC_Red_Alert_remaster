@@ -1,6 +1,6 @@
 # ADR-0021: Explicit template instantiation in the defining `.CPP`, defined stand-ins for Watcom "instantiation declarations"
 
-- **Status:** Proposed
+- **Status:** Accepted (approved by project owner 2026-10-15)
 - **Date:** 2026-10-15
 - **Session:** S10a
 
