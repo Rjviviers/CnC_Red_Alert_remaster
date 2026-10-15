@@ -60,7 +60,7 @@ jobs:
         run: cmake --build build --target redalert
 
       - name: Compile progress
-        run: python3 scripts/compile_progress.py --build-dir build --no-configure
+        run: python3 scripts/compile_progress.py --build-dir build --no-configure --list-failures
 
       # Unlike the compile-progress report, failing unit tests fail the job.
       - name: Unit tests
@@ -113,12 +113,14 @@ jobs:
       - name: Build platform layer
         run: cmake --build build --target raplatform platform_demo
 
+      # Runs before the game build so that, if MSVC rejects a file, the log ends with the full list of failing files
+      # and their first errors (--list-failures) instead of only ninja's first failure.
+      - name: Compile progress
+        run: python scripts/compile_progress.py --build-dir build --no-configure --list-failures
+
       # S10c: the first real Windows link of the game; a link error fails the job.
       - name: Build the game (ra95.exe)
         run: cmake --build build --target redalert
-
-      - name: Compile progress
-        run: python scripts/compile_progress.py --build-dir build --no-configure
 
       # Unlike the compile-progress report, failing unit tests fail the job.
       - name: Unit tests

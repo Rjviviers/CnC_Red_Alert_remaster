@@ -268,6 +268,8 @@ def main():
                     help="extra argument for the configure step (repeatable), e.g. --cmake-arg=-DRA_TARGET_ARCH=native")
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 2)
     ap.add_argument("--filter", default=None, help="only compile files whose path contains this text")
+    ap.add_argument("--list-failures", action="store_true",
+                    help="after the summary, print every failing file with its first error (handy in CI logs)")
     ap.add_argument("--summary", default=os.environ.get("GITHUB_STEP_SUMMARY"),
                     help="append a short Markdown summary to this file (default: $GITHUB_STEP_SUMMARY)")
     args = ap.parse_args()
@@ -336,6 +338,12 @@ def main():
         with open(args.summary, "a", encoding="utf-8") as f:
             f.write(summary_md + "\n")
 
+    if args.list_failures:
+        failed = sorted((r for r in results if not r["ok"]), key=lambda r: r["file"])
+        if failed:
+            print("\nFailing translation units (%d), first error each:" % len(failed))
+            for r in failed:
+                print("  %s: %s" % (r["file"], r.get("first_error", "?")))
     print("\n%d of %d translation units compile (%s). Report: %s" % (ok, n, pct(ok, n), md_path))
     return 0
 

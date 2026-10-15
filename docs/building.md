@@ -209,6 +209,9 @@ one-line forwarding header in `build/case_shim/_system/`. Details and trade-offs
 The shim is regenerated on every configure. If you add or change an `#include`, re-run CMake
 (the progress tool does this automatically unless `--no-configure` is given).
 
+`--list-failures` prints every failing file with its first error after the summary. CI uses it, and on Windows it runs the
+report *before* the game build, so a red Windows job's log ends with the complete list of MSVC errors.
+
 ## Unit tests
 
 Unit tests live in `tests/`. Each test is a small executable that uses the dependency-free framework in
